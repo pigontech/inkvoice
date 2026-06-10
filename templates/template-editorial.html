@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-weight: 400;
+      color: #2c2a26;
+      background: #faf8f4;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    /* === DECORATIVE TOP BORDER === */
+    .border-top {
+      height: 6px;
+      background: linear-gradient(90deg, #2c2a26 0%, #2c2a26 60%, #c8a45e 60%, #c8a45e 100%);
+    }
+
+    .page {
+      padding: 48px 56px 40px;
+    }
+
+    /* === HEADER === */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 44px;
+    }
+    .header-left {}
+    .invoice-word {
+      font-family: 'Instrument Serif', serif;
+      font-size: 52px;
+      font-weight: 400;
+      font-style: italic;
+      color: #2c2a26;
+      line-height: 1;
+      letter-spacing: -0.03em;
+      margin-bottom: 6px;
+    }
+    .invoice-number-line {
+      font-size: 14px;
+      font-weight: 300;
+      color: #8a8578;
+      letter-spacing: 0.02em;
+    }
+    .invoice-number-line strong {
+      font-weight: 500;
+      color: #2c2a26;
+    }
+    .header-right {
+      text-align: right;
+    }
+    .company-logo {
+      max-height: 48px;
+      margin-bottom: 10px;
+      display: block;
+      margin-left: auto;
+    }
+    .company-name {
+      font-family: 'Instrument Serif', serif;
+      font-size: 18px;
+      color: #2c2a26;
+      margin-bottom: 4px;
+    }
+    .company-detail {
+      font-size: 12px;
+      color: #8a8578;
+      line-height: 1.7;
+      font-weight: 300;
+    }
+
+    /* === DIVIDER === */
+    .divider {
+      height: 1px;
+      background: #ddd5c8;
+      margin-bottom: 32px;
+    }
+    .divider.thick {
+      height: 2px;
+      background: #2c2a26;
+    }
+
+    /* === DATE RIBBON === */
+    .date-ribbon {
+      display: flex;
+      gap: 48px;
+      margin-bottom: 36px;
+    }
+    .date-group {}
+    .date-group-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: #b0a898;
+      font-weight: 500;
+      margin-bottom: 3px;
+    }
+    .date-group-value {
+      font-family: 'Instrument Serif', serif;
+      font-size: 17px;
+      color: #2c2a26;
+    }
+
+    /* === PARTIES === */
+    .parties {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+      margin-bottom: 40px;
+    }
+    .party {}
+    .party-heading {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: #c8a45e;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .party-name {
+      font-family: 'Instrument Serif', serif;
+      font-size: 18px;
+      color: #2c2a26;
+      margin-bottom: 6px;
+    }
+    .party-info {
+      font-size: 12.5px;
+      color: #6b6560;
+      line-height: 1.7;
+      font-weight: 300;
+    }
+    .party-info .tax-id {
+      margin-top: 4px;
+      font-weight: 400;
+      font-size: 11px;
+      color: #b0a898;
+    }
+
+    /* === TABLE === */
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 32px;
+    }
+    .items-table thead th {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      font-weight: 600;
+      color: #b0a898;
+      text-align: left;
+      padding: 0 0 12px 0;
+      border-bottom: 2px solid #2c2a26;
+    }
+    .items-table thead th.r {
+      text-align: right;
+    }
+    .items-table tbody td {
+      padding: 16px 0;
+      font-size: 13px;
+      border-bottom: 1px solid #e8e2d8;
+      vertical-align: top;
+    }
+    .items-table tbody td.r {
+      text-align: right;
+      color: #6b6560;
+      font-weight: 300;
+      font-variant-numeric: tabular-nums;
+    }
+    .items-table tbody td.item-desc {
+      font-weight: 500;
+      color: #2c2a26;
+      padding-right: 20px;
+    }
+    .items-table tbody tr:last-child td {
+      border-bottom: 2px solid #2c2a26;
+    }
+
+    /* === TOTALS === */
+    .totals-area {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 44px;
+    }
+    .totals-box {
+      width: 300px;
+    }
+    .totals-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 8px 0;
+      font-size: 13px;
+    }
+    .totals-row .t-label {
+      font-weight: 300;
+      color: #8a8578;
+      font-size: 12px;
+    }
+    .totals-row .t-value {
+      color: #2c2a26;
+      font-variant-numeric: tabular-nums;
+    }
+    .totals-row.discount .t-value {
+      color: #c8a45e;
+    }
+    .totals-grand {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-top: 12px;
+      padding-top: 16px;
+      border-top: 2px solid #2c2a26;
+    }
+    .totals-grand .t-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 600;
+      color: #2c2a26;
+    }
+    .totals-grand .t-value {
+      font-family: 'Instrument Serif', serif;
+      font-size: 28px;
+      color: #2c2a26;
+      letter-spacing: -0.02em;
+    }
+
+    /* === FOOTER NOTES === */
+    .footer-notes {
+      border-top: 1px solid #e8e2d8;
+      padding-top: 24px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 48px;
+    }
+    .fn-block {}
+    .fn-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      color: #c8a45e;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .fn-text {
+      font-size: 12.5px;
+      color: #8a8578;
+      line-height: 1.7;
+      font-weight: 300;
+    }
+
+    /* === BOTTOM STRIPE === */
+    .border-bottom {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #c8a45e 0%, #c8a45e 40%, #2c2a26 40%, #2c2a26 100%);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP DECORATIVE BORDER -->
+  <div class="border-top"></div>
+
+  <div class="page">
+
+    <!-- HEADER -->
+    <div class="header">
+      <div class="header-left">
+        <div class="invoice-word">Invoice</div>
+        <div class="invoice-number-line">
+          No. <strong>{{invoice_number}}</strong>
+        </div>
+      </div>
+      <div class="header-right">
+        {{#company.logo}}<img class="company-logo" src="{{company.logo}}" alt="">{{/company.logo}}
+        <div class="company-name">{{company.name}}</div>
+        <div class="company-detail">
+          {{#company.email}}<div>{{company.email}}</div>{{/company.email}}
+          {{#company.phone}}<div>{{company.phone}}</div>{{/company.phone}}
+          {{#company.address}}<div>{{{company.address}}}</div>{{/company.address}}
+          {{#company.tax_id}}<div>Tax ID: {{company.tax_id}}</div>{{/company.tax_id}}
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- DATE RIBBON -->
+    <div class="date-ribbon">
+      <div class="date-group">
+        <div class="date-group-label">Issued</div>
+        <div class="date-group-value">{{issue_date}}</div>
+      </div>
+      {{#due_date}}
+      <div class="date-group">
+        <div class="date-group-label">Due</div>
+        <div class="date-group-value">{{due_date}}</div>
+      </div>
+      {{/due_date}}
+    </div>
+
+    <!-- PARTIES -->
+    <div class="parties">
+      <div class="party">
+        <div class="party-heading">From</div>
+        <div class="party-name">{{company.name}}</div>
+        <div class="party-info">
+          {{#company.email}}<div>{{company.email}}</div>{{/company.email}}
+          {{#company.phone}}<div>{{company.phone}}</div>{{/company.phone}}
+          {{#company.address}}<div>{{{company.address}}}</div>{{/company.address}}
+          {{#company.tax_id}}<div class="tax-id">Tax ID: {{company.tax_id}}</div>{{/company.tax_id}}
+        </div>
+      </div>
+      <div class="party">
+        <div class="party-heading">Bill To</div>
+        <div class="party-name">{{customer.name}}</div>
+        <div class="party-info">
+          {{#customer.email}}<div>{{customer.email}}</div>{{/customer.email}}
+          {{#customer.address_line1}}<div>{{customer.address_line1}}</div>{{/customer.address_line1}}
+          {{#customer.address_line2}}<div>{{customer.address_line2}}</div>{{/customer.address_line2}}
+          {{#customer.city}}<div>{{customer.city}}{{#customer.state}}, {{customer.state}}{{/customer.state}} {{customer.postal_code}}</div>{{/customer.city}}
+          {{#customer.country}}<div>{{customer.country}}</div>{{/customer.country}}
+          {{#customer.tax_id}}<div class="tax-id">Tax ID: {{customer.tax_id}}</div>{{/customer.tax_id}}
+        </div>
+      </div>
+    </div>
+
+    <!-- LINE ITEMS -->
+    <table class="items-table">
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th class="r">Qty</th>
+          <th class="r">Unit Price</th>
+          <th class="r">Tax</th>
+          <th class="r">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#items}}
+        <tr>
+          <td class="item-desc">{{description}}</td>
+          <td class="r">{{quantity}} {{unit}}</td>
+          <td class="r">{{formatted_unit_price}}</td>
+          <td class="r">{{tax_rate}}%</td>
+          <td class="r">{{formatted_line_total}}</td>
+        </tr>
+        {{/items}}
+      </tbody>
+    </table>
+
+    <!-- TOTALS -->
+    <div class="totals-area">
+      <div class="totals-box">
+        <div class="totals-row">
+          <span class="t-label">Subtotal</span>
+          <span class="t-value">{{formatted_subtotal}}</span>
+        </div>
+        {{#has_discount}}
+        <div class="totals-row discount">
+          <span class="t-label">Discount</span>
+          <span class="t-value">&minus;{{formatted_discount}}</span>
+        </div>
+        {{/has_discount}}
+        {{#tax_summary}}
+        <div class="totals-row">
+          <span class="t-label">{{name}} ({{rate}}%)</span>
+          <span class="t-value">{{formatted_amount}}</span>
+        </div>
+        {{/tax_summary}}
+        <div class="totals-grand">
+          <span class="t-label">Total Due</span>
+          <span class="t-value">{{formatted_total}}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    {{#payment_terms}}
+    <div class="footer-notes">
+      <div class="fn-block">
+        <div class="fn-title">Payment Terms</div>
+        <div class="fn-text">{{payment_terms}}</div>
+      </div>
+      {{#notes}}
+      <div class="fn-block">
+        <div class="fn-title">Notes</div>
+        <div class="fn-text">{{notes}}</div>
+      </div>
+      {{/notes}}
+    </div>
+    {{/payment_terms}}
+
+    {{^payment_terms}}
+    {{#notes}}
+    <div class="footer-notes">
+      <div class="fn-block">
+        <div class="fn-title">Notes</div>
+        <div class="fn-text">{{notes}}</div>
+      </div>
+    </div>
+    {{/notes}}
+    {{/payment_terms}}
+
+  </div>
+
+  <!-- BOTTOM DECORATIVE BORDER -->
+  <div class="border-bottom"></div>
+
+</body>
+</html>

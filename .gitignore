@@ -1,0 +1,18 @@
+node_modules/
+dist/
+.env
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+data/
+.DS_Store
+*.log
+.vite/
+*.tsbuildinfo
+.claude/worktrees/
+*.code-workspace
+
+# Internal / local-only notes — never publish to the OSS repo
+internal/
+.cursor/

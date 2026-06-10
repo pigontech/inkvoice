@@ -1,0 +1,29 @@
+{
+  "name": "inkvoice",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/backend",
+    "packages/frontend"
+  ],
+  "scripts": {
+    "dev": "bun run --filter '*' dev --port 5180",
+    "dev:backend": "bun run --filter backend dev",
+    "dev:frontend": "bun run --filter frontend dev",
+    "build": "bun run --filter frontend build",
+    "build:watch": "bun run --filter frontend build:watch",
+    "dev:served": "bun run --filter backend dev & bun run --filter frontend build:watch",
+    "test": "bun run --filter backend test",
+    "start": "bun run --filter backend start",
+    "typecheck": "tsc --noEmit -p packages/backend/tsconfig.json && tsc --noEmit -p packages/frontend/tsconfig.json",
+    "lint": "biome check .",
+    "lint:fix": "biome check --fix .",
+    "check": "bun run lint && bun run typecheck && bun test",
+    "db:reset": "bun run scripts/db-reset.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.0.0",
+    "typescript": "^5.7.0"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;1,9..40,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      font-weight: 300;
+      color: #1a1a1a;
+      background: #fff;
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 48px 56px;
+    }
+
+    /* === TOP BAR === */
+    .top-bar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 48px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .brand img {
+      max-height: 44px;
+      display: block;
+    }
+    .brand-name {
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -0.02em;
+    }
+    .invoice-badge {
+      background: #e63222;
+      color: #fff;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 6px 16px;
+      display: inline-block;
+    }
+
+    /* === INVOICE NUMBER HERO === */
+    .hero {
+      border-top: 3px solid #1a1a1a;
+      padding-top: 24px;
+      margin-bottom: 40px;
+    }
+    .hero-number {
+      font-family: 'DM Mono', monospace;
+      font-size: 40px;
+      font-weight: 500;
+      letter-spacing: -0.03em;
+      color: #1a1a1a;
+      line-height: 1.1;
+      margin-bottom: 4px;
+    }
+    .hero-dates {
+      display: flex;
+      gap: 32px;
+      margin-top: 12px;
+    }
+    .hero-dates .date-item {
+      display: flex;
+      flex-direction: column;
+    }
+    .date-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #999;
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+    .date-value {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      font-weight: 400;
+      color: #1a1a1a;
+    }
+
+    /* === PARTIES === */
+    .parties {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      margin-bottom: 44px;
+    }
+    .party-block {}
+    .party-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #999;
+      font-weight: 500;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e5e5e5;
+    }
+    .party-name {
+      font-weight: 700;
+      font-size: 15px;
+      letter-spacing: -0.01em;
+      margin-bottom: 6px;
+    }
+    .party-detail {
+      color: #666;
+      font-size: 12.5px;
+      line-height: 1.6;
+    }
+    .party-detail .tax-id {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      color: #999;
+      margin-top: 4px;
+    }
+
+    /* === TABLE === */
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 32px;
+    }
+    .items-table thead th {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 500;
+      color: #999;
+      text-align: left;
+      padding: 0 0 10px 0;
+      border-bottom: 2px solid #1a1a1a;
+    }
+    .items-table thead th.num {
+      text-align: right;
+    }
+    .items-table tbody td {
+      padding: 14px 0;
+      font-size: 13px;
+      border-bottom: 1px solid #f0f0f0;
+      vertical-align: top;
+    }
+    .items-table tbody td.num {
+      text-align: right;
+      font-family: 'DM Mono', monospace;
+      font-size: 12.5px;
+      font-weight: 400;
+      color: #444;
+    }
+    .items-table tbody td.desc {
+      font-weight: 500;
+      color: #1a1a1a;
+      padding-right: 24px;
+    }
+    .items-table tbody tr:last-child td {
+      border-bottom: 2px solid #1a1a1a;
+    }
+
+    /* === TOTALS === */
+    .totals-wrapper {
+      display: flex;
+      justify-content: flex-end;
+    }
+    .totals {
+      width: 280px;
+    }
+    .totals .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 7px 0;
+      font-size: 13px;
+    }
+    .totals .row .label {
+      color: #999;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 500;
+    }
+    .totals .row .value {
+      font-family: 'DM Mono', monospace;
+      font-size: 13px;
+      color: #444;
+    }
+    .totals .row.discount .value {
+      color: #e63222;
+    }
+    .totals .grand-total {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-top: 10px;
+      padding-top: 14px;
+      border-top: 3px solid #1a1a1a;
+    }
+    .totals .grand-total .label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-weight: 700;
+      color: #1a1a1a;
+    }
+    .totals .grand-total .value {
+      font-family: 'DM Mono', monospace;
+      font-size: 22px;
+      font-weight: 500;
+      color: #1a1a1a;
+      letter-spacing: -0.02em;
+    }
+
+    /* === FOOTER === */
+    .footer {
+      margin-top: 48px;
+      padding-top: 20px;
+      border-top: 1px solid #f0f0f0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+    }
+    .footer-section {}
+    .footer-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: #999;
+      font-weight: 500;
+      margin-bottom: 6px;
+    }
+    .footer-text {
+      font-size: 12.5px;
+      color: #666;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div class="brand">
+      {{#company.logo}}<img src="{{company.logo}}" alt="">{{/company.logo}}
+      <div class="brand-name">{{company.name}}</div>
+    </div>
+    <div class="invoice-badge">Invoice</div>
+  </div>
+
+  <!-- HERO: INVOICE NUMBER -->
+  <div class="hero">
+    <div class="hero-number">{{invoice_number}}</div>
+    <div class="hero-dates">
+      <div class="date-item">
+        <span class="date-label">Issued</span>
+        <span class="date-value">{{issue_date}}</span>
+      </div>
+      {{#due_date}}
+      <div class="date-item">
+        <span class="date-label">Due</span>
+        <span class="date-value">{{due_date}}</span>
+      </div>
+      {{/due_date}}
+    </div>
+  </div>
+
+  <!-- PARTIES -->
+  <div class="parties">
+    <div class="party-block">
+      <div class="party-label">From</div>
+      <div class="party-name">{{company.name}}</div>
+      <div class="party-detail">
+        {{#company.email}}<div>{{company.email}}</div>{{/company.email}}
+        {{#company.phone}}<div>{{company.phone}}</div>{{/company.phone}}
+        {{#company.address}}<div>{{{company.address}}}</div>{{/company.address}}
+        {{#company.tax_id}}<div class="tax-id">Tax ID: {{company.tax_id}}</div>{{/company.tax_id}}
+      </div>
+    </div>
+    <div class="party-block">
+      <div class="party-label">Bill To</div>
+      <div class="party-name">{{customer.name}}</div>
+      <div class="party-detail">
+        {{#customer.email}}<div>{{customer.email}}</div>{{/customer.email}}
+        {{#customer.address_line1}}<div>{{customer.address_line1}}</div>{{/customer.address_line1}}
+        {{#customer.address_line2}}<div>{{customer.address_line2}}</div>{{/customer.address_line2}}
+        {{#customer.city}}<div>{{customer.city}}{{#customer.state}}, {{customer.state}}{{/customer.state}} {{customer.postal_code}}</div>{{/customer.city}}
+        {{#customer.country}}<div>{{customer.country}}</div>{{/customer.country}}
+        {{#customer.tax_id}}<div class="tax-id">Tax ID: {{customer.tax_id}}</div>{{/customer.tax_id}}
+      </div>
+    </div>
+  </div>
+
+  <!-- LINE ITEMS -->
+  <table class="items-table">
+    <thead>
+      <tr>
+        <th>Description</th>
+        <th class="num">Qty</th>
+        <th class="num">Unit Price</th>
+        <th class="num">Tax</th>
+        <th class="num">Amount</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#items}}
+      <tr>
+        <td class="desc">{{description}}</td>
+        <td class="num">{{quantity}} {{unit}}</td>
+        <td class="num">{{formatted_unit_price}}</td>
+        <td class="num">{{tax_rate}}%</td>
+        <td class="num">{{formatted_line_total}}</td>
+      </tr>
+      {{/items}}
+    </tbody>
+  </table>
+
+  <!-- TOTALS -->
+  <div class="totals-wrapper">
+    <div class="totals">
+      <div class="row">
+        <span class="label">Subtotal</span>
+        <span class="value">{{formatted_subtotal}}</span>
+      </div>
+      {{#has_discount}}
+      <div class="row discount">
+        <span class="label">Discount</span>
+        <span class="value">&minus;{{formatted_discount}}</span>
+      </div>
+      {{/has_discount}}
+      {{#tax_summary}}
+      <div class="row">
+        <span class="label">{{name}} ({{rate}}%)</span>
+        <span class="value">{{formatted_amount}}</span>
+      </div>
+      {{/tax_summary}}
+      <div class="grand-total">
+        <span class="label">Total</span>
+        <span class="value">{{formatted_total}}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  {{#payment_terms}}
+  <div class="footer">
+    <div class="footer-section">
+      <div class="footer-title">Payment Terms</div>
+      <div class="footer-text">{{payment_terms}}</div>
+    </div>
+    {{#notes}}
+    <div class="footer-section">
+      <div class="footer-title">Notes</div>
+      <div class="footer-text">{{notes}}</div>
+    </div>
+    {{/notes}}
+  </div>
+  {{/payment_terms}}
+
+  {{^payment_terms}}
+  {{#notes}}
+  <div class="footer">
+    <div class="footer-section">
+      <div class="footer-title">Notes</div>
+      <div class="footer-text">{{notes}}</div>
+    </div>
+  </div>
+  {{/notes}}
+  {{/payment_terms}}
+
+</body>
+</html>

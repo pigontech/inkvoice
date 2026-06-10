@@ -1,0 +1,26 @@
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - invoice-data:/app/data
+    environment:
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_PASS: ${ADMIN_PASS:-changeme}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-key-change-in-production-min-32-chars}
+      DATABASE_PATH: /app/data/invoice.db
+      PORT: "3000"
+      HOST: 0.0.0.0
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      DEMO_MODE: ${DEMO_MODE:-false}
+      DEMO_RESET_INTERVAL: ${DEMO_RESET_INTERVAL:-86400000}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+volumes:
+  invoice-data:

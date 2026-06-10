@@ -1,0 +1,6 @@
+services:
+  docs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped

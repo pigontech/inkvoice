@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      @page {
+        size: A4;
+        margin: 18mm 16mm;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        font-size: 10pt;
+        color: #1f1f1f;
+        line-height: 1.55;
+        background: #fff;
+      }
+
+      .page {
+        max-width: 178mm;
+        margin: 0 auto;
+        padding-top: 6mm;
+      }
+
+      .top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12mm;
+        padding-bottom: 8mm;
+        border-bottom: 1px solid #e6e6e6;
+      }
+
+      .brand {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5mm;
+      }
+
+      .brand img {
+        max-height: 36px;
+        max-width: 130px;
+      }
+
+      .brand-name {
+        font-size: 11pt;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        color: #111;
+      }
+
+      .doc-title {
+        text-align: right;
+      }
+
+      .doc-title .label {
+        font-size: 9pt;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        color: #888;
+        margin-bottom: 2mm;
+      }
+
+      .doc-title .number {
+        font-size: 16pt;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        color: #111;
+      }
+
+      .meta {
+        display: flex;
+        gap: 12mm;
+        margin-top: 8mm;
+      }
+
+      .meta .col {
+        flex: 1;
+      }
+
+      .meta .label {
+        font-size: 8pt;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: #888;
+        margin-bottom: 1.5mm;
+      }
+
+      .meta .value {
+        font-size: 10pt;
+        color: #1f1f1f;
+        line-height: 1.5;
+      }
+
+      .meta .value strong {
+        font-weight: 600;
+      }
+
+      .meta .value p {
+        margin: 0;
+      }
+
+      .items {
+        margin-top: 12mm;
+      }
+
+      .items table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 9.5pt;
+      }
+
+      .items thead th {
+        text-align: left;
+        font-size: 8pt;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: #888;
+        font-weight: 500;
+        padding: 0 0 3mm 0;
+        border-bottom: 1px solid #e6e6e6;
+      }
+
+      .items thead th.num {
+        text-align: right;
+      }
+
+      .items tbody td {
+        padding: 3mm 0;
+        border-bottom: 1px solid #f1f1f1;
+        vertical-align: top;
+      }
+
+      .items tbody td.num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .items tbody td.description {
+        width: 56%;
+        color: #1f1f1f;
+      }
+
+      .items tbody td .meta-line {
+        font-size: 8.5pt;
+        color: #888;
+        margin-top: 0.5mm;
+      }
+
+      .totals-wrap {
+        display: flex;
+        justify-content: flex-end;
+        margin-top: 8mm;
+      }
+
+      .totals {
+        width: 70mm;
+        font-size: 10pt;
+      }
+
+      .totals .row {
+        display: flex;
+        justify-content: space-between;
+        padding: 1.5mm 0;
+        color: #444;
+      }
+
+      .totals .row.discount {
+        color: #888;
+      }
+
+      .totals .row.total {
+        margin-top: 1.5mm;
+        padding-top: 3mm;
+        border-top: 1px solid #1f1f1f;
+        font-weight: 600;
+        font-size: 12pt;
+        color: #111;
+      }
+
+      .totals .row .v {
+        font-variant-numeric: tabular-nums;
+      }
+
+      .footer {
+        margin-top: 16mm;
+        padding-top: 6mm;
+        border-top: 1px solid #e6e6e6;
+        display: flex;
+        justify-content: space-between;
+        gap: 12mm;
+        font-size: 9pt;
+        color: #555;
+      }
+
+      .footer .col {
+        flex: 1;
+      }
+
+      .footer .col .label {
+        font-size: 8pt;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: #888;
+        margin-bottom: 1.5mm;
+      }
+
+      .footer .notes p,
+      .footer .bank p {
+        margin: 0;
+      }
+
+      .currency-note {
+        font-size: 8.5pt;
+        color: #888;
+        margin-top: 6mm;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="top">
+        <div class="brand">
+          {{#company.logo}}<img src="{{company.logo}}" alt="" />{{/company.logo}}
+          <div class="brand-name">{{company.name}}</div>
+        </div>
+        <div class="doc-title">
+          <div class="label">{{#is_quote}}{{document_title}}{{/is_quote}}{{^is_quote}}Invoice{{/is_quote}}</div>
+          <div class="number">{{invoice_number}}</div>
+        </div>
+      </div>
+
+      <div class="meta">
+        <div class="col">
+          <div class="label">From</div>
+          <div class="value">
+            <strong>{{company.name}}</strong>
+            {{#company.address}}<p>{{{company.address}}}</p>{{/company.address}}
+            {{#company.email}}<p>{{company.email}}</p>{{/company.email}}
+            {{#company.phone}}<p>{{company.phone}}</p>{{/company.phone}}
+            {{#company.tax_id}}<p>VAT: {{company.tax_id}}</p>{{/company.tax_id}}
+          </div>
+        </div>
+        <div class="col">
+          <div class="label">Bill to</div>
+          <div class="value">
+            <strong>{{customer.name}}</strong>
+            {{#customer.address_line1}}<p>{{customer.address_line1}}</p>{{/customer.address_line1}}
+            {{#customer.address_line2}}<p>{{customer.address_line2}}</p>{{/customer.address_line2}}
+            {{#customer.city}}<p>{{customer.city}}{{#customer.state}}, {{customer.state}}{{/customer.state}} {{customer.postal_code}}</p>{{/customer.city}}
+            {{#customer.country_name}}<p>{{customer.country_name}}</p>{{/customer.country_name}}{{^customer.country_name}}{{#customer.country}}<p>{{customer.country}}</p>{{/customer.country}}{{/customer.country_name}}
+            {{#customer.email}}<p>{{customer.email}}</p>{{/customer.email}}
+            {{#customer.tax_id}}<p>Tax ID: {{customer.tax_id}}</p>{{/customer.tax_id}}
+          </div>
+        </div>
+        <div class="col">
+          <div class="label">Issued</div>
+          <div class="value">{{issue_date}}</div>
+          {{#due_date}}
+          <div class="label" style="margin-top: 4mm">{{#is_quote}}Valid until{{/is_quote}}{{^is_quote}}Due{{/is_quote}}</div>
+          <div class="value">{{due_date}}</div>
+          {{/due_date}}
+        </div>
+      </div>
+
+      <div class="items">
+        <table>
+          <thead>
+            <tr>
+              <th class="description">Description</th>
+              <th class="num">Qty</th>
+              <th class="num">Unit price</th>
+              <th class="num">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#items}}
+            <tr>
+              <td class="description">
+                {{description}}
+                {{#unit}}<div class="meta-line">{{unit}}{{#tax_rate}} · {{tax_rate}}% tax{{/tax_rate}}</div>{{/unit}}
+              </td>
+              <td class="num">{{quantity}}</td>
+              <td class="num">{{formatted_unit_price}}</td>
+              <td class="num">{{formatted_line_total}}</td>
+            </tr>
+            {{/items}}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="totals-wrap">
+        <div class="totals">
+          <div class="row">
+            <span>Subtotal</span>
+            <span class="v">{{formatted_subtotal}}</span>
+          </div>
+          {{#has_discount}}
+          <div class="row discount">
+            <span>Discount</span>
+            <span class="v">−{{formatted_discount}}</span>
+          </div>
+          {{/has_discount}}
+          {{#tax_summary}}
+          <div class="row">
+            <span>{{name}} ({{rate}}%)</span>
+            <span class="v">{{formatted_amount}}</span>
+          </div>
+          {{/tax_summary}}
+          <div class="row total">
+            <span>Total</span>
+            <span class="v">{{formatted_total}}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="currency-note">All amounts in {{currency}}.</div>
+
+      <div class="footer">
+        {{#payment_terms}}
+        <div class="col">
+          <div class="label">Payment terms</div>
+          <div>{{payment_terms}}</div>
+        </div>
+        {{/payment_terms}}
+        {{#company.bank_details}}
+        <div class="col bank">
+          <div class="label">Bank details</div>
+          <p>{{{company.bank_details}}}</p>
+        </div>
+        {{/company.bank_details}}
+        {{#notes}}
+        <div class="col notes">
+          <div class="label">Notes</div>
+          <p>{{notes}}</p>
+        </div>
+        {{/notes}}
+        {{#qr}}
+        <div class="col" style="flex: 0 0 auto; text-align: right">
+          <div class="label">View online</div>
+          <img src="{{qr.image}}" alt="" style="width: 24mm; height: 24mm" />
+        </div>
+        {{/qr}}
+      </div>
+    </div>
+  </body>
+</html>

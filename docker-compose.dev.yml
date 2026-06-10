@@ -1,0 +1,17 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./packages/backend/src:/app/packages/backend/src
+      - ./data:/app/data
+    environment:
+      - ADMIN_USER=admin
+      - ADMIN_PASS=admin123
+      - JWT_SECRET=dev-secret-key-change-in-production-min-32-chars
+      - DATABASE_PATH=/app/data/invoice.db
+      - COOKIE_SECURE=false
+    command: bun run --watch packages/backend/src/index.ts

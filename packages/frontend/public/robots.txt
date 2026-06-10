@@ -1,0 +1,3 @@
+# Inkvoice is a private invoicing dashboard, not for indexing.
+User-agent: *
+Disallow: /

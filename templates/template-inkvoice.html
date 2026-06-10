@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      @page {
+        size: A4;
+        margin: 10mm;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-size: 9.5pt;
+        color: #000039;
+        line-height: 1.45;
+        background: #fff;
+        padding: 10px;
+      }
+
+      .invoice-wrapper {
+        max-width: 210mm;
+        min-height: 277mm;
+        margin: 0 auto;
+        padding: 8mm 0 0 0;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 6mm;
+      }
+      
+      .header-left .company-name {
+        font-size: 16pt;
+        font-weight: bold;
+        color: #1a1a4e;
+      }
+
+      .header-right {
+        text-align: right;
+      }
+
+      .header-right .invoice-title {
+        font-size: 14pt;
+        font-weight: bold;
+        color: #1a1a4e;
+        margin-bottom: 1mm;
+      }
+
+      .header-right .meta {
+        font-size: 8.5pt;
+        line-height: 1.5;
+        color: #333;
+      }
+
+      .addresses {
+        display: flex;
+        gap: 8mm;
+        margin-bottom: 8mm;
+      }
+
+      .address-block {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .address-label {
+        font-size: 9pt;
+        color: #333;
+        margin-bottom: 1.5mm;
+      }
+
+      .address-box {
+        flex: 1;
+        background-color: #e6e6e6;
+        padding: 3mm 4mm;
+        font-size: 9pt;
+        line-height: 1.55;
+        min-height: 28mm;
+      }
+
+      .address-box strong {
+        display: block;
+        font-size: 9.5pt;
+        margin-bottom: 0.5mm;
+      }
+
+      .address-box p {
+        margin: 0;
+        white-space: pre-line;
+      }
+
+      .address-box .phone {
+        margin-top: 2mm;
+      }
+
+      .currency-note {
+        font-size: 8.5pt;
+        color: #333;
+        text-align: right;
+        margin-bottom: 0.5mm;
+      }
+
+      .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 9pt;
+        flex: 1;
+      }
+
+      .items-table thead th {
+        background-color: #fff;
+        border: 0.5px solid #000;
+        padding: 1.25mm 2.5mm;
+        text-align: left;
+        font-weight: bold;
+        font-size: 8.5pt;
+        color: #222;
+      }
+
+      .items-table thead th.num {
+        text-align: right;
+      }
+
+      .items-table thead th.center {
+        text-align: center;
+      }
+
+      .items-table tbody td {
+        border-inline: 1px solid #999;
+        border-block: 1px dashed #ccc;
+        padding: 1.5mm 2.5mm;
+        vertical-align: top;
+      }
+
+      .items-table tbody td.num {
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .items-table tbody td.center {
+        text-align: center;
+        white-space: nowrap;
+      }
+
+      .items-table tbody td.description {
+        width: 45%;
+      }
+
+      .items-table tbody tr.empty-row td {
+        height: 100%;
+        border-left: 1px solid #999;
+        border-right: 1px solid #999;
+        border-bottom: 1px solid #999;
+      }
+
+      .bottom-section {
+        display: flex;
+        justify-content: space-between;
+        gap: 10mm;
+        margin-top: 2mm;
+      }
+
+      .payment-info {
+        flex: 1.2;
+        font-size: 9pt;
+        line-height: 1.55;
+      }
+
+      .payment-info .payment-terms-line {
+        margin-bottom: 2mm;
+      }
+
+      .payment-info .payment-terms-line strong {
+        font-weight: bold;
+      }
+
+      .payment-info h4 {
+        font-size: 9pt;
+        font-weight: bold;
+        margin-bottom: 0.5mm;
+        color: #222;
+      }
+
+      .payment-info .bank-details {
+        margin-top: 1mm;
+      }
+
+      .payment-info .bank-details p {
+        margin-bottom: 0;
+        line-height: 1.4;
+      }
+
+      .totals-box {
+        min-width: 55mm;
+        font-size: 9pt;
+        align-self: flex-start;
+      }
+
+      .no-background {
+        background-color: transparent;
+        border: 0.5px solid #000;
+      }
+
+      .totals-box table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .totals-box table td {
+        padding: 0.5mm 2.5mm;
+
+      }
+
+      .totals-box table td:first-child {
+        white-space: nowrap;
+        color: #222;
+      }
+
+      .totals-box table td:last-child {
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .totals-box table tr.total-inc td {
+        background-color: #d9d9d9;
+        font-weight: bold;
+      }
+
+      .footer {
+        margin-top: 10mm;
+        padding-top: 2mm;
+        border-top: 1px solid #999;
+        display: flex;
+        justify-content: center;
+        font-size: 8.5pt;
+        color: #333;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="invoice-wrapper">
+      <div class="header">
+        <div class="header-left">
+          {{#company.logo}}
+          <div style="margin-bottom: 2mm">
+            <img
+              src="{{company.logo}}"
+              alt=""
+              style="max-height: 40px; max-width: 120px"
+            />
+          </div>
+          {{/company.logo}}
+        </div>
+        <div class="header-right">
+          <div class="invoice-title">
+            {{#is_quote}}{{document_title}}{{/is_quote}}{{^is_quote}}Invoice{{/is_quote}}
+            {{invoice_number}}
+          </div>
+          <div class="meta">
+            <div>{{#is_quote}}Quote date{{/is_quote}}{{^is_quote}}Invoice date{{/is_quote}}: {{issue_date}}</div>
+            {{#due_date}}
+            <div>{{#is_quote}}Valid until{{/is_quote}}{{^is_quote}}Due date{{/is_quote}}: {{due_date}}</div>
+            {{/due_date}}
+            {{#customer.tax_id}}<div>Customer tax ID: {{customer.tax_id}}</div>{{/customer.tax_id}}
+          </div>
+        </div>
+      </div>
+
+      <div class="addresses">
+        <div class="address-block">
+          <div class="address-label">From</div>
+          <div class="address-box">
+            <strong>{{company.name}}</strong>
+            {{#company.address}}<p>{{{company.address}}}</p>{{/company.address}}
+            {{#company.phone}}<p class="phone">Phone: {{company.phone}}</p>{{/company.phone}}
+            {{#company.email}}<p>{{company.email}}</p>{{/company.email}}
+          </div>
+        </div>
+        <div class="address-block">
+          <div class="address-label">To</div>
+          <div class="address-box no-background">
+            <strong>{{customer.name}}</strong>
+            {{#customer.address_line1}}<p>{{customer.address_line1}}</p>{{/customer.address_line1}}
+            {{#customer.address_line2}}<p>{{customer.address_line2}}</p>{{/customer.address_line2}}
+            {{#customer.city}}
+            <p>{{customer.city}}{{#customer.state}}, {{customer.state}}{{/customer.state}} {{customer.postal_code}}</p>
+            {{/customer.city}}
+            {{^customer.city}}
+            {{#customer.postal_code}}<p>{{customer.postal_code}}</p>{{/customer.postal_code}}
+            {{/customer.city}}
+            {{#customer.country_name}}<p>{{customer.country_name}}</p>{{/customer.country_name}}{{^customer.country_name}}{{#customer.country}}<p>{{customer.country}}</p>{{/customer.country}}{{/customer.country_name}}
+            {{#customer.phone}}<p class="phone">Phone: {{customer.phone}}</p>{{/customer.phone}}
+            {{#customer.email}}<p>{{customer.email}}</p>{{/customer.email}}
+          </div>
+        </div>
+      </div>
+
+      <div class="currency-note">Amount in {{currency}} currency</div>
+
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th class="description">Description</th>
+            <th class="center">Sales tax</th>
+            <th class="num">U.P. (net)</th>
+            <th class="num">Qty</th>
+            <th class="center">Unit</th>
+            <th class="num">Total (excl.)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#items}}
+          <tr>
+            <td class="description">{{description}}</td>
+            <td class="center">{{tax_rate}}%</td>
+            <td class="num">{{formatted_unit_price}}</td>
+            <td class="num">{{quantity}}</td>
+            <td class="center">{{unit}}</td>
+            <td class="num">{{formatted_line_total}}</td>
+          </tr>
+          {{/items}}
+          <tr class="empty-row">
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="bottom-section">
+        <div class="payment-info">
+          {{#payment_terms}}
+          <div class="payment-terms-line">
+            <strong>Payment Terms:</strong> &nbsp; {{payment_terms}}
+          </div>
+          {{/payment_terms}}
+          {{#company.bank_details}}
+          <div class="bank-details">
+            <h4>Payment by transfer to the following bank account:</h4>
+            <p>{{{company.bank_details}}}</p>
+          </div>
+          {{/company.bank_details}}
+        </div>
+
+        <div class="totals-box">
+          <table>
+            <tr>
+              <td>Total (excl. tax)</td>
+              <td>{{formatted_subtotal}}</td>
+            </tr>
+            {{#has_discount}}
+            <tr>
+              <td>Discount</td>
+              <td>&minus;{{formatted_discount}}</td>
+            </tr>
+            {{/has_discount}}
+            {{#tax_summary}}
+            <tr>
+              <td>{{name}} ({{rate}}%)</td>
+              <td>{{formatted_amount}}</td>
+            </tr>
+            {{/tax_summary}}
+            <tr class="total-inc">
+              <td>Total (inc. tax)</td>
+              <td>{{formatted_total}}</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      {{#notes}}
+      <div style="margin-top: 4mm; font-size: 9pt; color: #444">
+        <h4 style="font-weight: bold; color: #333; margin-bottom: 1mm">Notes:</h4>
+        <p>{{notes}}</p>
+      </div>
+      {{/notes}}
+
+      {{#qr}}
+      <div style="margin-top: 6mm; display: flex; align-items: center; gap: 4mm">
+        <img src="{{qr.image}}" alt="View invoice online" style="width: 22mm; height: 22mm" />
+        <div style="font-size: 8.5pt; color: #555; line-height: 1.45">
+          <strong style="color: #222">View this invoice online</strong>
+          <div>Scan the QR code to open the up-to-date version.</div>
+        </div>
+      </div>
+      {{/qr}}
+
+      <div class="footer">
+        {{#company.tax_id}}<div>VAT ID: {{company.tax_id}}</div>{{/company.tax_id}}
+      </div>
+    </div>
+  </body>
+</html>
