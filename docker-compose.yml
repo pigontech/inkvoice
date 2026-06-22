@@ -18,6 +18,12 @@ services:
       DEMO_MODE: ${DEMO_MODE:-false}
       DEMO_RESET_INTERVAL: ${DEMO_RESET_INTERVAL:-86400000}
       SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USER: ${SMTP_USER}
+      SMTP_PASS: ${SMTP_PASS}
+      SMTP_FROM: ${SMTP_FROM}
+      SMTP_SECURE: "false"
     restart: unless-stopped
     deploy:
       resources:
