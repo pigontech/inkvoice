@@ -5,6 +5,7 @@ import { closeDatabase, getDb, initDatabase } from "../database/connection";
 import { runMigrations } from "../database/migrations";
 import { seed } from "../database/seed";
 import { createInvoice, finaliseForSending } from "../services/invoice.service";
+import { resolvePublicOrigin, sendInvoiceEmail } from "../services/invoice-send.service";
 import { resetEnvCache } from "../utils/env";
 
 const TEST_DB = "./data/test-invoice-send.db";
@@ -91,5 +92,69 @@ describe("finaliseForSending", () => {
 
   test("it returns null for a missing invoice", () => {
     expect(finaliseForSending("nope")).toBeNull();
+  });
+});
+
+describe("resolvePublicOrigin", () => {
+  test("prefers the request origin", () => {
+    process.env.PUBLIC_BASE_URL = "https://env.example";
+    resetEnvCache();
+    expect(resolvePublicOrigin("https://req.example")).toBe("https://req.example");
+  });
+
+  test("falls back to PUBLIC_BASE_URL", () => {
+    process.env.PUBLIC_BASE_URL = "https://env.example";
+    resetEnvCache();
+    expect(resolvePublicOrigin(undefined)).toBe("https://env.example");
+  });
+
+  test("returns empty string when neither is set", () => {
+    process.env.PUBLIC_BASE_URL = "";
+    resetEnvCache();
+    expect(resolvePublicOrigin(undefined)).toBe("");
+  });
+});
+
+describe("sendInvoiceEmail", () => {
+  const previousSmtpHost = process.env.SMTP_HOST;
+
+  beforeAll(() => {
+    // isEmailConfigured() must resolve true here so these tests reach the
+    // invoice/recipient checks, not the email-configured short circuit.
+    // This only sets envSmtpConfig() to non-null, it never builds a
+    // transporter or opens a network connection (that only happens via
+    // getTransporterForActiveContext, which sendEmail calls, not
+    // isEmailConfigured), so no real SMTP connection is attempted.
+    process.env.SMTP_HOST = "smtp.test.invalid";
+    resetEnvCache();
+  });
+
+  afterAll(() => {
+    if (previousSmtpHost === undefined) {
+      delete process.env.SMTP_HOST;
+    } else {
+      process.env.SMTP_HOST = previousSmtpHost;
+    }
+    resetEnvCache();
+  });
+
+  test("404s on a missing invoice", async () => {
+    const result = await sendInvoiceEmail("nope");
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.status).toBe(404);
+  });
+
+  test("400s when the customer has no email and none is supplied", async () => {
+    const noEmailCustomer = crypto.randomBytes(16).toString("hex");
+    getDb().run("INSERT INTO customers (id, name) VALUES (?, ?)", [noEmailCustomer, "No Email Co"]);
+    const inv = createInvoice({
+      customer_id: noEmailCustomer,
+      issue_date: "2026-09-04",
+      currency: "USD",
+      items: [{ description: "Work", quantity: 1, unit_price: 10 }],
+    });
+    const result = await sendInvoiceEmail(inv.id);
+    expect(result.success).toBe(false);
+    if (!result.success) expect(result.status).toBe(400);
   });
 });

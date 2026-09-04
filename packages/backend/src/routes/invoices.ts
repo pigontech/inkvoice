@@ -10,20 +10,16 @@ import {
   getEinvoiceXml,
   listEinvoiceRecords,
 } from "../services/einvoice.service";
-import { isEmailConfigured, sendEmail } from "../services/email.service";
-import { invoiceDeliveryEmail } from "../services/email-templates";
 import * as invoiceService from "../services/invoice.service";
+import { sendInvoiceEmail } from "../services/invoice-send.service";
 import { dispatchEvent } from "../services/outgoing-webhooks.service";
 import * as paymentService from "../services/payment.service";
 import * as quoteService from "../services/quote.service";
 import { getReminderLog } from "../services/reminder.service";
-import { getAllSettings } from "../services/settings.service";
 import { getTagsForItem, setItemTags } from "../services/tag.service";
 import type { Invoice } from "../types/invoice";
 import { buildCsv, type CsvColumn, csvHeaders } from "../utils/csv";
-import { formatCurrency } from "../utils/currency";
 import { todayIso } from "../utils/date";
-import { logger } from "../utils/logger";
 import { buildXmlInvoiceData } from "../xml/build-data";
 import { getProfile, listProfiles } from "../xml/profile-registry";
 
@@ -443,89 +439,20 @@ invoices.get("/:id/credit-notes", (c) => {
 
 // Send invoice via email
 invoices.post("/:id/send", async (c) => {
-  if (!(await isEmailConfigured())) {
-    return c.json({ success: false, error: "Email is not configured" }, 400);
-  }
-
-  const invoice = invoiceService.getInvoice(c.req.param("id"));
-  if (!invoice) return c.json({ success: false, error: "Invoice not found" }, 404);
-
   const body = await c.req.json().catch(() => ({}));
-  const customerEmail = body.to || invoice.customer?.email;
-  if (!customerEmail) {
-    return c.json({ success: false, error: "No recipient email address" }, 400);
-  }
-
-  const finalised = invoiceService.finaliseForSending(invoice.id) ?? invoice;
-
-  const settings = getAllSettings();
-  const publicUrl = finalised.share_token
-    ? `${c.req.header("origin") || ""}/public/invoice/${finalised.share_token}`
-    : null;
-
-  const email = invoiceDeliveryEmail({
-    company_name: settings.company_name || "Inkvoice",
-    customer_name: finalised.customer?.name || "Customer",
-    invoice_number: finalised.invoice_number,
-    total: formatCurrency(finalised.total, finalised.currency),
-    currency: finalised.currency,
-    due_date: finalised.due_date,
-    public_url: publicUrl,
-    custom_message: body.message,
-  });
-
-  // E-invoice delivery: emit and attach the ZUGFeRD hybrid PDF (or XRechnung
-  // XML) when the customer/workspace uses e-invoicing. Errors here must not
-  // block the plain email (the PDF link still works), so we catch and log.
-  const attachments: Array<{
-    filename: string;
-    content: Buffer | Uint8Array;
-    contentType: string;
-  }> = [];
-  const wantEinvoice = body.attach_einvoice !== false && !!settings.einvoice_enabled;
-  if (wantEinvoice && customerEmail) {
-    try {
-      const emitted = await emitEinvoice(invoice.id);
-      if (emitted.pdf) {
-        attachments.push({
-          filename: `${invoice.invoice_number}-zugferd.pdf`,
-          content: emitted.pdf,
-          contentType: "application/pdf",
-        });
-      } else {
-        attachments.push({
-          filename: `${invoice.invoice_number}-${emitted.format}.xml`,
-          content: Buffer.from(emitted.xml, "utf-8"),
-          contentType: "application/xml",
-        });
-      }
-    } catch (err: any) {
-      logger.warn(`E-invoice emission failed for invoice ${invoice.id}: ${err.message}`);
-    }
-  }
-
-  const result = await sendEmail({
-    to: customerEmail,
-    subject: body.subject || email.subject,
-    html: email.html,
-    text: email.text,
-    from: typeof body.from === "string" && body.from.trim() ? body.from.trim() : undefined,
-    replyTo:
-      typeof body.reply_to === "string" && body.reply_to.trim() ? body.reply_to.trim() : undefined,
-    attachments,
+  const result = await sendInvoiceEmail(c.req.param("id"), {
+    to: typeof body.to === "string" ? body.to : undefined,
+    subject: typeof body.subject === "string" ? body.subject : undefined,
+    message: typeof body.message === "string" ? body.message : undefined,
+    from: typeof body.from === "string" ? body.from : undefined,
+    replyTo: typeof body.reply_to === "string" ? body.reply_to : undefined,
+    attachEinvoice: body.attach_einvoice !== false,
+    origin: c.req.header("origin") || undefined,
   });
 
   if (!result.success) {
-    const msg = result.error || "Email could not be delivered";
-    const status =
-      msg === "SMTP is not configured"
-        ? 400
-        : msg.toLowerCase().includes("recipient") || msg.toLowerCase().includes("address")
-          ? 400
-          : 502;
-    return c.json({ success: false, error: msg }, status);
+    return c.json({ success: false, error: result.error }, result.status);
   }
-
   return c.json({ success: true, data: { message: "Invoice sent" } });
 });
 
