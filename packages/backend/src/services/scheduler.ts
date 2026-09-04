@@ -79,7 +79,7 @@ export async function resetDemoData(): Promise<void> {
 
 async function runScheduledTasks(): Promise<void> {
   try {
-    const recurring = processAllDue();
+    const recurring = await processAllDue();
     if (recurring.generated > 0 || recurring.errors > 0) {
       logger.info(
         { generated: recurring.generated, errors: recurring.errors },

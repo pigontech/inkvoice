@@ -1,7 +1,9 @@
 import crypto from "node:crypto";
 import { getDb } from "../database/connection";
 import { todayIso, toIsoDate } from "../utils/date";
-import { createInvoice, getInvoice } from "./invoice.service";
+import { logger } from "../utils/logger";
+import { createInvoice, finaliseForSending, getInvoice } from "./invoice.service";
+import { sendInvoiceEmail } from "./invoice-send.service";
 
 export interface RecurringInvoice {
   id: string;
@@ -13,6 +15,7 @@ export interface RecurringInvoice {
   end_date: string | null;
   status: string;
   auto_send: number;
+  auto_bill: number;
   total_generated: number;
   last_generated_at: string | null;
   created_at: string;
@@ -27,6 +30,7 @@ interface CreateRecurringData {
   next_run_date: string;
   end_date?: string | null;
   auto_send?: boolean;
+  auto_bill?: boolean;
 }
 
 export function listRecurring(params?: {
@@ -68,8 +72,8 @@ export function createRecurring(
   const id = crypto.randomBytes(16).toString("hex");
 
   db.run(
-    `INSERT INTO recurring_invoices (id, customer_id, template_invoice_id, frequency, interval_value, next_run_date, end_date, auto_send)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO recurring_invoices (id, customer_id, template_invoice_id, frequency, interval_value, next_run_date, end_date, auto_send, auto_bill)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       data.customer_id,
@@ -79,6 +83,7 @@ export function createRecurring(
       data.next_run_date,
       data.end_date || null,
       data.auto_send ? 1 : 0,
+      data.auto_bill ? 1 : 0,
     ],
   );
 
@@ -100,6 +105,7 @@ export function updateRecurring(
        next_run_date = COALESCE(?, next_run_date),
        end_date = COALESCE(?, end_date),
        auto_send = COALESCE(?, auto_send),
+       auto_bill = COALESCE(?, auto_bill),
        updated_at = datetime('now')
      WHERE id = ?`,
     [
@@ -108,6 +114,7 @@ export function updateRecurring(
       data.next_run_date || null,
       data.end_date !== undefined ? data.end_date || null : null,
       data.auto_send !== undefined ? (data.auto_send ? 1 : 0) : null,
+      data.auto_bill !== undefined ? (data.auto_bill ? 1 : 0) : null,
       id,
     ],
   );
@@ -195,7 +202,7 @@ export function setRecurringLimitChecker(check: RecurringLimitChecker | null): v
   recurringLimitChecker = check;
 }
 
-export function generateInvoice(recurringId: string): string | null {
+export async function generateInvoice(recurringId: string): Promise<string | null> {
   const recurring = getRecurring(recurringId);
   if (!recurring || recurring.status !== "active") return null;
 
@@ -258,6 +265,29 @@ export function generateInvoice(recurringId: string): string | null {
     [nextRunDate, newStatus, recurringId],
   );
 
+  // Finalise only when the merchant opted in. Profiles left at defaults keep
+  // producing drafts, so nobody loses a review step they relied on.
+  const shouldFinalise = recurring.auto_send === 1 || recurring.auto_bill === 1;
+  if (!shouldFinalise) return newInvoice.id;
+
+  finaliseForSending(newInvoice.id);
+
+  if (recurring.auto_send === 1) {
+    // Delivery failure must never roll back a generated invoice or stop the
+    // scheduler. Generation and delivery are separate concerns.
+    try {
+      const sent = await sendInvoiceEmail(newInvoice.id, { attachEinvoice: true });
+      if (!sent.success) {
+        logger.warn(
+          { recurringId, invoiceId: newInvoice.id, error: sent.error },
+          "Recurring invoice generated but not emailed",
+        );
+      }
+    } catch (err) {
+      logger.error({ err, recurringId, invoiceId: newInvoice.id }, "Recurring send threw");
+    }
+  }
+
   return newInvoice.id;
 }
 
@@ -267,7 +297,10 @@ function dateDiffDays(from: string, to: string): number {
   return Math.round((d2.getTime() - d1.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-export function processAllDue(): { generated: number; errors: number } {
+export async function processAllDue(): Promise<{
+  generated: number;
+  errors: number;
+}> {
   const db = getDb();
   const today = todayIso();
   const due = db
@@ -279,7 +312,7 @@ export function processAllDue(): { generated: number; errors: number } {
 
   for (const row of due) {
     try {
-      const invoiceId = generateInvoice(row.id);
+      const invoiceId = await generateInvoice(row.id);
       if (invoiceId) generated++;
       else errors++;
     } catch {

@@ -24,6 +24,7 @@ const createSchema = z.object({
   next_run_date: z.string().min(1),
   end_date: z.string().optional().nullable(),
   auto_send: z.boolean().optional(),
+  auto_bill: z.boolean().optional(),
 });
 
 recurring.post("/", async (c) => {
@@ -59,8 +60,8 @@ recurring.post("/:id/resume", (c) => {
   return c.json({ success: true });
 });
 
-recurring.post("/:id/generate-now", (c) => {
-  const invoiceId = recurringService.generateInvoice(c.req.param("id"));
+recurring.post("/:id/generate-now", async (c) => {
+  const invoiceId = await recurringService.generateInvoice(c.req.param("id"));
   if (!invoiceId) return c.json({ success: false, error: "Cannot generate" }, 400);
   return c.json({ success: true, data: { invoice_id: invoiceId } });
 });

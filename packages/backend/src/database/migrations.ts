@@ -909,6 +909,16 @@ const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    version: 27,
+    name: "recurring_auto_bill",
+    up: (db) => {
+      // Opt a recurring profile into charging the customer's saved card when
+      // the profile fires. Default 0 keeps every existing profile on the
+      // manual path.
+      addColumnIfMissing(db, "recurring_invoices", "auto_bill", "INTEGER NOT NULL DEFAULT 0");
+    },
+  },
 ];
 
 export const LATEST_MIGRATION_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
