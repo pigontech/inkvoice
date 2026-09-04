@@ -58,6 +58,7 @@ describe("stripe client resolution", () => {
 });
 
 import {
+  deleteMethod,
   getDefaultMethod,
   listMethodsForCustomer,
   saveMethod,
@@ -102,5 +103,135 @@ describe("customer payment methods", () => {
     getDb().run("INSERT INTO customers (id, name) VALUES (?, ?)", [other, "No Cards Co"]);
     expect(getDefaultMethod(other)).toBeNull();
     expect(listMethodsForCustomer(other)).toHaveLength(0);
+  });
+});
+
+function makeCustomer(name: string): string {
+  const id = crypto.randomBytes(16).toString("hex");
+  getDb().run("INSERT INTO customers (id, name) VALUES (?, ?)", [id, name]);
+  return id;
+}
+
+function stubDetach(behavior: () => Promise<unknown>) {
+  setStripeClientResolver(async () => ({ paymentMethods: { detach: behavior } }) as any);
+}
+
+describe("deleting payment methods", () => {
+  afterEach(() => {
+    setStripeClientResolver(null);
+  });
+
+  test("a successful detach removes the local row", async () => {
+    const cid = makeCustomer("Delete Co 1");
+    const m = saveMethod({
+      customerId: cid,
+      gatewayCustomerId: "cus_d1",
+      gatewayMethodId: "pm_d1",
+      last4: "0001",
+    });
+    stubDetach(async () => ({}));
+
+    const result = await deleteMethod(m.id, cid);
+
+    expect(result).toEqual({ success: true });
+    expect(listMethodsForCustomer(cid)).toHaveLength(0);
+  });
+
+  test("a failed detach returns failure and the local row survives", async () => {
+    const cid = makeCustomer("Delete Co 2");
+    const m = saveMethod({
+      customerId: cid,
+      gatewayCustomerId: "cus_d2",
+      gatewayMethodId: "pm_d2",
+      last4: "0002",
+    });
+    stubDetach(async () => {
+      throw new Error("network error, no code");
+    });
+
+    const result = await deleteMethod(m.id, cid);
+
+    expect(result).toEqual({
+      success: false,
+      error: "Could not revoke the card at the payment provider",
+    });
+    expect(listMethodsForCustomer(cid)).toHaveLength(1);
+    expect(listMethodsForCustomer(cid)[0]?.id).toBe(m.id);
+  });
+
+  test("a resource_missing detach error still removes the local row", async () => {
+    const cid = makeCustomer("Delete Co 3");
+    const m = saveMethod({
+      customerId: cid,
+      gatewayCustomerId: "cus_d3",
+      gatewayMethodId: "pm_d3",
+      last4: "0003",
+    });
+    stubDetach(async () => {
+      const err: any = new Error("No such payment method");
+      err.code = "resource_missing";
+      throw err;
+    });
+
+    const result = await deleteMethod(m.id, cid);
+
+    expect(result).toEqual({ success: true });
+    expect(listMethodsForCustomer(cid)).toHaveLength(0);
+  });
+
+  test("deleting a method that belongs to a different customer fails and deletes nothing", async () => {
+    const owner = makeCustomer("Delete Co 4 Owner");
+    const stranger = makeCustomer("Delete Co 4 Stranger");
+    const m = saveMethod({
+      customerId: owner,
+      gatewayCustomerId: "cus_d4",
+      gatewayMethodId: "pm_d4",
+      last4: "0004",
+    });
+
+    const result = await deleteMethod(m.id, stranger);
+
+    expect(result).toEqual({ success: false, error: "Payment method not found" });
+    expect(listMethodsForCustomer(owner)).toHaveLength(1);
+  });
+
+  test("deleting the default method promotes the oldest surviving method to default", async () => {
+    const cid = makeCustomer("Delete Co 5");
+    const first = saveMethod({
+      customerId: cid,
+      gatewayCustomerId: "cus_d5",
+      gatewayMethodId: "pm_d5",
+      last4: "0005",
+    });
+    const second = saveMethod({
+      customerId: cid,
+      gatewayCustomerId: "cus_d5",
+      gatewayMethodId: "pm_d6",
+      last4: "0006",
+    });
+    expect(first.is_default).toBe(1);
+    stubDetach(async () => ({}));
+
+    const result = await deleteMethod(first.id, cid);
+
+    expect(result).toEqual({ success: true });
+    expect(getDefaultMethod(cid)?.gateway_method_id).toBe(second.gateway_method_id);
+  });
+
+  test("deleting the last remaining method leaves no methods and no default", async () => {
+    const cid = makeCustomer("Delete Co 6");
+    const only = saveMethod({
+      customerId: cid,
+      gatewayCustomerId: "cus_d6",
+      gatewayMethodId: "pm_d7",
+      last4: "0007",
+    });
+    stubDetach(async () => ({}));
+
+    const result = await deleteMethod(only.id, cid);
+
+    expect(result).toEqual({ success: true });
+    expect(listMethodsForCustomer(cid)).toHaveLength(0);
+    expect(getDefaultMethod(cid)).toBeNull();
   });
 });
