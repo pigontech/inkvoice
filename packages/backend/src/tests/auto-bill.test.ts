@@ -307,3 +307,131 @@ describe("card capture from checkout", () => {
     expect(listMethodsForCustomer(customerId)).toHaveLength(before);
   });
 });
+
+import { chargeOffSession, classifyStripeError } from "../services/stripe.service";
+
+describe("stripe error classification", () => {
+  test("SCA is terminal, never retried", () => {
+    expect(classifyStripeError("authentication_required")).toBe("requires_action");
+  });
+
+  test("hard declines are terminal", () => {
+    for (const code of [
+      "card_declined",
+      "expired_card",
+      "incorrect_number",
+      "invalid_account",
+      "card_velocity_exceeded",
+    ]) {
+      expect(classifyStripeError(code)).toBe("hard_failed");
+    }
+  });
+
+  test("soft declines are retryable", () => {
+    for (const code of [
+      "insufficient_funds",
+      "processing_error",
+      "issuer_not_available",
+      "try_again_later",
+    ]) {
+      expect(classifyStripeError(code)).toBe("soft_failed");
+    }
+  });
+
+  test("an unrecognised code is treated as retryable", () => {
+    expect(classifyStripeError("some_new_stripe_code")).toBe("soft_failed");
+    expect(classifyStripeError(undefined)).toBe("soft_failed");
+  });
+});
+
+describe("chargeOffSession", () => {
+  afterEach(() => setStripeClientResolver(null));
+
+  test("a succeeded intent returns its reference", async () => {
+    const calls: any[] = [];
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentIntents: {
+            create: async (params: any, opts: any) => {
+              calls.push({ params, opts });
+              return { id: "pi_ok", status: "succeeded" };
+            },
+          },
+        }) as any,
+    );
+
+    const result = await chargeOffSession({
+      invoiceId: "inv_ok",
+      amount: 125.5,
+      currency: "USD",
+      gatewayCustomerId: "cus_1",
+      gatewayMethodId: "pm_1",
+      attemptNo: 1,
+    });
+
+    expect(result.status).toBe("succeeded");
+    expect(result.reference).toBe("pi_ok");
+    // Amount converted to minor units, off-session confirmed, idempotency keyed.
+    expect(calls[0].params.amount).toBe(12550);
+    expect(calls[0].params.currency).toBe("usd");
+    expect(calls[0].params.off_session).toBe(true);
+    expect(calls[0].params.confirm).toBe(true);
+    expect(calls[0].opts.idempotencyKey).toBe("autobill:inv_ok:1");
+  });
+
+  test("a card error is classified rather than thrown", async () => {
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentIntents: {
+            create: async () => {
+              const err: any = new Error("Your card has insufficient funds.");
+              err.type = "StripeCardError";
+              err.code = "insufficient_funds";
+              throw err;
+            },
+          },
+        }) as any,
+    );
+
+    const result = await chargeOffSession({
+      invoiceId: "inv_soft",
+      amount: 10,
+      currency: "USD",
+      gatewayCustomerId: "cus_1",
+      gatewayMethodId: "pm_1",
+      attemptNo: 1,
+    });
+
+    expect(result.status).toBe("soft_failed");
+    expect(result.errorCode).toBe("insufficient_funds");
+  });
+
+  test("SCA surfaces as requires_action", async () => {
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentIntents: {
+            create: async () => {
+              const err: any = new Error("Authentication required");
+              err.type = "StripeCardError";
+              err.code = "authentication_required";
+              throw err;
+            },
+          },
+        }) as any,
+    );
+
+    const result = await chargeOffSession({
+      invoiceId: "inv_sca",
+      amount: 10,
+      currency: "USD",
+      gatewayCustomerId: "cus_1",
+      gatewayMethodId: "pm_1",
+      attemptNo: 1,
+    });
+
+    expect(result.status).toBe("requires_action");
+  });
+});

@@ -24,3 +24,8 @@ export function getEnabledGateways(): PaymentGateway[] {
 export function listEnabledGatewayMeta(): Array<{ id: string; label: string }> {
   return getEnabledGateways().map((g) => ({ id: g.id, label: g.label }));
 }
+
+/** Enabled gateways that can charge a stored method with nobody present. */
+export function getAutoBillGateways(): PaymentGateway[] {
+  return getEnabledGateways().filter((g) => g.supportsAutoBill === true);
+}

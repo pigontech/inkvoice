@@ -3,6 +3,11 @@ import { todayIso } from "../utils/date";
 import { getEnv } from "../utils/env";
 import { logger } from "../utils/logger";
 import { recordPayment } from "./payment.service";
+import type {
+  OffSessionContext,
+  OffSessionResult,
+  OffSessionStatus,
+} from "./payment-gateways/types";
 
 // The `stripe` package is heavy to load (~17ms on Bun); defer it until first
 // use so it stays out of the cold-start path for self-hosted instances that
@@ -174,5 +179,74 @@ export async function saveMethodFromCheckoutSession(
     // The payment itself is already recorded by the caller. Losing the saved
     // card only costs the customer a re-entry next time.
     logger.error({ err, sessionId: session.id }, "Could not save payment method from checkout");
+  }
+}
+
+// Codes that will never succeed on a retry: the card or account is wrong, not
+// momentarily unable to pay. Retrying these only burns the attempt budget and
+// can look like card testing to the issuer.
+const HARD_DECLINE_CODES = new Set([
+  "card_declined",
+  "expired_card",
+  "incorrect_number",
+  "incorrect_cvc",
+  "invalid_account",
+  "invalid_card_type",
+  "card_velocity_exceeded",
+  "pickup_card",
+  "lost_card",
+  "stolen_card",
+  "do_not_honor",
+]);
+
+/**
+ * Map a Stripe error code onto a retry decision. Unrecognised codes are treated
+ * as retryable: Stripe adds codes over time, and a transient failure wrongly
+ * classified as permanent silently costs the merchant money.
+ */
+export function classifyStripeError(code: string | undefined): OffSessionStatus {
+  if (code === "authentication_required") return "requires_action";
+  if (code && HARD_DECLINE_CODES.has(code)) return "hard_failed";
+  return "soft_failed";
+}
+
+export async function chargeOffSession(ctx: OffSessionContext): Promise<OffSessionResult> {
+  const stripe = await getStripe();
+  try {
+    const intent = await stripe.paymentIntents.create(
+      {
+        amount: Math.round(ctx.amount * 100),
+        currency: ctx.currency.toLowerCase(),
+        customer: ctx.gatewayCustomerId,
+        payment_method: ctx.gatewayMethodId,
+        off_session: true,
+        confirm: true,
+        metadata: { invoice_id: ctx.invoiceId, auto_bill: "1" },
+      },
+      // Keyed per attempt, so a duplicated scheduler tick replays the same
+      // charge instead of creating a second one, while a genuine retry is new.
+      { idempotencyKey: `autobill:${ctx.invoiceId}:${ctx.attemptNo}` },
+    );
+
+    if (intent.status === "succeeded") {
+      return { status: "succeeded", reference: intent.id };
+    }
+    if (intent.status === "requires_action") {
+      return { status: "requires_action", reference: intent.id, errorCode: "requires_action" };
+    }
+    return {
+      status: "soft_failed",
+      reference: intent.id,
+      errorCode: intent.status,
+      errorMessage: `PaymentIntent settled as ${intent.status}`,
+    };
+  } catch (err: any) {
+    const code: string | undefined = err?.code ?? err?.raw?.code;
+    return {
+      status: classifyStripeError(code),
+      reference: err?.raw?.payment_intent?.id,
+      errorCode: code,
+      errorMessage: typeof err?.message === "string" ? err.message.slice(0, 500) : undefined,
+    };
   }
 }

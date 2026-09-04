@@ -52,4 +52,36 @@ export interface PaymentGateway {
   createCheckout(ctx: CheckoutContext): Promise<{ url: string }>;
   /** Verify and process an inbound webhook from this provider. */
   handleWebhook(req: WebhookRequest): Promise<WebhookResult>;
+  /** True when this gateway can charge a stored method with nobody present. */
+  readonly supportsAutoBill?: boolean;
+  /** Charge a stored method. Only defined when supportsAutoBill is true. */
+  chargeOffSession?(ctx: OffSessionContext): Promise<OffSessionResult>;
+}
+
+/** Everything a gateway needs to charge a stored method with nobody present. */
+export interface OffSessionContext {
+  invoiceId: string;
+  /** Outstanding balance, in the invoice currency. Always server-derived. */
+  amount: number;
+  currency: string;
+  gatewayCustomerId: string;
+  gatewayMethodId: string;
+  /** 1-based. Forms the idempotency key, so a retry is a distinct charge. */
+  attemptNo: number;
+}
+
+export type OffSessionStatus =
+  | "succeeded"
+  /** Needs the customer present (SCA). Retrying off-session can never work. */
+  | "requires_action"
+  /** Transient. Worth retrying on a schedule. */
+  | "soft_failed"
+  /** Permanent for this card. Retrying only burns retries. */
+  | "hard_failed";
+
+export interface OffSessionResult {
+  status: OffSessionStatus;
+  reference?: string;
+  errorCode?: string;
+  errorMessage?: string;
 }

@@ -5,8 +5,16 @@ import {
   handlePaymentSuccess,
   isStripeConfigured,
   saveMethodFromCheckoutSession,
+  chargeOffSession as stripeChargeOffSession,
 } from "../stripe.service";
-import type { CheckoutContext, PaymentGateway, WebhookRequest, WebhookResult } from "./types";
+import type {
+  CheckoutContext,
+  OffSessionContext,
+  OffSessionResult,
+  PaymentGateway,
+  WebhookRequest,
+  WebhookResult,
+} from "./types";
 
 // Adapter that exposes the existing Stripe service through the gateway
 // interface. The underlying `stripe.service.ts` is intentionally left
@@ -14,6 +22,7 @@ import type { CheckoutContext, PaymentGateway, WebhookRequest, WebhookResult } f
 export const stripeGateway: PaymentGateway = {
   id: "stripe",
   label: "Stripe",
+  supportsAutoBill: true,
 
   isConfigured: isStripeConfigured,
 
@@ -44,5 +53,9 @@ export const stripeGateway: PaymentGateway = {
       return { handled: true, recorded: true };
     }
     return { handled: false, recorded: false };
+  },
+
+  chargeOffSession(ctx: OffSessionContext): Promise<OffSessionResult> {
+    return stripeChargeOffSession(ctx);
   },
 };
