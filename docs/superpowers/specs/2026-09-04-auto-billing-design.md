@@ -1,4 +1,4 @@
-# Auto-billing: saved payment methods + off-session charge — Design
+# Auto-billing: saved payment methods + off-session charge, Design
 
 Date: 2026-09-04
 Status: Approved (design review)
@@ -24,7 +24,7 @@ resolve *which* Stripe client it is charging on.
 
 **Recurring generation produces a draft.** `createInvoice` hardcodes
 `status = 'draft'` (`invoice.service.ts:321`), and `auto_send` is written to
-`recurring_invoices` but read nowhere — `generateInvoice` creates the draft and
+`recurring_invoices` but read nowhere, `generateInvoice` creates the draft and
 stops. A draft cannot be charged, and `recordPayment` refuses drafts outright,
 so a card charged against one would capture money that cannot be recorded. The
 card's stated fallback, "email payment link as today", also does not exist:
@@ -173,7 +173,7 @@ lowest `rowid` per pair, and logs how many rows it removed.
 that answers a customer disputing an off-session charge, so it is captured at
 save time rather than reconstructed from current settings later.
 
-## Phase 0 — finalize and send
+## Phase 0, finalize and send
 
 Extract the body of `routes/invoices.ts:445` (`POST /:id/send`) into
 `services/invoice-send.service.ts`:
@@ -222,7 +222,7 @@ The database writes inside `generateInvoice` stay synchronous and complete
 before any await, so the existing invoice-number transaction is unaffected. The
 charge is attempted only after generation has fully committed.
 
-## Phase 1 — capture at checkout
+## Phase 1, capture at checkout
 
 `createCheckoutSession` gains `save_card?: boolean`. When set:
 
@@ -267,7 +267,7 @@ new i18n keys in all five OSS locales (`en.ts`, `tr.ts`, `de.ts`, `es.ts`,
 
 The rendered string is what gets stored in `consent_text`.
 
-## Phase 2 — the off-session charge
+## Phase 2, the off-session charge
 
 `services/auto-bill.service.ts`:
 
@@ -297,14 +297,14 @@ stripe.paymentIntents.create({
 ```
 
 The amount is always derived server-side from the invoice balance, never
-accepted from a caller — the same trust model `connect.ts` documents for
+accepted from a caller, the same trust model `connect.ts` documents for
 Checkout. Between the idempotency key, `ux_aba_invoice_attempt`, and
 `ux_payments_invoice_reference`, a double scheduler tick cannot double-charge.
 
 On success, `recordPayment(invoiceId, { amount, method: "card", reference: pi.id,
 notes: "Auto-billed via Stripe" })`. A captured charge that cannot be recorded
 is logged at error level with the invoice id and reference, matching the
-existing handling in `connect.ts:99` — money must never disappear quietly.
+existing handling in `connect.ts:99`, money must never disappear quietly.
 
 ### Failure classification
 
@@ -318,7 +318,7 @@ existing handling in `connect.ts:99` — money must never disappear quietly.
 
 Every outcome writes an `auto_bill_attempts` row. On any terminal failure the
 invoice is left `sent` with its payment link emailed, so the customer can always
-pay by hand — that is the degradation path the roadmap card assumed already
+pay by hand, that is the degradation path the roadmap card assumed already
 existed.
 
 Admin notification adds no new channel. It mirrors `notifyInvoiceViewed`
@@ -337,13 +337,13 @@ number. `scheduler.ts`'s `runScheduledTasks` calls it after `processAllDue()`,
 in its own try/catch so a Stripe outage cannot stop reminders. The hourly tick
 means a "+1d" retry fires within an hour of its due time, which is ample.
 
-## Phase 3 — management surfaces
+## Phase 3, management surfaces
 
 Portal (`routes/public.ts`, portal-token scoped):
 
-- `GET /portal/:token/payment-methods` — brand, last4, expiry, default flag.
+- `GET /portal/:token/payment-methods`, brand, last4, expiry, default flag.
   Never a gateway id.
-- `DELETE /portal/:token/payment-methods/:id` — detaches at Stripe first, then
+- `DELETE /portal/:token/payment-methods/:id`, detaches at Stripe first, then
   deletes the row. A detach failure returns 502 and keeps the row, so local
   state never claims a card is gone while Stripe still holds it.
 
@@ -398,8 +398,8 @@ tenant's own key and that a saved method in tenant A is invisible to tenant B.
 
 Phase 0 ships alone and is worth shipping alone: recurring invoices that
 silently accumulate drafts nobody sends is arguably a worse defect than the
-missing auto-charge. Phases 1–3 then land in order, each behind the existing
-per-gateway settings toggle, with no feature flag of their own — a profile only
+missing auto-charge. Phases 1-3 then land in order, each behind the existing
+per-gateway settings toggle, with no feature flag of their own, a profile only
 auto-bills when a merchant sets `auto_bill` and a customer has saved a card, so
 the blast radius is opt-in on both sides.
 

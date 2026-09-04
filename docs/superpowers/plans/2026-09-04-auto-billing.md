@@ -11,14 +11,14 @@
 ## Global Constraints
 
 - **Design spec:** `docs/superpowers/specs/2026-09-04-auto-billing-design.md`. Read it before Task 1.
-- **Repo:** Tasks 1–12 are in `inkvoice/` (OSS, MIT). Task 13 is in `inkvoice-cloud/` (private). These are separate git repos — commit inside the relevant subfolder, never at the `inkvoice-mono/` level.
+- **Repo:** Tasks 1-12 are in `inkvoice/` (OSS, MIT). Task 13 is in `inkvoice-cloud/` (private). These are separate git repos, commit inside the relevant subfolder, never at the `inkvoice-mono/` level.
 - **No PAN, CVV, or raw card number is ever stored, logged, or transmitted by Inkvoice.** Only Stripe tokens (`cus_…`, `pm_…`, `pi_…`) and display metadata (brand, last4, expiry month/year).
 - **Charge amounts are always derived server-side** from the invoice balance. Never accept an amount from a request body.
 - **Never use em dashes or en dashes** in code comments, copy, commit messages, or documentation. Use commas, periods, or parentheses.
 - **Commit messages: title line only, no body. No `Co-Authored-By` trailer.**
 - **Commit directly to `main`. Do not open pull requests.**
 - **i18n keys are snake_case** (`namespace.descriptive_key`), and interpolation uses `{{variable}}`. Match the existing keys in each namespace.
-- **i18n:** the OSS app has five locales — `en.ts`, `tr.ts`, `de.ts`, `es.ts`, `fr.ts` in `packages/frontend/src/i18n/`. `tr.ts`, `es.ts`, `de.ts` and `fr.ts` each declare `const x: TranslationKeys`, so a key added to `en.ts` alone fails typecheck in all four. Every new string needs a key in all five. The cloud repo's `cloud-*.ts` locale files are inert and must not be used.
+- **i18n:** the OSS app has five locales, `en.ts`, `tr.ts`, `de.ts`, `es.ts`, `fr.ts` in `packages/frontend/src/i18n/`. `tr.ts`, `es.ts`, `de.ts` and `fr.ts` each declare `const x: TranslationKeys`, so a key added to `en.ts` alone fails typecheck in all four. Every new string needs a key in all five. The cloud repo's `cloud-*.ts` locale files are inert and must not be used.
 - **Test command:** `bun test` from `packages/backend/`, or `bun run test` from the OSS repo root. Full gate: `bun run check` (lint + typecheck + test).
 - **Verification:** run the actual command and read the output before claiming a step passed.
 
@@ -38,7 +38,7 @@
 **Modified (OSS):**
 | File | Change |
 |---|---|
-| `packages/backend/src/database/migrations.ts` | Migrations 27–30. |
+| `packages/backend/src/database/migrations.ts` | Migrations 27-30. |
 | `packages/backend/src/routes/invoices.ts:445` | `POST /:id/send` becomes a thin wrapper over the new service; publish ordering fixed. |
 | `packages/backend/src/services/invoice.service.ts` | `publishInvoice` accepts a freshly-sent invoice. |
 | `packages/backend/src/services/recurring.service.ts` | `auto_bill` column, async `generateInvoice`/`processAllDue`, finalize and hand off. |
@@ -63,7 +63,7 @@
 
 ---
 
-## Phase 0 — Finalize and send
+## Phase 0, Finalize and send
 
 ### Task 1: Fix the publish ordering so sent invoices get a share token
 
@@ -74,8 +74,12 @@ A draft invoice sent through `POST /invoices/:id/send` today ends up `status = '
 - Test: `packages/backend/src/tests/invoice-send.test.ts` (create)
 
 **Interfaces:**
-- Consumes: `publishInvoice(id: string): InvoiceWithItems | null`, `markSent(id: string): InvoiceWithItems | null` from `services/invoice.service.ts`
-- Produces: nothing new. Behavioural guarantee later tasks rely on: after the send flow runs, the invoice has `status = 'sent'`, `is_published = 1`, and a non-null `share_token`.
+- Consumes: `publishInvoice(id: string): InvoiceWithItems | null`, `markSent(id: string): InvoiceWithItems | null`, `getInvoice(id: string): InvoiceWithItems | null` from `services/invoice.service.ts`
+- Produces:
+  ```ts
+  export function finaliseForSending(id: string): InvoiceWithItems | null;
+  ```
+  Task 2's `sendInvoiceEmail` and Task 3's `generateInvoice` both call it, so the ordering rule lives in exactly one place. Guarantee: after it returns, the invoice has `status = 'sent'`, `is_published = 1`, and a non-null `share_token`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -88,7 +92,7 @@ import { unlinkSync } from "node:fs";
 import { closeDatabase, getDb, initDatabase } from "../database/connection";
 import { runMigrations } from "../database/migrations";
 import { seed } from "../database/seed";
-import { createInvoice, getInvoice, markSent, publishInvoice } from "../services/invoice.service";
+import { createInvoice, finaliseForSending, getInvoice } from "../services/invoice.service";
 import { resetEnvCache } from "../utils/env";
 
 const TEST_DB = "./data/test-invoice-send.db";
@@ -125,30 +129,41 @@ function newDraft() {
   });
 }
 
-describe("send flow finalisation", () => {
+describe("finaliseForSending", () => {
   test("a draft becomes sent, published, and share-linked", () => {
     const inv = newDraft();
     expect(inv.status).toBe("draft");
+    expect(inv.is_published).toBe(0);
     expect(inv.share_token).toBeNull();
 
-    // The order routes/invoices.ts uses.
-    if (inv.status === "draft") markSent(inv.id);
-    if (!inv.is_published) publishInvoice(inv.id);
-
-    const after = getInvoice(inv.id)!;
-    expect(after.status).toBe("sent");
-    expect(after.is_published).toBe(1);
-    expect(after.share_token).toBeTruthy();
+    const finalised = finaliseForSending(inv.id)!;
+    expect(finalised.status).toBe("sent");
+    expect(finalised.is_published).toBe(1);
+    expect(finalised.share_token).toBeTruthy();
+    // It returns the post-write state, not the pre-write row the caller had.
+    expect(finalised.invoice_number).toBe(getInvoice(inv.id)!.invoice_number);
   });
 
-  test("an already-published invoice keeps its existing share token", () => {
+  test("it is idempotent and keeps the existing share token", () => {
     const inv = newDraft();
-    markSent(inv.id);
-    publishInvoice(inv.id);
-    const first = getInvoice(inv.id)!.share_token;
+    const first = finaliseForSending(inv.id)!;
+    const again = finaliseForSending(inv.id)!;
+    expect(again.share_token).toBe(first.share_token);
+    expect(again.invoice_number).toBe(first.invoice_number);
+    expect(again.status).toBe("sent");
+  });
 
-    publishInvoice(inv.id);
-    expect(getInvoice(inv.id)!.share_token).toBe(first);
+  test("it leaves a paid invoice alone but still publishes it", () => {
+    const inv = newDraft();
+    finaliseForSending(inv.id);
+    getDb().run("UPDATE invoices SET status = 'paid' WHERE id = ?", [inv.id]);
+    const after = finaliseForSending(inv.id)!;
+    expect(after.status).toBe("paid");
+    expect(after.is_published).toBe(1);
+  });
+
+  test("it returns null for a missing invoice", () => {
+    expect(finaliseForSending("nope")).toBeNull();
   });
 });
 ```
@@ -159,9 +174,40 @@ describe("send flow finalisation", () => {
 cd packages/backend && bun test src/tests/invoice-send.test.ts
 ```
 
-Expected: the first test FAILS on `expect(after.is_published).toBe(1)` (received `0`). This confirms the bug rather than assuming it.
+Expected: FAIL. `finaliseForSending` is not exported from `invoice.service.ts`.
 
-- [ ] **Step 3: Fix the ordering in the route**
+- [ ] **Step 3: Implement finaliseForSending**
+
+Add to `packages/backend/src/services/invoice.service.ts`, next to `publishInvoice` and `markSent`:
+
+```ts
+/**
+ * Put an invoice into the state a delivery email needs: numbered, sent, and
+ * publicly reachable.
+ *
+ * Order matters and is the whole point of this function. `publishInvoice`
+ * refuses anything still in `draft`, so the status has to leave draft first,
+ * and publishing is what mints the `share_token` the email links to. Calling
+ * them the other way round (as the send route did) leaves a draft `sent` but
+ * unpublished with no token, and the customer gets an email with no way to
+ * view or pay the invoice.
+ *
+ * Idempotent: an already-sent, already-published invoice is returned unchanged.
+ * Returns the re-read row, because both writes happen after the caller's copy
+ * was loaded.
+ */
+export function finaliseForSending(id: string): InvoiceWithItems | null {
+  const existing = getInvoice(id);
+  if (!existing) return null;
+
+  if (existing.status === "draft") markSent(id);
+  if (!existing.is_published) publishInvoice(id);
+
+  return getInvoice(id);
+}
+```
+
+- [ ] **Step 4: Call it from the send route**
 
 In `packages/backend/src/routes/invoices.ts`, replace the publish/mark block (currently lines 459-467):
 
@@ -179,24 +225,12 @@ In `packages/backend/src/routes/invoices.ts`, replace the publish/mark block (cu
 with:
 
 ```ts
-  // Order matters: publishInvoice refuses a draft, so the status has to leave
-  // draft first. Publishing is what mints the share_token the delivery email
-  // links to, so a draft published in the old order shipped a linkless email.
-  if (invoice.status === "draft") {
-    invoiceService.markSent(invoice.id);
-  }
-  if (!invoice.is_published) {
-    invoiceService.publishInvoice(invoice.id);
-  }
-
-  // Re-read: markSent assigns the real invoice number and publishInvoice mints
-  // the share_token, both after `invoice` was loaded.
-  const finalised = invoiceService.getInvoice(invoice.id) ?? invoice;
+  const finalised = invoiceService.finaliseForSending(invoice.id) ?? invoice;
 ```
 
-- [ ] **Step 4: Use the re-read invoice for the email**
-
-Still in `routes/invoices.ts`, the `publicUrl` and `invoiceDeliveryEmail` block must read from `finalised`, not `invoice`:
+Then point the email at the re-read invoice. `markSent` assigns the real
+invoice number and `publishInvoice` mints the `share_token`, both after
+`invoice` was loaded, so every field below must come from `finalised`:
 
 ```ts
   const publicUrl = finalised.share_token
@@ -215,7 +249,8 @@ Still in `routes/invoices.ts`, the `publicUrl` and `invoiceDeliveryEmail` block 
   });
 ```
 
-Leave every other line of the handler alone, including the e-invoice attachment block and the 400/502 error mapping.
+Leave every other line of the handler alone, including the e-invoice
+attachment block and the 400/502 error mapping.
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
@@ -223,7 +258,7 @@ Leave every other line of the handler alone, including the e-invoice attachment 
 cd packages/backend && bun test src/tests/invoice-send.test.ts
 ```
 
-Expected: 2 pass, 0 fail.
+Expected: 4 pass, 0 fail.
 
 - [ ] **Step 6: Run the full backend suite for regressions**
 
@@ -236,7 +271,7 @@ Expected: no new failures. The invoice-number assertions in existing tests are t
 - [ ] **Step 7: Commit**
 
 ```bash
-git add packages/backend/src/routes/invoices.ts packages/backend/src/tests/invoice-send.test.ts
+git add packages/backend/src/services/invoice.service.ts packages/backend/src/routes/invoices.ts packages/backend/src/tests/invoice-send.test.ts
 git commit -m "fix: give a freshly sent invoice its share link before emailing it"
 ```
 
@@ -380,12 +415,7 @@ export async function sendInvoiceEmail(
     return { success: false, error: "No recipient email address", status: 400 };
   }
 
-  // Order matters: publishInvoice refuses a draft, so leave draft first.
-  // Publishing mints the share_token the delivery email links to.
-  if (invoice.status === "draft") invoiceService.markSent(invoice.id);
-  if (!invoice.is_published) invoiceService.publishInvoice(invoice.id);
-
-  const finalised = invoiceService.getInvoice(invoice.id) ?? invoice;
+  const finalised = invoiceService.finaliseForSending(invoice.id) ?? invoice;
 
   const settings = getAllSettings();
   const origin = resolvePublicOrigin(opts.origin);
@@ -620,8 +650,7 @@ Change the signature and add the finalise block. `generateInvoice` currently end
   const shouldFinalise = recurring.auto_send === 1 || recurring.auto_bill === 1;
   if (!shouldFinalise) return newInvoice.id;
 
-  markSent(newInvoice.id);
-  publishInvoice(newInvoice.id);
+  finaliseForSending(newInvoice.id);
 
   if (recurring.auto_send === 1) {
     // Delivery failure must never roll back a generated invoice or stop the
@@ -645,7 +674,7 @@ Change the signature and add the finalise block. `generateInvoice` currently end
 Change the declaration to `export async function generateInvoice(recurringId: string): Promise<string | null> {` and add the imports:
 
 ```ts
-import { markSent, publishInvoice } from "./invoice.service";
+import { finaliseForSending } from "./invoice.service";
 import { sendInvoiceEmail } from "./invoice-send.service";
 import { logger } from "../utils/logger";
 ```
@@ -721,7 +750,7 @@ git commit -m "feat: send recurring invoices when the profile opts in"
 
 ---
 
-## Phase 1 — Capture a card
+## Phase 1, Capture a card
 
 ### Task 4: Schema for saved methods, attempts, and payment dedupe
 
@@ -809,7 +838,7 @@ test("payments dedupe index exists", () => {
 cd packages/backend && bun test src/tests/migrations.test.ts
 ```
 
-Expected: FAIL — `LATEST_MIGRATION_VERSION` is 27 after Task 3, and the tables do not exist.
+Expected: FAIL, `LATEST_MIGRATION_VERSION` is 27 after Task 3, and the tables do not exist.
 
 - [ ] **Step 3: Add migrations 28, 29, 30**
 
@@ -995,7 +1024,7 @@ Import `afterEach` from `bun:test`.
 cd packages/backend && bun test src/tests/auto-bill.test.ts
 ```
 
-Expected: FAIL — `setStripeConfiguredChecker` is not exported.
+Expected: FAIL, `setStripeConfiguredChecker` is not exported.
 
 - [ ] **Step 3: Add the hooks**
 
@@ -1438,7 +1467,7 @@ describe("card capture from checkout", () => {
 cd packages/backend && bun test src/tests/auto-bill.test.ts
 ```
 
-Expected: FAIL — `saveMethodFromCheckoutSession` is not exported.
+Expected: FAIL, `saveMethodFromCheckoutSession` is not exported.
 
 - [ ] **Step 3: Extend the checkout context and session creation**
 
@@ -1632,7 +1661,7 @@ git commit -m "feat: let a payer save their card during checkout"
 
 ---
 
-## Phase 2 — Charge off-session
+## Phase 2, Charge off-session
 
 ### Task 8: Off-session charge on the gateway
 
@@ -1959,7 +1988,7 @@ Append to `packages/backend/src/tests/auto-bill.test.ts`:
 
 ```ts
 import { attemptAutoBill } from "../services/auto-bill.service";
-import { getInvoice, markSent, publishInvoice } from "../services/invoice.service";
+import { finaliseForSending, getInvoice } from "../services/invoice.service";
 
 function attemptsFor(invoiceId: string) {
   return getDb()
@@ -1972,8 +2001,7 @@ function sentInvoiceFor(customer: string, amount: number) {
     customer_id: customer, issue_date: "2026-09-04", currency: "USD",
     items: [{ description: "Work", quantity: 1, unit_price: amount }],
   });
-  markSent(inv.id);
-  publishInvoice(inv.id);
+  finaliseForSending(inv.id);
   return getInvoice(inv.id)!;
 }
 
@@ -2457,7 +2485,7 @@ Import `setStripeClientResolver`, `saveMethod`, and `getInvoice` into `recurring
 cd packages/backend && bun test src/tests/auto-bill.test.ts src/tests/recurring-cron.test.ts
 ```
 
-Expected: FAIL — `processAutoBillRetries` is not exported, and the recurring invoice is `sent` rather than `paid`.
+Expected: FAIL, `processAutoBillRetries` is not exported, and the recurring invoice is `sent` rather than `paid`.
 
 - [ ] **Step 3: Add the retry processor**
 
@@ -2580,7 +2608,7 @@ git commit -m "feat: run auto-billing on generation and on a retry schedule"
 
 ---
 
-## Phase 3 — Management surfaces
+## Phase 3, Management surfaces
 
 ### Task 11: Portal payment-method endpoints
 
@@ -2898,7 +2926,7 @@ test("a saved method in one tenant is invisible to another", async () => {
 cd /Users/baris/projects/inhouse/inkvoice-mono/inkvoice-cloud/packages/backend && bun test src/tests/auto-bill-tenant.test.ts
 ```
 
-Expected: FAIL — no resolver is registered, so `getStripe()` falls back to an unset env key.
+Expected: FAIL, no resolver is registered, so `getStripe()` falls back to an unset env key.
 
 - [ ] **Step 4: Extract the tenant Stripe loader**
 
@@ -2960,7 +2988,7 @@ git commit -m "feat: auto-bill on each tenant's own Stripe account"
 
 Checked against `docs/superpowers/specs/2026-09-04-auto-billing-design.md`:
 
-- Every spec section maps to a task. Stripe client resolution → Task 5; gateway capability → Task 8; data model → Task 4 (migration 27 moved to Task 3, where `auto_bill` is first needed, so each task's schema arrives with its consumer); Phase 0 → Tasks 1–3; Phase 1 → Tasks 6–7; Phase 2 → Tasks 8–10; Phase 3 → Tasks 11–12; cloud overlay → Task 13; testing → folded into each task.
+- Every spec section maps to a task. Stripe client resolution → Task 5; gateway capability → Task 8; data model → Task 4 (migration 27 moved to Task 3, where `auto_bill` is first needed, so each task's schema arrives with its consumer); Phase 0 → Tasks 1-3; Phase 1 → Tasks 6-7; Phase 2 → Tasks 8-10; Phase 3 → Tasks 11-12; cloud overlay → Task 13; testing → folded into each task.
 - Task 1 was added after the spec was written. Empirical check: a draft run through the route's publish/mark ordering ends `sent` with `is_published: 0` and `share_token: null`, so the delivery email carries no link. Every "email the payment link" fallback in the spec depends on that link existing.
 - Migration numbering: 27 (`recurring_auto_bill`, Task 3), 28 (`customer_payment_methods`), 29 (`auto_bill_attempts`), 30 (`payments_reference_dedupe`). `LATEST_MIGRATION_VERSION` reaches 30, which Task 4's test asserts.
 - Names are consistent across tasks: `saveMethod`, `getDefaultMethod`, `listMethodsForCustomer`, `deleteMethod`, `getMethodById`, `attemptAutoBill`, `processAutoBillRetries`, `chargeOffSession`, `classifyStripeError`, `saveMethodFromCheckoutSession`, `setStripeClientResolver`, `setStripeConfiguredChecker`, `resolvePublicOrigin`, `sendInvoiceEmail`.
