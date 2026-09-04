@@ -456,27 +456,20 @@ invoices.post("/:id/send", async (c) => {
     return c.json({ success: false, error: "No recipient email address" }, 400);
   }
 
-  // Auto-publish if not published
-  if (!invoice.is_published) {
-    invoiceService.publishInvoice(invoice.id);
-  }
-  // Auto-mark as sent if draft
-  if (invoice.status === "draft") {
-    invoiceService.markSent(invoice.id);
-  }
+  const finalised = invoiceService.finaliseForSending(invoice.id) ?? invoice;
 
   const settings = getAllSettings();
-  const publicUrl = invoice.share_token
-    ? `${c.req.header("origin") || ""}/public/invoice/${invoice.share_token}`
+  const publicUrl = finalised.share_token
+    ? `${c.req.header("origin") || ""}/public/invoice/${finalised.share_token}`
     : null;
 
   const email = invoiceDeliveryEmail({
     company_name: settings.company_name || "Inkvoice",
-    customer_name: invoice.customer?.name || "Customer",
-    invoice_number: invoice.invoice_number,
-    total: formatCurrency(invoice.total, invoice.currency),
-    currency: invoice.currency,
-    due_date: invoice.due_date,
+    customer_name: finalised.customer?.name || "Customer",
+    invoice_number: finalised.invoice_number,
+    total: formatCurrency(finalised.total, finalised.currency),
+    currency: finalised.currency,
+    due_date: finalised.due_date,
     public_url: publicUrl,
     custom_message: body.message,
   });

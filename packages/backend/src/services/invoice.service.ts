@@ -619,6 +619,31 @@ export function markComplete(id: string): InvoiceWithItems | null {
   return getInvoice(id);
 }
 
+/**
+ * Put an invoice into the state a delivery email needs: numbered, sent, and
+ * publicly reachable.
+ *
+ * Order matters and is the whole point of this function. `publishInvoice`
+ * refuses anything still in `draft`, so the status has to leave draft first,
+ * and publishing is what mints the `share_token` the email links to. Calling
+ * them the other way round (as the send route did) leaves a draft `sent` but
+ * unpublished with no token, and the customer gets an email with no way to
+ * view or pay the invoice.
+ *
+ * Idempotent: an already-sent, already-published invoice is returned unchanged.
+ * Returns the re-read row, because both writes happen after the caller's copy
+ * was loaded.
+ */
+export function finaliseForSending(id: string): InvoiceWithItems | null {
+  const existing = getInvoice(id);
+  if (!existing) return null;
+
+  if (existing.status === "draft") markSent(id);
+  if (!existing.is_published) publishInvoice(id);
+
+  return getInvoice(id);
+}
+
 export function markSent(id: string): InvoiceWithItems | null {
   const db = getDb();
   const existing = db
