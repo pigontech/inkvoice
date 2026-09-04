@@ -365,7 +365,10 @@ describe("auto_bill and auto_send together", () => {
     );
   });
 
-  test("a declined charge on a profile with both flags on leaves the invoice sent and emails the customer", async () => {
+  test("a hard-declined charge on a profile with both flags on emails the customer exactly once", async () => {
+    // Regression test: auto-bill emails the payment link on its own terminal-
+    // failure path, so generateInvoice's auto_send path must not send a
+    // second, identical email for the same invoice.
     const calls: string[] = [];
 
     await withMockedSendInvoiceEmail(
@@ -388,7 +391,7 @@ describe("auto_bill and auto_send together", () => {
         );
 
         try {
-          const custId = makeCustomer("Both Flags, Charge Fails");
+          const custId = makeCustomer("Both Flags, Hard Decline");
           saveMethod({
             customerId: custId,
             gatewayCustomerId: "cus_both_fail",
@@ -414,7 +417,69 @@ describe("auto_bill and auto_send together", () => {
           const invoiceId = await generateInvoice(rec.id);
           const generated = getInvoice(invoiceId!)!;
           expect(generated.status).toBe("sent");
-          expect(calls.length).toBeGreaterThan(0);
+          expect(calls.length).toBe(1);
+        } finally {
+          setStripeClientResolver(null);
+        }
+      },
+    );
+  });
+
+  test("a soft-failed charge with retries pending on a profile with both flags on still emails the invoice once", async () => {
+    // auto-bill deliberately does not email on a soft failure because it will
+    // retry, so generateInvoice's auto_send path must still cover the
+    // customer in the meantime, exactly once.
+    const calls: string[] = [];
+
+    await withMockedSendInvoiceEmail(
+      async (invoiceId: string) => {
+        calls.push(invoiceId);
+        return { success: true };
+      },
+      async () => {
+        setStripeClientResolver(
+          async () =>
+            ({
+              paymentIntents: {
+                create: async () => {
+                  const err: Error & { code?: string } = new Error(
+                    "Your card has insufficient funds.",
+                  );
+                  err.code = "insufficient_funds";
+                  throw err;
+                },
+              },
+            }) as any,
+        );
+
+        try {
+          const custId = makeCustomer("Both Flags, Soft Fail");
+          saveMethod({
+            customerId: custId,
+            gatewayCustomerId: "cus_both_soft_fail",
+            gatewayMethodId: "pm_both_soft_fail",
+            last4: "0341",
+          });
+
+          const template = createInvoice({
+            customer_id: custId,
+            issue_date: todayMinus(30),
+            currency: "USD",
+            items: [{ description: "Retainer", quantity: 1, unit_price: 400 }],
+          });
+          const rec = createRecurring({
+            customer_id: custId,
+            template_invoice_id: template.id,
+            frequency: "monthly",
+            next_run_date: todayMinus(1),
+            auto_send: true,
+            auto_bill: true,
+          });
+
+          const invoiceId = await generateInvoice(rec.id);
+          const generated = getInvoice(invoiceId!)!;
+          expect(generated.status).toBe("sent");
+          expect(calls.length).toBe(1);
         } finally {
           setStripeClientResolver(null);
         }

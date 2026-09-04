@@ -275,17 +275,23 @@ export async function generateInvoice(recurringId: string): Promise<string | nul
   // Charge before emailing: a successful charge means the customer receives a
   // paid invoice rather than a request for money they have already paid.
   let charged = false;
+  let autoBillEmailed = false;
   if (recurring.auto_bill === 1) {
     try {
       const { attemptAutoBill } = await import("./auto-bill.service");
       const result = await attemptAutoBill(newInvoice.id, { recurringId });
       charged = result.status === "succeeded";
+      autoBillEmailed = result.emailedPaymentLink;
     } catch (err) {
       logger.error({ err, recurringId, invoiceId: newInvoice.id }, "Auto-bill threw on generation");
     }
   }
 
-  if (recurring.auto_send === 1 && !charged) {
+  // auto-bill already emailed a payment link on a terminal failure, so sending
+  // the auto_send email here too would be a second, identical email. A soft
+  // failure with retries pending is the one failure case where auto-bill did
+  // not email, so auto_send must still cover it.
+  if (recurring.auto_send === 1 && !charged && !autoBillEmailed) {
     // Delivery failure must never roll back a generated invoice or stop the
     // scheduler. Generation and delivery are separate concerns.
     try {

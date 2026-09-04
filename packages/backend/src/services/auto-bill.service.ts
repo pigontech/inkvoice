@@ -16,7 +16,16 @@ import { getAllSettings, getSetting } from "./settings.service";
 export const RETRY_OFFSET_DAYS = [1, 3, 5] as const;
 export const MAX_ATTEMPTS = RETRY_OFFSET_DAYS.length;
 
-export type AutoBillOutcome = OffSessionResult | { status: "skipped"; errorCode: string };
+export type AutoBillOutcome = (OffSessionResult | { status: "skipped"; errorCode: string }) & {
+  /**
+   * True exactly when this call already emailed the customer a payment link
+   * (the terminal-failure path). A caller that also sends its own invoice
+   * email on a failed charge, such as generateInvoice's auto_send path, must
+   * skip that email when this is true, so the customer is not emailed twice
+   * for the same invoice.
+   */
+  emailedPaymentLink: boolean;
+};
 
 function isoDaysFromNow(days: number): string {
   const d = new Date();
@@ -146,20 +155,28 @@ export async function attemptAutoBill(
   const attemptNo = opts.attemptNo ?? 1;
 
   const invoice = getInvoice(invoiceId);
-  if (!invoice) return { status: "skipped", errorCode: "invoice_not_found" };
+  if (!invoice)
+    return { status: "skipped", errorCode: "invoice_not_found", emailedPaymentLink: false };
   if (["draft", "voided", "paid", "complete"].includes(invoice.status)) {
-    return { status: "skipped", errorCode: `invoice_status_${invoice.status}` };
+    return {
+      status: "skipped",
+      errorCode: `invoice_status_${invoice.status}`,
+      emailedPaymentLink: false,
+    };
   }
 
   const balanceDue = invoice.total - (invoice.amount_paid || 0);
-  if (balanceDue <= 0) return { status: "skipped", errorCode: "no_balance_due" };
+  if (balanceDue <= 0) {
+    return { status: "skipped", errorCode: "no_balance_due", emailedPaymentLink: false };
+  }
 
   const method = getDefaultMethod(invoice.customer_id);
-  if (!method) return { status: "skipped", errorCode: "no_saved_method" };
+  if (!method)
+    return { status: "skipped", errorCode: "no_saved_method", emailedPaymentLink: false };
 
   const gateway = getGateway(method.gateway);
   if (!gateway?.supportsAutoBill || !gateway.chargeOffSession) {
-    return { status: "skipped", errorCode: "gateway_cannot_auto_bill" };
+    return { status: "skipped", errorCode: "gateway_cannot_auto_bill", emailedPaymentLink: false };
   }
 
   const result = await gateway.chargeOffSession({
@@ -215,7 +232,7 @@ export async function attemptAutoBill(
           `refund required, reference ${result.reference} charged after the invoice was already settled elsewhere`,
           "capture_unrecorded",
         );
-        return result;
+        return { ...result, emailedPaymentLink: false };
       }
     }
 
@@ -252,11 +269,13 @@ export async function attemptAutoBill(
         "capture_unrecorded",
       );
     }
-    return result;
+    return { ...result, emailedPaymentLink: false };
   }
 
   // Terminal failure: hand the customer a way to pay, and tell the merchant.
+  let emailedPaymentLink = false;
   if (!canRetry) {
+    emailedPaymentLink = true;
     try {
       await sendInvoiceEmail(invoiceId, { attachEinvoice: true });
     } catch (err) {
@@ -265,7 +284,7 @@ export async function attemptAutoBill(
     await notifyFailure(invoiceId, invoice.invoice_number, result.errorCode ?? result.status);
   }
 
-  return result;
+  return { ...result, emailedPaymentLink };
 }
 
 /**
