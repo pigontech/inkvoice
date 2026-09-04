@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, spyOn, test } from "bun:test";
 import { unlinkSync } from "node:fs";
 import { dbStorage } from "../database/connection";
 import {
@@ -7,6 +7,7 @@ import {
   runMigrations,
   setMigrationBackupsEnabled,
 } from "../database/migrations";
+import { logger } from "../utils/logger";
 
 const TEST_DB = "./data/test-migrations.db";
 
@@ -297,5 +298,152 @@ describe("schema migration runner", () => {
       `)
         .run(),
     ).toThrow();
+  });
+
+  test("migrations reach version 30", () => {
+    expect(LATEST_MIGRATION_VERSION).toBe(30);
+  });
+
+  test("customer_payment_methods has the expected shape", () => {
+    runWith(db, () => runMigrations());
+    const cols = (
+      db.query("SELECT name FROM pragma_table_info('customer_payment_methods')").all() as {
+        name: string;
+      }[]
+    ).map((r) => r.name);
+    for (const c of [
+      "id",
+      "customer_id",
+      "gateway",
+      "gateway_customer_id",
+      "gateway_method_id",
+      "brand",
+      "last4",
+      "exp_month",
+      "exp_year",
+      "is_default",
+      "consent_text",
+      "consent_at",
+      "created_at",
+    ]) {
+      expect(cols).toContain(c);
+    }
+  });
+
+  test("auto_bill_attempts has the expected shape", () => {
+    runWith(db, () => runMigrations());
+    const cols = (
+      db.query("SELECT name FROM pragma_table_info('auto_bill_attempts')").all() as {
+        name: string;
+      }[]
+    ).map((r) => r.name);
+    for (const c of [
+      "id",
+      "invoice_id",
+      "recurring_id",
+      "payment_method_id",
+      "attempt_no",
+      "status",
+      "gateway_reference",
+      "error_code",
+      "error_message",
+      "next_retry_at",
+      "created_at",
+    ]) {
+      expect(cols).toContain(c);
+    }
+  });
+
+  test("payments dedupe index exists", () => {
+    runWith(db, () => runMigrations());
+    const idx = db
+      .query("SELECT name FROM sqlite_master WHERE type = 'index' AND name = ?")
+      .get("ux_payments_invoice_reference") as { name: string } | null;
+    expect(idx).toBeTruthy();
+  });
+
+  test("migration 30 dedupes duplicate (invoice_id, reference) payments, keeping the older row", () => {
+    // Run the full chain once (this already applies migration 30 against an
+    // empty payments table). To prove the dedupe branch itself, roll back
+    // just that migration's effects, seed dirty data, then let runMigrations()
+    // re-apply version 30 against it.
+    runWith(db, () => runMigrations());
+    db.exec("DROP INDEX IF EXISTS ux_payments_invoice_reference");
+    db.exec("DELETE FROM schema_migrations WHERE version = 30");
+
+    db.exec(`
+      INSERT INTO customers (id, name) VALUES ('cust1', 'Test Co');
+      INSERT INTO invoices (id, invoice_number, customer_id, issue_date)
+        VALUES ('inv1', 'INV-0001', 'cust1', '2026-01-01');
+    `);
+
+    // Two payments sharing (invoice_id, reference): a genuine duplicate pair
+    // from, e.g., a retried webhook. pay-old is inserted first so it holds
+    // the lower rowid and must be the one the dedupe keeps.
+    db.query(`
+      INSERT INTO payments (id, invoice_id, amount, payment_date, reference)
+      VALUES ('pay-old', 'inv1', 100, '2026-01-01', 'ref-dup')
+    `).run();
+    db.query(`
+      INSERT INTO payments (id, invoice_id, amount, payment_date, reference)
+      VALUES ('pay-new', 'inv1', 100, '2026-01-02', 'ref-dup')
+    `).run();
+    // Control row: different reference, must survive untouched.
+    db.query(`
+      INSERT INTO payments (id, invoice_id, amount, payment_date, reference)
+      VALUES ('pay-control', 'inv1', 50, '2026-01-03', 'ref-control')
+    `).run();
+    // Two rows with a NULL reference. The index is partial (WHERE reference
+    // IS NOT NULL) and the DELETE also filters on reference IS NOT NULL, so
+    // neither should ever be considered a duplicate of the other.
+    db.query(`
+      INSERT INTO payments (id, invoice_id, amount, payment_date, reference)
+      VALUES ('pay-null-a', 'inv1', 25, '2026-01-04', NULL)
+    `).run();
+    db.query(`
+      INSERT INTO payments (id, invoice_id, amount, payment_date, reference)
+      VALUES ('pay-null-b', 'inv1', 25, '2026-01-05', NULL)
+    `).run();
+
+    const rowidOf = (id: string) =>
+      (db.query("SELECT rowid as r FROM payments WHERE id = ?").get(id) as { r: number }).r;
+    const oldRowid = rowidOf("pay-old");
+    const newRowid = rowidOf("pay-new");
+    expect(oldRowid).toBeLessThan(newRowid);
+
+    const warnSpy = spyOn(logger, "warn");
+    runWith(db, () => runMigrations());
+
+    // Exactly one of the duplicate pair remains, and it is the older row.
+    const dupRows = db.query("SELECT id FROM payments WHERE reference = 'ref-dup'").all() as {
+      id: string;
+    }[];
+    expect(dupRows.length).toBe(1);
+    expect(dupRows[0].id).toBe("pay-old");
+
+    // The control row is untouched.
+    const control = db.query("SELECT id FROM payments WHERE id = 'pay-control'").get() as {
+      id: string;
+    } | null;
+    expect(control?.id).toBe("pay-control");
+
+    // Both NULL-reference rows survive untouched.
+    const nullRows = db.query("SELECT id FROM payments WHERE reference IS NULL").all() as {
+      id: string;
+    }[];
+    expect(nullRows.map((r) => r.id).sort()).toEqual(["pay-null-a", "pay-null-b"]);
+
+    // The unique index is (re-)created.
+    const idx = db
+      .query("SELECT name FROM sqlite_master WHERE type = 'index' AND name = ?")
+      .get("ux_payments_invoice_reference") as { name: string } | null;
+    expect(idx?.name).toBe("ux_payments_invoice_reference");
+
+    // The migration logged the removal with the correct count.
+    expect(warnSpy).toHaveBeenCalledWith(
+      { removed: 1 },
+      "Removed duplicate payment rows before adding the reference index",
+    );
+    warnSpy.mockRestore();
   });
 });

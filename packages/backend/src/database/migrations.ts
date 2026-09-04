@@ -919,6 +919,102 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, "recurring_invoices", "auto_bill", "INTEGER NOT NULL DEFAULT 0");
     },
   },
+  {
+    version: 28,
+    name: "customer_payment_methods",
+    up: (db) => {
+      // Saved cards for off-session billing. Stripe tokens and display
+      // metadata only: no PAN, no CVV, nothing that could reconstruct a card.
+      // consent_text stores the mandate copy shown at capture, verbatim, so a
+      // disputed charge can be answered with what the customer actually agreed to.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS customer_payment_methods (
+          id                  TEXT PRIMARY KEY,
+          customer_id         TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+          gateway             TEXT NOT NULL DEFAULT 'stripe',
+          gateway_customer_id TEXT NOT NULL,
+          gateway_method_id   TEXT NOT NULL,
+          brand               TEXT,
+          last4               TEXT,
+          exp_month           INTEGER,
+          exp_year            INTEGER,
+          is_default          INTEGER NOT NULL DEFAULT 0,
+          consent_text        TEXT,
+          consent_at          TEXT,
+          created_at          TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `);
+      db.exec(`
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_cpm_gateway_method
+          ON customer_payment_methods(gateway, gateway_method_id)
+      `);
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_cpm_customer
+          ON customer_payment_methods(customer_id)
+      `);
+    },
+  },
+  {
+    version: 29,
+    name: "auto_bill_attempts",
+    up: (db) => {
+      // Dunning log and audit trail. One row per charge attempt, terminal when
+      // next_retry_at is NULL. The unique index on (invoice_id, attempt_no) is
+      // half the double-charge guard; the Stripe idempotency key is the other half.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS auto_bill_attempts (
+          id                TEXT PRIMARY KEY,
+          invoice_id        TEXT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+          recurring_id      TEXT,
+          payment_method_id TEXT,
+          attempt_no        INTEGER NOT NULL,
+          status            TEXT NOT NULL,
+          gateway_reference TEXT,
+          error_code        TEXT,
+          error_message     TEXT,
+          next_retry_at     TEXT,
+          created_at        TEXT NOT NULL DEFAULT (datetime('now'))
+        )
+      `);
+      db.exec(`
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_aba_invoice_attempt
+          ON auto_bill_attempts(invoice_id, attempt_no)
+      `);
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_aba_retry
+          ON auto_bill_attempts(next_retry_at) WHERE next_retry_at IS NOT NULL
+      `);
+    },
+  },
+  {
+    version: 30,
+    name: "payments_reference_dedupe",
+    up: (db) => {
+      // Promoted from the cloud overlay (tenant-migrations.ts) so both
+      // deployments share one idempotency guarantee. An existing self-hosted
+      // database may already hold duplicate (invoice_id, reference) pairs from
+      // a retried webhook, so deduplicate before the unique index goes on.
+      const removed = db.run(`
+        DELETE FROM payments
+        WHERE reference IS NOT NULL
+          AND rowid NOT IN (
+            SELECT MIN(rowid) FROM payments
+            WHERE reference IS NOT NULL
+            GROUP BY invoice_id, reference
+          )
+      `);
+      if (removed.changes > 0) {
+        logger.warn(
+          { removed: removed.changes },
+          "Removed duplicate payment rows before adding the reference index",
+        );
+      }
+      db.exec(`
+        CREATE UNIQUE INDEX IF NOT EXISTS ux_payments_invoice_reference
+          ON payments(invoice_id, reference) WHERE reference IS NOT NULL
+      `);
+    },
+  },
 ];
 
 export const LATEST_MIGRATION_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
