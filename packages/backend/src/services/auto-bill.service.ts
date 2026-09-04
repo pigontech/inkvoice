@@ -267,3 +267,55 @@ export async function attemptAutoBill(
 
   return result;
 }
+
+/**
+ * Re-run every attempt whose retry time has passed. The hourly scheduler means
+ * a "+1 day" retry fires within an hour of its due time, which is ample for
+ * dunning. Retrying the highest logged attempt number keeps the sequence and
+ * the idempotency key monotonic.
+ */
+export async function processAutoBillRetries(): Promise<{
+  retried: number;
+  succeeded: number;
+}> {
+  const db = getDb();
+  const now = new Date().toISOString();
+  const due = db
+    .query(
+      `SELECT invoice_id, recurring_id, MAX(attempt_no) AS attempt_no
+       FROM auto_bill_attempts
+       WHERE next_retry_at IS NOT NULL AND next_retry_at <= ?
+       GROUP BY invoice_id`,
+    )
+    .all(now) as { invoice_id: string; recurring_id: string | null; attempt_no: number }[];
+
+  let retried = 0;
+  let succeeded = 0;
+
+  for (const row of due) {
+    try {
+      const result = await attemptAutoBill(row.invoice_id, {
+        recurringId: row.recurring_id ?? undefined,
+        attemptNo: row.attempt_no + 1,
+      });
+      retried++;
+      if (result.status === "succeeded") succeeded++;
+
+      // The old row is settled either way: its successor now owns the schedule.
+      db.run(
+        `UPDATE auto_bill_attempts SET next_retry_at = NULL
+         WHERE invoice_id = ? AND attempt_no = ?`,
+        [row.invoice_id, row.attempt_no],
+      );
+    } catch (err) {
+      logger.error({ err, invoiceId: row.invoice_id }, "Auto-bill retry threw");
+      db.run(
+        `UPDATE auto_bill_attempts SET next_retry_at = NULL
+         WHERE invoice_id = ? AND attempt_no = ?`,
+        [row.invoice_id, row.attempt_no],
+      );
+    }
+  }
+
+  return { retried, succeeded };
+}

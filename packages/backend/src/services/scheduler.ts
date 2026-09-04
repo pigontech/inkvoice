@@ -98,4 +98,17 @@ async function runScheduledTasks(): Promise<void> {
   } catch (err) {
     logger.error({ err }, "Scheduler reminder error");
   }
+
+  try {
+    const { processAutoBillRetries } = await import("./auto-bill.service");
+    const retries = await processAutoBillRetries();
+    if (retries.retried > 0) {
+      logger.info(
+        { retried: retries.retried, succeeded: retries.succeeded },
+        "Scheduler: auto-bill retries processed",
+      );
+    }
+  } catch (err) {
+    logger.error({ err }, "Scheduler auto-bill error");
+  }
 }

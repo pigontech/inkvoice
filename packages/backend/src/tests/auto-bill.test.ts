@@ -752,3 +752,71 @@ describe("attemptAutoBill", () => {
     expect(JSON.parse(entry!.metadata!).reason).toContain("captured");
   });
 });
+
+import { processAutoBillRetries } from "../services/auto-bill.service";
+
+describe("processAutoBillRetries", () => {
+  afterEach(() => setStripeClientResolver(null));
+
+  test("retries only attempts whose next_retry_at has passed", async () => {
+    let created = 0;
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentIntents: {
+            create: async () => {
+              created++;
+              return { id: `pi_retry_${created}`, status: "succeeded" };
+            },
+          },
+        }) as any,
+    );
+
+    const due = sentInvoiceFor(customerId, 30);
+    const notDue = sentInvoiceFor(customerId, 30);
+    const past = new Date(Date.now() - 3600_000).toISOString();
+    const future = new Date(Date.now() + 86_400_000).toISOString();
+
+    for (const [inv, when] of [
+      [due, past],
+      [notDue, future],
+    ] as const) {
+      getDb().run(
+        `INSERT INTO auto_bill_attempts
+           (id, invoice_id, attempt_no, status, error_code, next_retry_at)
+         VALUES (?, ?, 1, 'soft_failed', 'insufficient_funds', ?)`,
+        [crypto.randomBytes(16).toString("hex"), inv.id, when],
+      );
+    }
+
+    const result = await processAutoBillRetries();
+    expect(result.retried).toBe(1);
+    expect(getInvoice(due.id)!.status).toBe("paid");
+    expect(getInvoice(notDue.id)!.status).toBe("sent");
+  });
+
+  test("a retried attempt is no longer due", async () => {
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentIntents: { create: async () => ({ id: "pi_settled", status: "succeeded" }) },
+        }) as any,
+    );
+
+    const inv = sentInvoiceFor(customerId, 45);
+    getDb().run(
+      `INSERT INTO auto_bill_attempts
+         (id, invoice_id, attempt_no, status, error_code, next_retry_at)
+       VALUES (?, ?, 1, 'soft_failed', 'insufficient_funds', ?)`,
+      [
+        crypto.randomBytes(16).toString("hex"),
+        inv.id,
+        new Date(Date.now() - 3600_000).toISOString(),
+      ],
+    );
+
+    await processAutoBillRetries();
+    const second = await processAutoBillRetries();
+    expect(second.retried).toBe(0);
+  });
+});

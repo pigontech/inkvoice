@@ -4,8 +4,10 @@ import { unlinkSync } from "node:fs";
 import { closeDatabase, getDb, initDatabase } from "../database/connection";
 import { runMigrations } from "../database/migrations";
 import { seed } from "../database/seed";
+import { saveMethod } from "../services/customer-payment-method.service";
 import { createInvoice, getInvoice } from "../services/invoice.service";
 import { createRecurring, generateInvoice, processAllDue } from "../services/recurring.service";
+import { setStripeClientResolver } from "../services/stripe.service";
 import { resetEnvCache } from "../utils/env";
 
 const TEST_DB = "./data/test-recurring-cron.db";
@@ -232,5 +234,41 @@ describe("finalisation on generation", () => {
     const invoiceId = await generateInvoice(rec.id);
     expect(invoiceId).toBeTruthy();
     expect(getInvoice(invoiceId!)!.status).toBe("sent");
+  });
+
+  test("an auto_bill profile charges the saved card on generation", async () => {
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentIntents: { create: async () => ({ id: "pi_recurring", status: "succeeded" }) },
+        }) as any,
+    );
+    saveMethod({
+      customerId,
+      gatewayCustomerId: "cus_rec",
+      gatewayMethodId: "pm_rec",
+      last4: "4242",
+    });
+
+    const template = createInvoice({
+      customer_id: customerId,
+      issue_date: todayMinus(30),
+      currency: "USD",
+      items: [{ description: "Retainer", quantity: 1, unit_price: 300 }],
+    });
+    const rec = createRecurring({
+      customer_id: customerId,
+      template_invoice_id: template.id,
+      frequency: "monthly",
+      next_run_date: todayMinus(1),
+      auto_bill: true,
+    });
+
+    const invoiceId = await generateInvoice(rec.id);
+    const generated = getInvoice(invoiceId!)!;
+    expect(generated.status).toBe("paid");
+    expect(generated.amount_paid).toBe(300);
+
+    setStripeClientResolver(null);
   });
 });
