@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
 import crypto from "node:crypto";
 import { unlinkSync } from "node:fs";
 import { closeDatabase, getDb, initDatabase } from "../database/connection";
@@ -51,6 +51,12 @@ function makeTemplateInvoice(): string {
     items: [{ description: "Subscription", quantity: 1, unit_price: 100, tax_rate: 0 }],
   });
   return inv.id;
+}
+
+function makeCustomer(name: string): string {
+  const id = crypto.randomBytes(16).toString("hex");
+  getDb().run("INSERT INTO customers (id, name) VALUES (?, ?)", [id, name]);
+  return id;
 }
 
 describe("recurring invoice scheduler", () => {
@@ -270,5 +276,149 @@ describe("finalisation on generation", () => {
     expect(generated.amount_paid).toBe(300);
 
     setStripeClientResolver(null);
+  });
+});
+
+describe("auto_bill and auto_send together", () => {
+  // recurring.service imports sendInvoiceEmail from invoice-send.service with a
+  // static top-level import, and calls it directly (not through a namespace
+  // object). Bun's mock.module hot-swaps that live binding in place, so a
+  // plain mock.module call before invoking generateInvoice is enough, no
+  // dynamic re-import is required here. We still capture the original
+  // function values up front (before any mock.module call touches the
+  // module's exports) so we can restore the exact real implementation
+  // afterwards, since other tests in this file rely on the real,
+  // unconfigured-email behaviour of sendInvoiceEmail.
+  async function withMockedSendInvoiceEmail<T>(
+    stub: (invoiceId: string) => Promise<{ success: boolean }>,
+    fn: () => Promise<T>,
+  ): Promise<T> {
+    const real = await import("../services/invoice-send.service");
+    const originalSendInvoiceEmail = real.sendInvoiceEmail;
+    const originalResolvePublicOrigin = real.resolvePublicOrigin;
+
+    mock.module("../services/invoice-send.service", () => ({
+      sendInvoiceEmail: stub,
+      resolvePublicOrigin: originalResolvePublicOrigin,
+    }));
+
+    try {
+      return await fn();
+    } finally {
+      mock.module("../services/invoice-send.service", () => ({
+        sendInvoiceEmail: originalSendInvoiceEmail,
+        resolvePublicOrigin: originalResolvePublicOrigin,
+      }));
+    }
+  }
+
+  test("a successful charge on a profile with both flags on leaves the invoice paid and sends no email", async () => {
+    const calls: string[] = [];
+
+    await withMockedSendInvoiceEmail(
+      async (invoiceId: string) => {
+        calls.push(invoiceId);
+        return { success: true };
+      },
+      async () => {
+        setStripeClientResolver(
+          async () =>
+            ({
+              paymentIntents: {
+                create: async () => ({ id: "pi_both_succeed", status: "succeeded" }),
+              },
+            }) as any,
+        );
+
+        try {
+          const custId = makeCustomer("Both Flags, Charge Succeeds");
+          saveMethod({
+            customerId: custId,
+            gatewayCustomerId: "cus_both_succeed",
+            gatewayMethodId: "pm_both_succeed",
+            last4: "4242",
+          });
+
+          const template = createInvoice({
+            customer_id: custId,
+            issue_date: todayMinus(30),
+            currency: "USD",
+            items: [{ description: "Retainer", quantity: 1, unit_price: 400 }],
+          });
+          const rec = createRecurring({
+            customer_id: custId,
+            template_invoice_id: template.id,
+            frequency: "monthly",
+            next_run_date: todayMinus(1),
+            auto_send: true,
+            auto_bill: true,
+          });
+
+          const invoiceId = await generateInvoice(rec.id);
+          const generated = getInvoice(invoiceId!)!;
+          expect(generated.status).toBe("paid");
+          expect(calls.length).toBe(0);
+        } finally {
+          setStripeClientResolver(null);
+        }
+      },
+    );
+  });
+
+  test("a declined charge on a profile with both flags on leaves the invoice sent and emails the customer", async () => {
+    const calls: string[] = [];
+
+    await withMockedSendInvoiceEmail(
+      async (invoiceId: string) => {
+        calls.push(invoiceId);
+        return { success: true };
+      },
+      async () => {
+        setStripeClientResolver(
+          async () =>
+            ({
+              paymentIntents: {
+                create: async () => {
+                  const err: Error & { code?: string } = new Error("Your card was declined.");
+                  err.code = "card_declined";
+                  throw err;
+                },
+              },
+            }) as any,
+        );
+
+        try {
+          const custId = makeCustomer("Both Flags, Charge Fails");
+          saveMethod({
+            customerId: custId,
+            gatewayCustomerId: "cus_both_fail",
+            gatewayMethodId: "pm_both_fail",
+            last4: "0002",
+          });
+
+          const template = createInvoice({
+            customer_id: custId,
+            issue_date: todayMinus(30),
+            currency: "USD",
+            items: [{ description: "Retainer", quantity: 1, unit_price: 400 }],
+          });
+          const rec = createRecurring({
+            customer_id: custId,
+            template_invoice_id: template.id,
+            frequency: "monthly",
+            next_run_date: todayMinus(1),
+            auto_send: true,
+            auto_bill: true,
+          });
+
+          const invoiceId = await generateInvoice(rec.id);
+          const generated = getInvoice(invoiceId!)!;
+          expect(generated.status).toBe("sent");
+          expect(calls.length).toBeGreaterThan(0);
+        } finally {
+          setStripeClientResolver(null);
+        }
+      },
+    );
   });
 });
