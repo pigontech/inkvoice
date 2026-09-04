@@ -544,9 +544,7 @@ git commit -m "refactor: make invoice delivery callable outside a request"
 - Produces:
   ```ts
   export async function generateInvoice(recurringId: string): Promise<string | null>;
-  export async function processAllDue(): Promise<{
-    generated: number; errors: number; sent: number; sendErrors: number;
-  }>;
+  export async function processAllDue(): Promise<{ generated: number; errors: number }>;
   ```
   `RecurringInvoice` gains `auto_bill: number`. `CreateRecurringData` gains `auto_bill?: boolean`.
 
