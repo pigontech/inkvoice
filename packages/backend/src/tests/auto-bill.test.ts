@@ -947,15 +947,36 @@ describe("portal payment methods", () => {
       expYear: 2032,
     });
 
+    // Mock a successful detach so the row surviving actually proves the
+    // ownership check ran, rather than proving Stripe was unreachable.
+    let detachCalls = 0;
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentMethods: {
+            detach: async () => {
+              detachCalls++;
+              return {};
+            },
+          },
+        }) as any,
+    );
+
     const res = await app.request(
       `/api/v1/public/portal/${portalToken}/payment-methods/${otherMethod.id}`,
       { method: "DELETE" },
     );
-    expect(res.status).toBe(404);
 
+    // Check the ownership-check evidence first (row survives, detach never
+    // reached) so a broken ownership check is caught here, not masked by the
+    // status assertion happening to fail on its own for an unrelated reason.
     const stillExists = listMethodsForCustomer(otherCustomer);
     expect(stillExists).toHaveLength(1);
     expect(stillExists[0].id).toBe(otherMethod.id);
+    expect(detachCalls).toBe(0);
+    expect(res.status).toBe(404);
+
+    setStripeClientResolver(null);
   });
 
   test("one customer's list does not include another customer's payment methods", async () => {
