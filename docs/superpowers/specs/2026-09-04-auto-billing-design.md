@@ -52,7 +52,7 @@ logic hung off the OSS webhook will not fire on cloud.
 | Draft gap | Fixed as Phase 0 of this work, not a separate card. Ships standalone value even if auto-bill slips. |
 | Finalize scope | Finalize only when `auto_send = 1` or `auto_bill = 1`. Default profiles keep producing drafts, so no existing user loses a review step. |
 | Card capture | Opt-in at the existing hosted Checkout (`setup_future_usage`). The portal lists and removes methods; it does not capture. |
-| Dunning | `auto_bill_attempts` log with a fixed retry schedule (+1d, +3d, +5d, cap 3), driven by the existing hourly scheduler. No new cron, no settings UI. |
+| Dunning | `auto_bill_attempts` log with a fixed retry schedule (+1d then +3d, 3 attempts total), driven by the existing hourly scheduler. No new cron, no settings UI. |
 | Abstraction | `PaymentGateway` gains optional `saveMethod` / `chargeOffSession`. Stripe implements them; PayPal leaves them undefined. |
 | Cloud checkout | `connect.ts` keeps its own Checkout path in v1. The resolver feeds only the auto-bill engine. Converging the two checkout paths is later cleanup. |
 

@@ -2179,8 +2179,9 @@ import { getAllSettings, getSetting } from "./settings.service";
 import type { OffSessionResult } from "./payment-gateways/types";
 
 /** Days after a soft decline to retry. Index is attemptNo - 1. */
-export const RETRY_OFFSET_DAYS = [1, 3, 5] as const;
-export const MAX_ATTEMPTS = RETRY_OFFSET_DAYS.length;
+export const RETRY_OFFSET_DAYS = [1, 3] as const;
+// 3 attempts in total, so only 2 retry delays are needed.
+export const MAX_ATTEMPTS = 3;
 
 export type AutoBillOutcome = OffSessionResult | { status: "skipped"; errorCode: string };
 
