@@ -924,4 +924,69 @@ describe("portal payment methods", () => {
 
     setStripeClientResolver(null);
   });
+
+  test("one customer cannot delete another customer's payment method", async () => {
+    const otherCustomer = crypto.randomBytes(16).toString("hex");
+    const otherToken = crypto.randomBytes(16).toString("hex");
+    getDb().run("INSERT INTO customers (id, name, portal_enabled) VALUES (?, ?, 1)", [
+      otherCustomer,
+      "Other Portal Co",
+    ]);
+    getDb().run("INSERT INTO portal_tokens (customer_id, token) VALUES (?, ?)", [
+      otherCustomer,
+      otherToken,
+    ]);
+
+    const otherMethod = saveMethod({
+      customerId: otherCustomer,
+      gatewayCustomerId: "cus_other",
+      gatewayMethodId: "pm_other",
+      brand: "mastercard",
+      last4: "5555",
+      expMonth: 12,
+      expYear: 2032,
+    });
+
+    const res = await app.request(
+      `/api/v1/public/portal/${portalToken}/payment-methods/${otherMethod.id}`,
+      { method: "DELETE" },
+    );
+    expect(res.status).toBe(404);
+
+    const stillExists = listMethodsForCustomer(otherCustomer);
+    expect(stillExists).toHaveLength(1);
+    expect(stillExists[0].id).toBe(otherMethod.id);
+  });
+
+  test("one customer's list does not include another customer's payment methods", async () => {
+    const anotherCustomer = crypto.randomBytes(16).toString("hex");
+    const anotherToken = crypto.randomBytes(16).toString("hex");
+    getDb().run("INSERT INTO customers (id, name, portal_enabled) VALUES (?, ?, 1)", [
+      anotherCustomer,
+      "Another Portal Co",
+    ]);
+    getDb().run("INSERT INTO portal_tokens (customer_id, token) VALUES (?, ?)", [
+      anotherCustomer,
+      anotherToken,
+    ]);
+
+    saveMethod({
+      customerId: anotherCustomer,
+      gatewayCustomerId: "cus_another",
+      gatewayMethodId: "pm_another",
+      brand: "amex",
+      last4: "7777",
+      expMonth: 6,
+      expYear: 2031,
+    });
+
+    const portalList = await (
+      await app.request(`/api/v1/public/portal/${portalToken}/payment-methods`)
+    ).json();
+
+    expect(portalList.data).toBeDefined();
+    for (const method of portalList.data) {
+      expect(method.last4).not.toBe("7777");
+    }
+  });
 });
