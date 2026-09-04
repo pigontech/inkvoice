@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { getDb } from "../database/connection";
+import { deleteMethod, listMethodsForCustomer } from "../services/customer-payment-method.service";
 import * as invoiceService from "../services/invoice.service";
 import { notifyInvoiceViewed } from "../services/invoice-view.service";
 import {
@@ -357,6 +358,38 @@ function resolvePortalCustomer(token: string): { id: string; name: string } | nu
     .get(row.customer_id) as { id: string; name: string } | null;
   return customer ?? null;
 }
+
+publicRoutes.get("/portal/:token/payment-methods", (c) => {
+  const customer = resolvePortalCustomer(c.req.param("token"));
+  if (!customer) return c.json({ success: false, error: "Portal link not found or expired" }, 404);
+
+  // Display metadata only. Gateway identifiers stay server-side, they are
+  // chargeable references, not something a browser ever needs.
+  const data = listMethodsForCustomer(customer.id).map((m) => ({
+    id: m.id,
+    brand: m.brand,
+    last4: m.last4,
+    exp_month: m.exp_month,
+    exp_year: m.exp_year,
+    is_default: m.is_default,
+    created_at: m.created_at,
+  }));
+
+  return c.json({ success: true, data });
+});
+
+publicRoutes.delete("/portal/:token/payment-methods/:id", async (c) => {
+  const customer = resolvePortalCustomer(c.req.param("token"));
+  if (!customer) return c.json({ success: false, error: "Portal link not found or expired" }, 404);
+
+  const result = await deleteMethod(c.req.param("id"), customer.id);
+  if (!result.success) {
+    // "Not found" is the caller's fault, anything else is the gateway's.
+    const status = result.error === "Payment method not found" ? 404 : 502;
+    return c.json({ success: false, error: result.error }, status);
+  }
+  return c.json({ success: true, data: { message: "Payment method removed" } });
+});
 
 publicRoutes.get("/portal/:token/invoices.zip", async (c) => {
   const token = c.req.param("token");

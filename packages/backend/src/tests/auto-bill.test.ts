@@ -820,3 +820,108 @@ describe("processAutoBillRetries", () => {
     expect(second.retried).toBe(0);
   });
 });
+
+import { createApp } from "../app";
+
+describe("portal payment methods", () => {
+  let app: ReturnType<typeof createApp>;
+  let portalToken: string;
+  let portalCustomer: string;
+
+  beforeAll(() => {
+    app = createApp();
+    portalCustomer = crypto.randomBytes(16).toString("hex");
+    portalToken = crypto.randomBytes(16).toString("hex");
+    getDb().run("INSERT INTO customers (id, name, portal_enabled) VALUES (?, ?, 1)", [
+      portalCustomer,
+      "Portal Co",
+    ]);
+    getDb().run("INSERT INTO portal_tokens (customer_id, token) VALUES (?, ?)", [
+      portalCustomer,
+      portalToken,
+    ]);
+  });
+
+  test("lists only safe display fields", async () => {
+    saveMethod({
+      customerId: portalCustomer,
+      gatewayCustomerId: "cus_portal",
+      gatewayMethodId: "pm_portal",
+      brand: "visa",
+      last4: "4242",
+      expMonth: 6,
+      expYear: 2032,
+    });
+
+    const res = await app.request(`/api/v1/public/portal/${portalToken}/payment-methods`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].last4).toBe("4242");
+    expect(body.data[0].brand).toBe("visa");
+    // Gateway identifiers must never reach the browser.
+    expect(body.data[0].gateway_method_id).toBeUndefined();
+    expect(body.data[0].gateway_customer_id).toBeUndefined();
+  });
+
+  test("rejects an unknown portal token", async () => {
+    const res = await app.request("/api/v1/public/portal/not-a-token/payment-methods");
+    expect(res.status).toBe(404);
+  });
+
+  test("a detach failure keeps the row", async () => {
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentMethods: {
+            detach: async () => {
+              throw new Error("stripe is down");
+            },
+          },
+        }) as any,
+    );
+
+    const listed = await (
+      await app.request(`/api/v1/public/portal/${portalToken}/payment-methods`)
+    ).json();
+    const id = listed.data[0].id;
+
+    const res = await app.request(`/api/v1/public/portal/${portalToken}/payment-methods/${id}`, {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(502);
+
+    const still = await (
+      await app.request(`/api/v1/public/portal/${portalToken}/payment-methods`)
+    ).json();
+    expect(still.data).toHaveLength(1);
+
+    setStripeClientResolver(null);
+  });
+
+  test("a successful detach removes the row", async () => {
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentMethods: { detach: async () => ({}) },
+        }) as any,
+    );
+
+    const listed = await (
+      await app.request(`/api/v1/public/portal/${portalToken}/payment-methods`)
+    ).json();
+    const id = listed.data[0].id;
+
+    const res = await app.request(`/api/v1/public/portal/${portalToken}/payment-methods/${id}`, {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(200);
+
+    const after = await (
+      await app.request(`/api/v1/public/portal/${portalToken}/payment-methods`)
+    ).json();
+    expect(after.data).toHaveLength(0);
+
+    setStripeClientResolver(null);
+  });
+});
