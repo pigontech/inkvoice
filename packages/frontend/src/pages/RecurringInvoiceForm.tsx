@@ -26,12 +26,39 @@ export default function RecurringInvoiceForm() {
   const [nextRunDate, setNextRunDate] = useState(todayIso());
   const [endDate, setEndDate] = useState("");
   const [autoSend, setAutoSend] = useState(false);
+  const [autoBill, setAutoBill] = useState(false);
+  const [hasSavedMethod, setHasSavedMethod] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     api.listCustomers({ limit: "200" }).then((r) => setCustomers(r.data.items));
     api.listInvoices({ limit: "200" }).then((r) => setInvoices(r.data.items));
   }, []);
+
+  // Auto-bill needs a saved card on the selected customer. Re-check whenever
+  // the customer changes, and drop the toggle back off if the new customer
+  // has none, so the box never shows checked while disabled.
+  useEffect(() => {
+    if (!customerId) {
+      setHasSavedMethod(false);
+      return;
+    }
+    let cancelled = false;
+    api
+      .getCustomerPaymentMethods(customerId)
+      .then((r) => {
+        if (cancelled) return;
+        const has = r.data.length > 0;
+        setHasSavedMethod(has);
+        if (!has) setAutoBill(false);
+      })
+      .catch(() => {
+        if (!cancelled) setHasSavedMethod(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [customerId]);
 
   useEffect(() => {
     if (!id) return;
@@ -46,6 +73,7 @@ export default function RecurringInvoiceForm() {
         setNextRunDate(s.next_run_date);
         setEndDate(s.end_date || "");
         setAutoSend(!!s.auto_send);
+        setAutoBill(!!s.auto_bill);
       })
       .catch((err: unknown) => {
         toast.error(formatApiError(err, t));
@@ -73,6 +101,7 @@ export default function RecurringInvoiceForm() {
         next_run_date: nextRunDate,
         end_date: endDate || null,
         auto_send: autoSend,
+        auto_bill: autoBill,
       };
       if (isEdit) {
         await api.updateRecurring(id!, payload);
@@ -205,6 +234,22 @@ export default function RecurringInvoiceForm() {
             />
             {t("recurring.auto_send")}
           </label>
+
+          <div>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={autoBill}
+                disabled={!hasSavedMethod}
+                onChange={(e) => setAutoBill(e.target.checked)}
+                className="rounded"
+              />
+              {t("recurring.auto_bill")}
+            </label>
+            <p className="text-xs text-muted-foreground mt-1 pl-6">
+              {hasSavedMethod ? t("recurring.auto_bill_help") : t("recurring.auto_bill_no_card")}
+            </p>
+          </div>
         </CardContent>
       </Card>
     </form>

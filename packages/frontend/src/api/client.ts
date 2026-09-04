@@ -394,6 +394,24 @@ export const api = {
     }>(`/customers/${id}/portal`, { method: "POST" }),
   disableCustomerPortal: (id: string) =>
     request<{ success: boolean }>(`/customers/${id}/portal`, { method: "DELETE" }),
+  getCustomerPaymentMethods: (customerId: string) =>
+    request<{
+      success: boolean;
+      data: Array<{
+        id: string;
+        brand: string | null;
+        last4: string | null;
+        exp_month: number | null;
+        exp_year: number | null;
+        is_default: number;
+        created_at: string;
+      }>;
+    }>(`/customers/${customerId}/payment-methods`),
+  deleteCustomerPaymentMethod: (customerId: string, methodId: string) =>
+    request<{ success: boolean; data: { message: string } }>(
+      `/customers/${customerId}/payment-methods/${methodId}`,
+      { method: "DELETE" },
+    ),
   getInvoiceComments: (invoiceId: string) =>
     request<{
       success: boolean;
@@ -969,6 +987,24 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ body }),
       },
+    ),
+  getPortalPaymentMethods: (token: string) =>
+    request<{
+      success: boolean;
+      data: Array<{
+        id: string;
+        brand: string | null;
+        last4: string | null;
+        exp_month: number | null;
+        exp_year: number | null;
+        is_default: number;
+        created_at: string;
+      }>;
+    }>(`/public/portal/${token}/payment-methods`),
+  deletePortalPaymentMethod: (token: string, id: string) =>
+    request<{ success: boolean; data: { message: string } }>(
+      `/public/portal/${token}/payment-methods/${id}`,
+      { method: "DELETE" },
     ),
 
   // Outgoing webhooks

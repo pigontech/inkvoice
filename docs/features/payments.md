@@ -80,6 +80,33 @@ Customer opens invoice link
 
 Online payments through the public invoice link always pay the full outstanding amount. For partial payments, use the **Record Payment** action from the invoice detail page in the admin UI.
 
+## Saved Cards and Auto-Billing
+
+This is currently a Stripe-only capability, PayPal checkout does not support it.
+
+### Saving a card at checkout
+
+When a customer pays an invoice through Stripe Checkout, they see a "save this card" option alongside the consent text they are agreeing to. If they tick it, Inkvoice stores the card's display details (brand, last 4 digits, expiry) and a Stripe reference token, never the card number itself, for future charges. They can review and remove their saved cards at any time from their client portal (`/portal/:token`), and an admin can do the same from the customer's page in the admin app. Removing a card revokes it at Stripe as well as locally.
+
+A customer's saved card is what makes the **Auto-bill** toggle on a recurring invoice profile (see Recurring Invoices) usable: the toggle stays disabled until the selected customer has at least one saved card.
+
+### Retry schedule
+
+If an automatic charge is declined for a retryable reason (for example insufficient funds), Inkvoice retries it, for three attempts in total: the initial attempt when the invoice is generated, a second attempt 1 day after that if it was declined, and a third attempt 3 days after the second if that one was declined too. Once the third attempt also fails, the failure is treated as final and the customer is emailed a payment link so they can pay by hand.
+
+### Strong Customer Authentication and hard declines
+
+Some charges cannot succeed without the customer present, most commonly a bank requiring Strong Customer Authentication (SCA), and some declines are permanent (an expired or blocked card, for instance). Both are treated as final on the very first attempt: there is no retry schedule for them, since retrying would not change the outcome. The customer is immediately emailed a payment link so they can complete the payment themselves, with SCA if required.
+
+### Environment variables and settings
+
+- `PUBLIC_BASE_URL`: the public URL Inkvoice uses to build the payment link it emails a customer after a failed or non-retryable auto-bill charge. Set this to your instance's public URL if it is not already configured for outgoing email links generally.
+- `notify_on_auto_bill_failure`: a business setting (off by default) that, when enabled, also emails the company's own address on every failed or unrecorded auto-bill charge, in addition to the customer's payment-link email.
+
+### Chargebacks
+
+Auto-billing charges the customer's card through your own Stripe account. Chargeback liability, and any dispute process that follows one, sits with the merchant operating that Stripe account, the same as it would for any other Stripe charge you take. Inkvoice does not handle disputes on your behalf.
+
 ## Testing
 
 - **Stripe** — use test-mode keys (`sk_test_...`, `pk_test_...`) and Stripe's [test card numbers](https://stripe.com/docs/testing#cards).

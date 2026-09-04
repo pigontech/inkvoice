@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { logActivity } from "../services/activity.service";
 import * as customerService from "../services/customer.service";
+import { deleteMethod, listMethodsForCustomer } from "../services/customer-payment-method.service";
 import { buildStatementData, renderStatementHtml } from "../services/statement.service";
 import { getTagsForItem, setItemTags } from "../services/tag.service";
 import type { Customer } from "../types/customer";
@@ -404,6 +405,42 @@ customers.post("/batch", async (c) => {
   }
 
   return c.json({ success: true, data: { succeeded, failed: errors.length, errors } });
+});
+
+// --- Saved payment methods ---
+//
+// No route-level permission guard here, matching every other route in this
+// file: access control is the blanket authMiddleware applied to /api/v1/*
+// in app.ts, not a per-route requirePermission check.
+
+// Display metadata only, the same reduced shape the customer-facing portal
+// returns (routes/public.ts). Gateway identifiers stay server-side.
+customers.get("/:id/payment-methods", (c) => {
+  const id = c.req.param("id");
+  const customer = customerService.getCustomer(id);
+  if (!customer) return c.json({ success: false, error: "Customer not found" }, 404);
+
+  const data = listMethodsForCustomer(id).map((m) => ({
+    id: m.id,
+    brand: m.brand,
+    last4: m.last4,
+    exp_month: m.exp_month,
+    exp_year: m.exp_year,
+    is_default: m.is_default,
+    created_at: m.created_at,
+  }));
+
+  return c.json({ success: true, data });
+});
+
+customers.delete("/:id/payment-methods/:methodId", async (c) => {
+  const result = await deleteMethod(c.req.param("methodId"), c.req.param("id"));
+  if (!result.success) {
+    // "Not found" is the caller's fault, anything else is the gateway's.
+    const status = result.error === "Payment method not found" ? 404 : 502;
+    return c.json({ success: false, error: result.error }, status);
+  }
+  return c.json({ success: true, data: { message: "Payment method removed" } });
 });
 
 // --- Client portal access management ---

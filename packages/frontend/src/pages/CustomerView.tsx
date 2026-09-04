@@ -1,9 +1,12 @@
 import { DollarSign, FileText, Pencil, Receipt } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "sonner";
 import { api } from "@/api/client";
 import { CustomerStatementDialog } from "@/components/customers/CustomerStatementDialog";
+import { PaymentMethodList, type PaymentMethodListItem } from "@/components/PaymentMethodList";
 import { Breadcrumbs } from "@/components/shared/Breadcrumbs";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { useTranslation } from "@/i18n";
 import { STATUS_COLORS } from "@/lib/constants";
+import { formatApiError } from "@/lib/format-api-error";
 import { pushRecentlyViewed } from "@/lib/recently-viewed";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -31,6 +35,9 @@ export default function CustomerView() {
   const [customer, setCustomer] = useState<any | null>(null);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [statementOpen, setStatementOpen] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodListItem[]>([]);
+  const [removingMethodId, setRemovingMethodId] = useState<string | null>(null);
+  const [removingMethod, setRemovingMethod] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -46,7 +53,22 @@ export default function CustomerView() {
       }
     });
     api.listInvoices({ customer_id: id, limit: "50" }).then((r) => setInvoices(r.data.items));
+    api.getCustomerPaymentMethods(id).then((r) => setPaymentMethods(r.data));
   }, [id]);
+
+  const handleRemoveMethod = async () => {
+    if (!id || !removingMethodId) return;
+    setRemovingMethod(true);
+    try {
+      await api.deleteCustomerPaymentMethod(id, removingMethodId);
+      setPaymentMethods((prev) => prev.filter((m) => m.id !== removingMethodId));
+      setRemovingMethodId(null);
+    } catch (err: unknown) {
+      toast.error(formatApiError(err, t));
+    } finally {
+      setRemovingMethod(false);
+    }
+  };
 
   if (!customer) {
     return (
@@ -142,6 +164,18 @@ export default function CustomerView() {
               )}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">{t("portal.saved_cards")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <PaymentMethodList
+                methods={paymentMethods}
+                onRemove={(methodId) => setRemovingMethodId(methodId)}
+              />
+            </CardContent>
+          </Card>
         </div>
 
         <div className="space-y-6">
@@ -230,6 +264,19 @@ export default function CustomerView() {
           </Card>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={removingMethodId !== null}
+        onOpenChange={(o) => {
+          if (!o) setRemovingMethodId(null);
+        }}
+        title={t("portal.remove_card")}
+        description={t("portal.remove_card_confirm")}
+        variant="destructive"
+        confirmLabel={t("portal.remove_card")}
+        onConfirm={handleRemoveMethod}
+        loading={removingMethod}
+      />
     </div>
   );
 }

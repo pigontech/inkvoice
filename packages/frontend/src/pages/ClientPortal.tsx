@@ -1,7 +1,10 @@
 import { Download, FileText, MessageSquare } from "lucide-react";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import { toast } from "sonner";
 import { api } from "@/api/client";
+import { PaymentMethodList, type PaymentMethodListItem } from "@/components/PaymentMethodList";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useTranslation } from "@/i18n";
@@ -45,6 +48,7 @@ export default function ClientPortal() {
   const { token } = useParams<{ token: string }>();
   const [customer, setCustomer] = useState<PortalCustomer | null>(null);
   const [invoices, setInvoices] = useState<PortalInvoice[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethodListItem[]>([]);
   const [stripeEnabled, setStripeEnabled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -53,6 +57,8 @@ export default function ClientPortal() {
   const [commentsByInvoice, setCommentsByInvoice] = useState<Record<string, PortalComment[]>>({});
   const [draftComment, setDraftComment] = useState<Record<string, string>>({});
   const [postingId, setPostingId] = useState<string | null>(null);
+  const [removingMethodId, setRemovingMethodId] = useState<string | null>(null);
+  const [removingMethod, setRemovingMethod] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -60,11 +66,15 @@ export default function ClientPortal() {
 
     (async () => {
       try {
-        const res = await api.getPortalInvoices(token);
+        const [res, pmRes] = await Promise.all([
+          api.getPortalInvoices(token),
+          api.getPortalPaymentMethods(token),
+        ]);
         if (!cancelled) {
           setCustomer(res.data.customer);
           setInvoices(res.data.invoices);
           setStripeEnabled(!!(res.data as any).stripe_enabled);
+          setPaymentMethods(pmRes.data);
           setLoading(false);
         }
       } catch {
@@ -79,6 +89,20 @@ export default function ClientPortal() {
       cancelled = true;
     };
   }, [token, t]);
+
+  const handleRemoveMethod = async () => {
+    if (!token || !removingMethodId) return;
+    setRemovingMethod(true);
+    try {
+      await api.deletePortalPaymentMethod(token, removingMethodId);
+      setPaymentMethods((prev) => prev.filter((m) => m.id !== removingMethodId));
+      setRemovingMethodId(null);
+    } catch {
+      toast.error(t("portal.remove_card_failed"));
+    } finally {
+      setRemovingMethod(false);
+    }
+  };
 
   // Group invoices by year for the "Download all year X" buttons.
   const years = useMemo(() => {
@@ -184,6 +208,11 @@ export default function ClientPortal() {
             {customer.email && <p className="text-muted-foreground">{customer.email}</p>}
           </div>
         )}
+
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-3">{t("portal.saved_cards")}</h2>
+          <PaymentMethodList methods={paymentMethods} onRemove={(id) => setRemovingMethodId(id)} />
+        </div>
 
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">{t("portal.view_invoices")}</h2>
@@ -347,6 +376,19 @@ export default function ClientPortal() {
           </div>
         )}
       </main>
+
+      <ConfirmDialog
+        open={removingMethodId !== null}
+        onOpenChange={(o) => {
+          if (!o) setRemovingMethodId(null);
+        }}
+        title={t("portal.remove_card")}
+        description={t("portal.remove_card_confirm")}
+        variant="destructive"
+        confirmLabel={t("portal.remove_card")}
+        onConfirm={handleRemoveMethod}
+        loading={removingMethod}
+      />
     </div>
   );
 }

@@ -765,6 +765,11 @@ const de: TranslationKeys = {
     start_date: "Startdatum",
     end_date: "Enddatum",
     auto_send: "Erstellte Rechnungen automatisch per E-Mail versenden",
+    auto_bill: "Die gespeicherte Karte automatisch belasten",
+    auto_bill_help:
+      "Wenn dieses Profil ausgeführt wird, wird die gespeicherte Karte des Kunden belastet. Schlägt die Zahlung fehl, erhält der Kunde per E-Mail einen Zahlungslink.",
+    auto_bill_no_card:
+      "Dieser Kunde hat noch keine gespeicherte Karte. Eine Karte kann bei der nächsten Rechnungszahlung gespeichert werden.",
     select_customer: "Kunde auswählen...",
     select_invoice: "Rechnung auswählen...",
     select_customer_error: "Wählen Sie einen Kunden",
@@ -1504,6 +1509,14 @@ const de: TranslationKeys = {
     send: "Senden",
     you: "Sie",
     staff: "Team",
+    saved_cards: "Gespeicherte Karten",
+    saved_cards_empty:
+      'Keine gespeicherten Karten. Aktivieren Sie "Diese Karte speichern" bei der nächsten Rechnungszahlung.',
+    remove_card: "Entfernen",
+    remove_card_confirm:
+      "Diese Karte entfernen? Zukünftige Rechnungen werden nicht mehr automatisch belastet.",
+    remove_card_failed: "Die Karte konnte nicht entfernt werden. Bitte versuchen Sie es erneut.",
+    card_line: "{{brand}}, endet auf {{last4}}, gültig bis {{month}}/{{year}}",
   },
 
   // Feedback-Widget

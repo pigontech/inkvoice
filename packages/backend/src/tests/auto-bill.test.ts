@@ -1011,3 +1011,160 @@ describe("portal payment methods", () => {
     }
   });
 });
+
+describe("admin customer payment-methods routes", () => {
+  let app: ReturnType<typeof createApp>;
+  let adminToken: string;
+  let adminCustomerId: string;
+
+  async function authed(path: string, opts: RequestInit = {}) {
+    const headers: Record<string, string> = {
+      ...((opts.headers as Record<string, string>) || {}),
+      Authorization: `Bearer ${adminToken}`,
+    };
+    if (opts.method && opts.method !== "GET") headers["Content-Type"] = "application/json";
+    return app.request(new Request(`http://localhost${path}`, { ...opts, headers }));
+  }
+
+  beforeAll(async () => {
+    app = createApp();
+    const res = await app.request("/api/v1/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username: "admin", password: "autobilltestpass" }),
+    });
+    const data = (await res.json()) as any;
+    adminToken = data.data.token;
+
+    adminCustomerId = crypto.randomBytes(16).toString("hex");
+    getDb().run("INSERT INTO customers (id, name) VALUES (?, ?)", [
+      adminCustomerId,
+      "Admin View Co",
+    ]);
+  });
+
+  afterEach(() => setStripeClientResolver(null));
+
+  test("rejects an unauthenticated request", async () => {
+    const res = await app.request(`/api/v1/customers/${adminCustomerId}/payment-methods`);
+    expect(res.status).toBe(401);
+  });
+
+  test("returns 404 for a customer that does not exist", async () => {
+    const res = await authed(`/api/v1/customers/does-not-exist/payment-methods`);
+    expect(res.status).toBe(404);
+  });
+
+  test("lists only safe display fields, gateway identifiers are not exposed", async () => {
+    saveMethod({
+      customerId: adminCustomerId,
+      gatewayCustomerId: "cus_admin_view",
+      gatewayMethodId: "pm_admin_view",
+      brand: "visa",
+      last4: "4242",
+      expMonth: 3,
+      expYear: 2030,
+    });
+
+    const res = await authed(`/api/v1/customers/${adminCustomerId}/payment-methods`);
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].last4).toBe("4242");
+    expect(body.data[0].brand).toBe("visa");
+    expect(body.data[0].gateway_method_id).toBeUndefined();
+    expect(body.data[0].gateway_customer_id).toBeUndefined();
+  });
+
+  test("deleting an unknown payment method returns 404", async () => {
+    const res = await authed(`/api/v1/customers/${adminCustomerId}/payment-methods/not-a-real-id`, {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(404);
+  });
+
+  test("a gateway detach failure returns 502, distinct from the 404 not-found mapping", async () => {
+    const m = saveMethod({
+      customerId: adminCustomerId,
+      gatewayCustomerId: "cus_admin_502",
+      gatewayMethodId: "pm_admin_502",
+      brand: "mastercard",
+      last4: "5555",
+    });
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentMethods: {
+            detach: async () => {
+              throw new Error("stripe is down");
+            },
+          },
+        }) as any,
+    );
+
+    const res = await authed(`/api/v1/customers/${adminCustomerId}/payment-methods/${m.id}`, {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(502);
+
+    const stillListed = await (
+      await authed(`/api/v1/customers/${adminCustomerId}/payment-methods`)
+    ).json();
+    expect(stillListed.data.some((x: any) => x.id === m.id)).toBe(true);
+  });
+
+  test("a successful delete removes the method and the customer's list empties", async () => {
+    const cid = crypto.randomBytes(16).toString("hex");
+    getDb().run("INSERT INTO customers (id, name) VALUES (?, ?)", [cid, "Admin Delete Co"]);
+    const m = saveMethod({
+      customerId: cid,
+      gatewayCustomerId: "cus_admin_del",
+      gatewayMethodId: "pm_admin_del",
+      brand: "visa",
+      last4: "0009",
+    });
+    setStripeClientResolver(async () => ({ paymentMethods: { detach: async () => ({}) } }) as any);
+
+    const res = await authed(`/api/v1/customers/${cid}/payment-methods/${m.id}`, {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(200);
+
+    const after = await (await authed(`/api/v1/customers/${cid}/payment-methods`)).json();
+    expect(after.data).toHaveLength(0);
+  });
+
+  test("one customer cannot delete another customer's payment method via the admin route", async () => {
+    const owner = crypto.randomBytes(16).toString("hex");
+    getDb().run("INSERT INTO customers (id, name) VALUES (?, ?)", [owner, "Admin Owner Co"]);
+    const m = saveMethod({
+      customerId: owner,
+      gatewayCustomerId: "cus_admin_owner",
+      gatewayMethodId: "pm_admin_owner",
+      brand: "visa",
+      last4: "0010",
+    });
+
+    let detachCalls = 0;
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentMethods: {
+            detach: async () => {
+              detachCalls++;
+              return {};
+            },
+          },
+        }) as any,
+    );
+
+    // adminCustomerId does not own this method, so the delete must 404 without
+    // ever reaching the gateway, regardless of who is asking.
+    const res = await authed(`/api/v1/customers/${adminCustomerId}/payment-methods/${m.id}`, {
+      method: "DELETE",
+    });
+    expect(res.status).toBe(404);
+    expect(detachCalls).toBe(0);
+    expect(listMethodsForCustomer(owner)).toHaveLength(1);
+  });
+});

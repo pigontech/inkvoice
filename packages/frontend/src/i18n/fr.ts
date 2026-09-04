@@ -754,6 +754,11 @@ const fr: TranslationKeys = {
     start_date: "Date de début",
     end_date: "Date de fin",
     auto_send: "Envoyer automatiquement les factures générées par e-mail",
+    auto_bill: "Prélever automatiquement la carte enregistrée",
+    auto_bill_help:
+      "Lorsque ce profil se déclenche, la carte enregistrée du client est prélevée. En cas d'échec, un lien de paiement lui est envoyé par e-mail.",
+    auto_bill_no_card:
+      "Ce client n'a pas encore de carte enregistrée. Il pourra en enregistrer une lors de son prochain paiement de facture.",
     select_customer: "Sélectionner un client...",
     select_invoice: "Sélectionner une facture...",
     select_customer_error: "Sélectionnez un client",
@@ -1494,6 +1499,14 @@ const fr: TranslationKeys = {
     send: "Envoyer",
     you: "Vous",
     staff: "Équipe",
+    saved_cards: "Cartes enregistrées",
+    saved_cards_empty:
+      'Aucune carte enregistrée. Cochez "enregistrer cette carte" lors du prochain paiement d\'une facture.',
+    remove_card: "Supprimer",
+    remove_card_confirm:
+      "Supprimer cette carte ? Les prochaines factures ne seront plus prélevées automatiquement.",
+    remove_card_failed: "Impossible de supprimer la carte. Veuillez réessayer.",
+    card_line: "{{brand}} se terminant par {{last4}}, expire {{month}}/{{year}}",
   },
 
   // Widget de commentaires

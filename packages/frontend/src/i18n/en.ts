@@ -742,6 +742,11 @@ const en = {
     start_date: "Start Date",
     end_date: "End Date",
     auto_send: "Auto-send generated invoices via email",
+    auto_bill: "Charge the saved card automatically",
+    auto_bill_help:
+      "When this profile fires, charge the customer's saved card. If the charge fails they are emailed a payment link.",
+    auto_bill_no_card:
+      "This customer has no saved card yet. They can save one when they next pay an invoice.",
     select_customer: "Select a customer...",
     select_invoice: "Select an invoice...",
     select_customer_error: "Select a customer",
@@ -1471,6 +1476,12 @@ const en = {
     send: "Send",
     you: "You",
     staff: "Staff",
+    saved_cards: "Saved cards",
+    saved_cards_empty: 'No saved cards. Tick "save this card" when you next pay an invoice.',
+    remove_card: "Remove",
+    remove_card_confirm: "Remove this card? Future invoices will not be charged automatically.",
+    remove_card_failed: "Could not remove the card. Please try again.",
+    card_line: "{{brand}} ending {{last4}}, expires {{month}}/{{year}}",
   },
 
   // Feedback widget

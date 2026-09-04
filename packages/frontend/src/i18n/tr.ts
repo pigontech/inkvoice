@@ -741,6 +741,11 @@ const tr: TranslationKeys = {
     start_date: "Başlangıç Tarihi",
     end_date: "Bitiş Tarihi",
     auto_send: "Oluşturulan faturaları otomatik e-posta ile gönder",
+    auto_bill: "Kayıtlı kartı otomatik olarak tahsil et",
+    auto_bill_help:
+      "Bu profil çalıştığında müşterinin kayıtlı kartından tahsilat yapılır. Tahsilat başarısız olursa müşteriye e-posta ile ödeme bağlantısı gönderilir.",
+    auto_bill_no_card:
+      "Bu müşterinin henüz kayıtlı kartı yok. Bir sonraki fatura ödemesinde kart kaydedebilirler.",
     select_customer: "Müşteri seçin...",
     select_invoice: "Fatura seçin...",
     select_customer_error: "Bir müşteri seçin",
@@ -1474,6 +1479,14 @@ const tr: TranslationKeys = {
     send: "Gönder",
     you: "Siz",
     staff: "Ekip",
+    saved_cards: "Kayıtlı kartlar",
+    saved_cards_empty:
+      'Kayıtlı kart yok. Bir sonraki fatura ödemenizde "bu kartı kaydet" seçeneğini işaretleyin.',
+    remove_card: "Kaldır",
+    remove_card_confirm:
+      "Bu kart kaldırılsın mı? Gelecekteki faturalar otomatik olarak tahsil edilmeyecek.",
+    remove_card_failed: "Kart kaldırılamadı. Lütfen tekrar deneyin.",
+    card_line: "{{brand}}, sonu {{last4}}, son kullanma {{month}}/{{year}}",
   },
 
   // Geri bildirim

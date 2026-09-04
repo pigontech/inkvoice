@@ -751,6 +751,11 @@ const es: TranslationKeys = {
     start_date: "Fecha de inicio",
     end_date: "Fecha de fin",
     auto_send: "Enviar automáticamente por correo las facturas generadas",
+    auto_bill: "Cobrar automáticamente la tarjeta guardada",
+    auto_bill_help:
+      "Cuando este perfil se ejecute, se cobrará a la tarjeta guardada del cliente. Si el cobro falla, se le enviará un enlace de pago por correo electrónico.",
+    auto_bill_no_card:
+      "Este cliente aún no tiene una tarjeta guardada. Podrá guardar una la próxima vez que pague una factura.",
     select_customer: "Seleccione un cliente...",
     select_invoice: "Seleccione una factura...",
     select_customer_error: "Seleccione un cliente",
@@ -1490,6 +1495,14 @@ const es: TranslationKeys = {
     send: "Enviar",
     you: "Usted",
     staff: "Equipo",
+    saved_cards: "Tarjetas guardadas",
+    saved_cards_empty:
+      'No hay tarjetas guardadas. Marque "guardar esta tarjeta" la próxima vez que pague una factura.',
+    remove_card: "Quitar",
+    remove_card_confirm:
+      "¿Quitar esta tarjeta? Las próximas facturas no se cobrarán automáticamente.",
+    remove_card_failed: "No se pudo quitar la tarjeta. Inténtelo de nuevo.",
+    card_line: "{{brand}} terminada en {{last4}}, vence {{month}}/{{year}}",
   },
 
   // Widget de comentarios
