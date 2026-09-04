@@ -1221,6 +1221,9 @@ const de: TranslationKeys = {
     quote_rejected: "Sie haben dieses Angebot abgelehnt.",
     accept_failed: "Das Angebot konnte nicht angenommen werden. Bitte versuchen Sie es erneut.",
     reject_failed: "Das Angebot konnte nicht abgelehnt werden. Bitte versuchen Sie es erneut.",
+    save_card: "Diese Karte für zukünftige Rechnungen speichern",
+    save_card_consent:
+      "Sie ermächtigen {{company}}, diese Karte für zukünftige Rechnungen zu belasten. Sie können sie jederzeit über Ihr Kundenportal entfernen.",
   },
 
   // Sende-Dialog

@@ -1210,6 +1210,9 @@ const fr: TranslationKeys = {
     quote_rejected: "Vous avez refusé ce devis.",
     accept_failed: "Le devis n'a pas pu être accepté. Veuillez réessayer.",
     reject_failed: "Le devis n'a pas pu être refusé. Veuillez réessayer.",
+    save_card: "Enregistrer cette carte pour les factures futures",
+    save_card_consent:
+      "Vous autorisez {{company}} à débiter cette carte pour les factures futures. Vous pouvez la supprimer à tout moment depuis votre portail client.",
   },
 
   // Boîte de dialogue d'envoi

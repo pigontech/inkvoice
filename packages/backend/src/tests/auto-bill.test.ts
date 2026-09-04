@@ -6,6 +6,7 @@ import { runMigrations } from "../database/migrations";
 import { seed } from "../database/seed";
 import {
   isStripeConfigured,
+  saveMethodFromCheckoutSession,
   setStripeClientResolver,
   setStripeConfiguredChecker,
 } from "../services/stripe.service";
@@ -233,5 +234,76 @@ describe("deleting payment methods", () => {
     expect(result).toEqual({ success: true });
     expect(listMethodsForCustomer(cid)).toHaveLength(0);
     expect(getDefaultMethod(cid)).toBeNull();
+  });
+});
+
+describe("card capture from checkout", () => {
+  afterEach(() => setStripeClientResolver(null));
+
+  function mockStripe(overrides: Record<string, any> = {}) {
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentIntents: {
+            retrieve: async () => ({
+              id: "pi_capture",
+              payment_method: "pm_captured",
+              customer: "cus_captured",
+            }),
+          },
+          paymentMethods: {
+            retrieve: async () => ({
+              id: "pm_captured",
+              card: { brand: "mastercard", last4: "5555", exp_month: 4, exp_year: 2031 },
+            }),
+            detach: async () => ({}),
+          },
+          ...overrides,
+        }) as any,
+    );
+  }
+
+  test("a session without save_card saves nothing", async () => {
+    mockStripe();
+    const before = listMethodsForCustomer(customerId).length;
+    await saveMethodFromCheckoutSession({
+      payment_status: "paid",
+      payment_intent: "pi_capture",
+      metadata: { invoice_id: "inv_1", customer_id: customerId },
+    } as any);
+    expect(listMethodsForCustomer(customerId)).toHaveLength(before);
+  });
+
+  test("a session with save_card persists the method", async () => {
+    mockStripe();
+    await saveMethodFromCheckoutSession({
+      payment_status: "paid",
+      payment_intent: "pi_capture",
+      metadata: {
+        invoice_id: "inv_1",
+        customer_id: customerId,
+        save_card: "1",
+        consent_text: "You authorise Acme to charge this card.",
+      },
+    } as any);
+    const saved = listMethodsForCustomer(customerId).find(
+      (m) => m.gateway_method_id === "pm_captured",
+    );
+    expect(saved).toBeTruthy();
+    expect(saved!.brand).toBe("mastercard");
+    expect(saved!.last4).toBe("5555");
+    expect(saved!.gateway_customer_id).toBe("cus_captured");
+    expect(saved!.consent_text).toBe("You authorise Acme to charge this card.");
+  });
+
+  test("an unpaid session saves nothing", async () => {
+    mockStripe();
+    const before = listMethodsForCustomer(customerId).length;
+    await saveMethodFromCheckoutSession({
+      payment_status: "unpaid",
+      payment_intent: "pi_capture",
+      metadata: { invoice_id: "inv_1", customer_id: customerId, save_card: "1" },
+    } as any);
+    expect(listMethodsForCustomer(customerId)).toHaveLength(before);
   });
 });

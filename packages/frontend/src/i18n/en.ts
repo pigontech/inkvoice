@@ -1189,6 +1189,9 @@ const en = {
     quote_rejected: "You've declined this quote.",
     accept_failed: "The quote could not be accepted. Please try again.",
     reject_failed: "The quote could not be declined. Please try again.",
+    save_card: "Save this card for future invoices",
+    save_card_consent:
+      "You authorise {{company}} to charge this card for future invoices. You can remove it at any time from your customer portal.",
   },
 
   // Send dialog

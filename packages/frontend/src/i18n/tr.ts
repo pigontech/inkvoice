@@ -1191,6 +1191,9 @@ const tr: TranslationKeys = {
     quote_rejected: "Bu teklifi reddettiniz.",
     accept_failed: "Teklif kabul edilemedi. Lütfen tekrar deneyin.",
     reject_failed: "Teklif reddedilemedi. Lütfen tekrar deneyin.",
+    save_card: "Bu kartı gelecekteki faturalar için kaydet",
+    save_card_consent:
+      "Gelecekteki faturalar için bu karttan {{company}} tarafından tahsilat yapılmasına izin veriyorsunuz. İstediğiniz zaman müşteri portalınızdan kaldırabilirsiniz.",
   },
 
   // Gönderme diyaloğu

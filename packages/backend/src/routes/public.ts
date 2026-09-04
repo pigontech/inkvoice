@@ -94,7 +94,11 @@ publicRoutes.get("/invoices/:shareToken", (c) => {
 });
 
 publicRoutes.post("/invoices/:shareToken/pay", async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { gateway?: string };
+  const body = (await c.req.json().catch(() => ({}))) as {
+    gateway?: string;
+    save_card?: boolean;
+    consent_text?: string;
+  };
   const gateway = getGateway(body.gateway || "stripe");
   if (!gateway || !isGatewayEnabled(gateway)) {
     return c.json({ success: false, error: "Online payments are not enabled" }, 400);
@@ -121,6 +125,9 @@ publicRoutes.post("/invoices/:shareToken/pay", async (c) => {
       customerEmail: invoice.customer?.email || null,
       successUrl: `${origin}/payment/success?token=${shareToken}`,
       cancelUrl: `${origin}/public/invoice/${shareToken}`,
+      save_card: body.save_card === true,
+      customerId: invoice.customer_id ?? null,
+      consentText: body.save_card === true ? (body.consent_text ?? "").slice(0, 480) : null,
     });
     return c.json({ success: true, data: result });
   } catch (err: any) {

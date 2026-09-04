@@ -1,8 +1,10 @@
+import type Stripe from "stripe";
 import {
   constructWebhookEvent,
   createCheckoutSession,
   handlePaymentSuccess,
   isStripeConfigured,
+  saveMethodFromCheckoutSession,
 } from "../stripe.service";
 import type { CheckoutContext, PaymentGateway, WebhookRequest, WebhookResult } from "./types";
 
@@ -24,6 +26,9 @@ export const stripeGateway: PaymentGateway = {
       customerEmail: ctx.customerEmail,
       successUrl: ctx.successUrl,
       cancelUrl: ctx.cancelUrl,
+      save_card: ctx.save_card,
+      customerId: ctx.customerId,
+      consentText: ctx.consentText,
     });
   },
 
@@ -33,7 +38,9 @@ export const stripeGateway: PaymentGateway = {
 
     const event = await constructWebhookEvent(rawBody, signature);
     if (event.type === "checkout.session.completed") {
-      handlePaymentSuccess(event.data.object as never);
+      const session = event.data.object as Stripe.Checkout.Session;
+      handlePaymentSuccess(session as never);
+      await saveMethodFromCheckoutSession(session);
       return { handled: true, recorded: true };
     }
     return { handled: false, recorded: false };

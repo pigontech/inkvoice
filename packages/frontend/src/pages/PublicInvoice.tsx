@@ -30,6 +30,8 @@ export default function PublicInvoice() {
   const [invoiceData, setInvoiceData] = useState<any>(null);
   const [paymentMethods, setPaymentMethods] = useState<Array<{ id: string; label: string }>>([]);
   const [paying, setPaying] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState("");
+  const [saveCard, setSaveCard] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -55,6 +57,7 @@ export default function PublicInvoice() {
           setHtml(previewText);
           if (jsonData?.data) {
             setInvoiceData(jsonData.data.invoice);
+            setCompanyName(jsonData.data.settings?.company_name || "");
             // Prefer the multi-gateway list; fall back to the legacy flag.
             const methods: Array<{ id: string; label: string }> = jsonData.data.payment_methods
               ?.length
@@ -100,10 +103,15 @@ export default function PublicInvoice() {
   const handlePay = async (gateway: string) => {
     setPaying(gateway);
     try {
+      const body: Record<string, unknown> = { gateway };
+      if (gateway === "stripe" && saveCard) {
+        body.save_card = true;
+        body.consent_text = t("public.save_card_consent", { company: companyName });
+      }
       const res = await fetch(`/api/v1/public/invoices/${shareToken}/pay`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ gateway }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (data.success && data.data?.url) {
@@ -128,20 +136,36 @@ export default function PublicInvoice() {
         title={t("public.invoice")}
       />
       {paymentMethods.length > 0 && balanceDue > 0 && invoiceData?.status !== "paid" && (
-        <div className="flex flex-wrap justify-center gap-3 py-6">
-          {paymentMethods.map((m) => (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => handlePay(m.id)}
-              disabled={paying !== null}
-              className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 text-lg"
-            >
-              {paying === m.id
-                ? t("public.redirecting")
-                : t("public.pay_with", { method: m.label })}
-            </button>
-          ))}
+        <div className="flex flex-col items-center gap-3 py-6">
+          {paymentMethods.some((m) => m.id === "stripe") && (
+            <label className="flex items-start gap-2 max-w-md text-left text-sm text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={saveCard}
+                onChange={(e) => setSaveCard(e.target.checked)}
+                className="mt-1"
+              />
+              <span>
+                <span className="block font-medium text-foreground">{t("public.save_card")}</span>
+                {t("public.save_card_consent", { company: companyName })}
+              </span>
+            </label>
+          )}
+          <div className="flex flex-wrap justify-center gap-3">
+            {paymentMethods.map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => handlePay(m.id)}
+                disabled={paying !== null}
+                className="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 disabled:opacity-50 text-lg"
+              >
+                {paying === m.id
+                  ? t("public.redirecting")
+                  : t("public.pay_with", { method: m.label })}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>

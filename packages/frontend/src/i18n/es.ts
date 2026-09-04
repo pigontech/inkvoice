@@ -1206,6 +1206,9 @@ const es: TranslationKeys = {
     quote_rejected: "Ha rechazado este presupuesto.",
     accept_failed: "No se pudo aceptar el presupuesto. Inténtelo de nuevo.",
     reject_failed: "No se pudo rechazar el presupuesto. Inténtelo de nuevo.",
+    save_card: "Guardar esta tarjeta para futuras facturas",
+    save_card_consent:
+      "Autoriza a {{company}} a cobrar en esta tarjeta para futuras facturas. Puede eliminarla en cualquier momento desde su portal de cliente.",
   },
 
   // Diálogo de envío

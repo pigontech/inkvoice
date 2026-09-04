@@ -1,6 +1,7 @@
 import type Stripe from "stripe";
 import { todayIso } from "../utils/date";
 import { getEnv } from "../utils/env";
+import { logger } from "../utils/logger";
 import { recordPayment } from "./payment.service";
 
 // The `stripe` package is heavy to load (~17ms on Bun); defer it until first
@@ -56,6 +57,9 @@ export async function createCheckoutSession(opts: {
   customerEmail: string | null;
   successUrl: string;
   cancelUrl: string;
+  save_card?: boolean;
+  customerId?: string | null;
+  consentText?: string | null;
 }): Promise<{ url: string }> {
   const stripe = await getStripe();
   const session = await stripe.checkout.sessions.create({
@@ -72,9 +76,22 @@ export async function createCheckoutSession(opts: {
       },
     ],
     customer_email: opts.customerEmail || undefined,
+    ...(opts.save_card
+      ? {
+          customer_creation: "always" as const,
+          payment_intent_data: { setup_future_usage: "off_session" as const },
+        }
+      : {}),
     metadata: {
       invoice_id: opts.invoiceId,
       share_token: opts.shareToken,
+      ...(opts.save_card
+        ? {
+            save_card: "1",
+            customer_id: opts.customerId ?? "",
+            consent_text: (opts.consentText ?? "").slice(0, 480),
+          }
+        : {}),
     },
     success_url: opts.successUrl,
     cancel_url: opts.cancelUrl,
@@ -109,4 +126,53 @@ export function handlePaymentSuccess(session: Stripe.Checkout.Session): void {
     reference: paymentIntentId || undefined,
     notes: "Paid via Stripe",
   });
+}
+
+/**
+ * Persist the card a payer opted to save during Checkout. A no-op unless the
+ * session carries save_card, so both webhook paths can call it unconditionally.
+ * Never throws: a capture failure must not fail the webhook that is confirming
+ * a real payment.
+ */
+export async function saveMethodFromCheckoutSession(
+  session: Stripe.Checkout.Session,
+): Promise<void> {
+  if (session.payment_status !== "paid") return;
+  if (session.metadata?.save_card !== "1") return;
+
+  const customerId = session.metadata?.customer_id;
+  if (!customerId) return;
+
+  try {
+    const stripe = await getStripe();
+    const paymentIntentId =
+      typeof session.payment_intent === "string"
+        ? session.payment_intent
+        : session.payment_intent?.id;
+    if (!paymentIntentId) return;
+
+    const intent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const methodId =
+      typeof intent.payment_method === "string" ? intent.payment_method : intent.payment_method?.id;
+    const gatewayCustomerId =
+      typeof intent.customer === "string" ? intent.customer : intent.customer?.id;
+    if (!methodId || !gatewayCustomerId) return;
+
+    const method = await stripe.paymentMethods.retrieve(methodId);
+    const { saveMethod } = await import("./customer-payment-method.service");
+    saveMethod({
+      customerId,
+      gatewayCustomerId,
+      gatewayMethodId: methodId,
+      brand: method.card?.brand ?? null,
+      last4: method.card?.last4 ?? null,
+      expMonth: method.card?.exp_month ?? null,
+      expYear: method.card?.exp_year ?? null,
+      consentText: session.metadata?.consent_text || null,
+    });
+  } catch (err) {
+    // The payment itself is already recorded by the caller. Losing the saved
+    // card only costs the customer a re-entry next time.
+    logger.error({ err, sessionId: session.id }, "Could not save payment method from checkout");
+  }
 }

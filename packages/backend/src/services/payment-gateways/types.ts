@@ -18,6 +18,12 @@ export interface CheckoutContext {
   successUrl: string;
   /** Where the provider sends the payer if they cancel. */
   cancelUrl: string;
+  /** Payer opted in to saving this card for future invoices. */
+  save_card?: boolean;
+  /** Inkvoice customer id, needed to attach a saved method on the way back. */
+  customerId?: string | null;
+  /** Mandate copy shown at capture, stored verbatim with the saved method. */
+  consentText?: string | null;
 }
 
 /** A raw inbound webhook, normalised so gateways can verify it themselves. */
