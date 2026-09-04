@@ -453,3 +453,188 @@ describe("chargeOffSession", () => {
     expect(result.status).toBe("soft_failed");
   });
 });
+
+import { attemptAutoBill } from "../services/auto-bill.service";
+import { createInvoice, finaliseForSending, getInvoice } from "../services/invoice.service";
+
+function attemptsFor(invoiceId: string) {
+  return getDb()
+    .query("SELECT * FROM auto_bill_attempts WHERE invoice_id = ? ORDER BY attempt_no ASC")
+    .all(invoiceId) as any[];
+}
+
+function sentInvoiceFor(customer: string, amount: number) {
+  const inv = createInvoice({
+    customer_id: customer,
+    issue_date: "2026-09-04",
+    currency: "USD",
+    items: [{ description: "Work", quantity: 1, unit_price: amount }],
+  });
+  finaliseForSending(inv.id);
+  return getInvoice(inv.id)!;
+}
+
+describe("attemptAutoBill", () => {
+  afterEach(() => setStripeClientResolver(null));
+
+  test("skips a customer with no saved method", async () => {
+    const bare = crypto.randomBytes(16).toString("hex");
+    getDb().run("INSERT INTO customers (id, name) VALUES (?, ?)", [bare, "Bare Co"]);
+    const inv = sentInvoiceFor(bare, 50);
+
+    const result = await attemptAutoBill(inv.id);
+    expect(result.status).toBe("skipped");
+    expect(attemptsFor(inv.id)).toHaveLength(0);
+  });
+
+  test("a successful charge records a payment and pays the invoice", async () => {
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentIntents: { create: async () => ({ id: "pi_paid_1", status: "succeeded" }) },
+        }) as any,
+    );
+    const inv = sentInvoiceFor(customerId, 200);
+
+    const result = await attemptAutoBill(inv.id);
+    expect(result.status).toBe("succeeded");
+
+    const after = getInvoice(inv.id)!;
+    expect(after.status).toBe("paid");
+    expect(after.amount_paid).toBe(200);
+
+    const attempts = attemptsFor(inv.id);
+    expect(attempts).toHaveLength(1);
+    expect(attempts[0].status).toBe("succeeded");
+    expect(attempts[0].gateway_reference).toBe("pi_paid_1");
+    expect(attempts[0].next_retry_at).toBeNull();
+  });
+
+  test("a soft decline schedules a retry", async () => {
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentIntents: {
+            create: async () => {
+              const e: any = new Error("insufficient funds");
+              e.code = "insufficient_funds";
+              throw e;
+            },
+          },
+        }) as any,
+    );
+    const inv = sentInvoiceFor(customerId, 75);
+
+    const result = await attemptAutoBill(inv.id);
+    expect(result.status).toBe("soft_failed");
+
+    const attempts = attemptsFor(inv.id);
+    expect(attempts).toHaveLength(1);
+    expect(attempts[0].next_retry_at).toBeTruthy();
+    expect(getInvoice(inv.id)!.status).toBe("sent");
+  });
+
+  test("the final soft decline is terminal", async () => {
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentIntents: {
+            create: async () => {
+              const e: any = new Error("insufficient funds");
+              e.code = "insufficient_funds";
+              throw e;
+            },
+          },
+        }) as any,
+    );
+    const inv = sentInvoiceFor(customerId, 80);
+
+    await attemptAutoBill(inv.id, { attemptNo: 1 });
+    await attemptAutoBill(inv.id, { attemptNo: 2 });
+    await attemptAutoBill(inv.id, { attemptNo: 3 });
+
+    const attempts = attemptsFor(inv.id);
+    expect(attempts).toHaveLength(3);
+    expect(attempts[2].next_retry_at).toBeNull();
+  });
+
+  test("a hard decline is terminal on the first attempt", async () => {
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentIntents: {
+            create: async () => {
+              const e: any = new Error("card declined");
+              e.code = "card_declined";
+              throw e;
+            },
+          },
+        }) as any,
+    );
+    const inv = sentInvoiceFor(customerId, 90);
+
+    const result = await attemptAutoBill(inv.id);
+    expect(result.status).toBe("hard_failed");
+    expect(attemptsFor(inv.id)[0].next_retry_at).toBeNull();
+  });
+
+  test("SCA is terminal on the first attempt", async () => {
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentIntents: {
+            create: async () => {
+              const e: any = new Error("authentication required");
+              e.code = "authentication_required";
+              throw e;
+            },
+          },
+        }) as any,
+    );
+    const inv = sentInvoiceFor(customerId, 95);
+
+    const result = await attemptAutoBill(inv.id);
+    expect(result.status).toBe("requires_action");
+    expect(attemptsFor(inv.id)[0].next_retry_at).toBeNull();
+  });
+
+  test("two ticks in the same window charge exactly once", async () => {
+    let created = 0;
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentIntents: {
+            create: async () => {
+              created++;
+              return { id: "pi_once", status: "succeeded" };
+            },
+          },
+        }) as any,
+    );
+    const inv = sentInvoiceFor(customerId, 60);
+
+    await attemptAutoBill(inv.id, { attemptNo: 1 });
+    await attemptAutoBill(inv.id, { attemptNo: 1 });
+
+    expect(created).toBe(1);
+    expect(attemptsFor(inv.id)).toHaveLength(1);
+    const payments = getDb()
+      .query("SELECT * FROM payments WHERE invoice_id = ?")
+      .all(inv.id) as any[];
+    expect(payments).toHaveLength(1);
+  });
+
+  test("skips an invoice with no balance due", async () => {
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentIntents: { create: async () => ({ id: "pi_nope", status: "succeeded" }) },
+        }) as any,
+    );
+    const inv = sentInvoiceFor(customerId, 40);
+    await attemptAutoBill(inv.id);
+
+    const second = await attemptAutoBill(inv.id, { attemptNo: 2 });
+    expect(second.status).toBe("skipped");
+  });
+});

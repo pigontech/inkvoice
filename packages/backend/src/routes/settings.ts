@@ -80,6 +80,7 @@ const ALLOWED_SETTINGS = new Set([
   "email_footer_text",
   "email_attach_pdf",
   "notify_on_invoice_view",
+  "notify_on_auto_bill_failure",
   "invoice_email_subject",
   "invoice_email_body",
   "late_fee_enabled",
