@@ -8,12 +8,37 @@ import { recordPayment } from "./payment.service";
 // never enable Stripe.
 let stripeClientPromise: Promise<Stripe> | null = null;
 
+/**
+ * Extension point for deployments where the Stripe account is not a process-wide
+ * env var. The cloud overlay registers a resolver that decrypts the current
+ * tenant's own key, so one charge engine serves both deployments. Self-hosted
+ * never registers one and keeps the env singleton below.
+ */
+export type StripeClientResolver = () => Promise<Stripe | null>;
+let clientResolver: StripeClientResolver | null = null;
+export function setStripeClientResolver(r: StripeClientResolver | null): void {
+  clientResolver = r;
+}
+
+export type StripeConfiguredChecker = () => boolean;
+let configuredChecker: StripeConfiguredChecker | null = null;
+export function setStripeConfiguredChecker(c: StripeConfiguredChecker | null): void {
+  configuredChecker = c;
+}
+
 export function isStripeConfigured(): boolean {
+  if (configuredChecker) return configuredChecker();
   const env = getEnv();
   return !!(env.STRIPE_SECRET_KEY && env.STRIPE_WEBHOOK_SECRET);
 }
 
-function getStripe(): Promise<Stripe> {
+export function getStripe(): Promise<Stripe> {
+  if (clientResolver) {
+    return clientResolver().then((client) => {
+      if (!client) throw new Error("Stripe is not configured for this workspace");
+      return client;
+    });
+  }
   if (stripeClientPromise) return stripeClientPromise;
   stripeClientPromise = (async () => {
     const env = getEnv();
