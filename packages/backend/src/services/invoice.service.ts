@@ -630,6 +630,12 @@ export function markComplete(id: string): InvoiceWithItems | null {
  * unpublished with no token, and the customer gets an email with no way to
  * view or pay the invoice.
  *
+ * For a draft, or an invoice already in a status `publishInvoice` accepts
+ * (`sent`, `paid`, `overdue`, `complete`), the invoice ends up `sent` (or
+ * unchanged, if it already left draft), `is_published = 1`, and holding a
+ * non-null `share_token`. For any other status, such as `voided`,
+ * `publishInvoice` silently no-ops and the invoice is left as it was.
+ *
  * Idempotent: an already-sent, already-published invoice is returned unchanged.
  * Returns the re-read row, because both writes happen after the caller's copy
  * was loaded.

@@ -4,7 +4,7 @@ import { unlinkSync } from "node:fs";
 import { closeDatabase, getDb, initDatabase } from "../database/connection";
 import { runMigrations } from "../database/migrations";
 import { seed } from "../database/seed";
-import { createInvoice, finaliseForSending, getInvoice } from "../services/invoice.service";
+import { createInvoice, finaliseForSending } from "../services/invoice.service";
 import { resetEnvCache } from "../utils/env";
 
 const TEST_DB = "./data/test-invoice-send.db";
@@ -51,13 +51,16 @@ describe("finaliseForSending", () => {
     expect(inv.status).toBe("draft");
     expect(inv.is_published).toBe(0);
     expect(inv.share_token).toBeNull();
+    const draftPlaceholderNumber = inv.invoice_number;
 
     const finalised = finaliseForSending(inv.id)!;
     expect(finalised.status).toBe("sent");
     expect(finalised.is_published).toBe(1);
     expect(finalised.share_token).toBeTruthy();
     // It returns the post-write state, not the pre-write row the caller had.
-    expect(finalised.invoice_number).toBe(getInvoice(inv.id)!.invoice_number);
+    // markSent replaces the draft placeholder number with a real one, so this
+    // only holds if the caller actually gets the re-read row.
+    expect(finalised.invoice_number).not.toBe(draftPlaceholderNumber);
   });
 
   test("it is idempotent and keeps the existing share token", () => {
@@ -72,10 +75,18 @@ describe("finaliseForSending", () => {
   test("it leaves a paid invoice alone but still publishes it", () => {
     const inv = newDraft();
     finaliseForSending(inv.id);
-    getDb().run("UPDATE invoices SET status = 'paid' WHERE id = ?", [inv.id]);
+    // Construct a real "not draft, not published" invoice: paid, but with
+    // publication rolled back as if it had never gone through the draft
+    // branch. If the publish call ever moved inside the draft-only branch,
+    // this invoice would stay unpublished and the assertions below would fail.
+    getDb().run(
+      "UPDATE invoices SET status = 'paid', is_published = 0, share_token = NULL WHERE id = ?",
+      [inv.id],
+    );
     const after = finaliseForSending(inv.id)!;
     expect(after.status).toBe("paid");
     expect(after.is_published).toBe(1);
+    expect(after.share_token).toBeTruthy();
   });
 
   test("it returns null for a missing invoice", () => {
