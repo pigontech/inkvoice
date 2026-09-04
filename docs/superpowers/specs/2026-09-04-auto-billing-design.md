@@ -12,7 +12,7 @@ but cannot auto-charge. Invoice Ninja, FreshBooks and Zoho all auto-bill a
 stored card when a subscription invoice fires; without it "recurring" covers
 only half the subscription use-case. This is a Tier 1 competitor gap.
 
-Tracing the card through the code surfaced three facts that reshape its scope.
+Tracing the card through the code surfaced four facts that reshape its scope.
 
 **There are two independent Stripe integrations, not one.** The OSS app charges
 through `services/stripe.service.ts` behind the `PaymentGateway` registry, with a
@@ -29,6 +29,15 @@ stops. A draft cannot be charged, and `recordPayment` refuses drafts outright,
 so a card charged against one would capture money that cannot be recorded. The
 card's stated fallback, "email payment link as today", also does not exist:
 today the recurring path emails nothing.
+
+**Sent invoices never get a share link.** Found while planning, and verified by
+running the route's own sequence against a real database: `POST /invoices/:id/send`
+calls `publishInvoice` before `markSent`, but `publishInvoice` (`invoice.service.ts:548`)
+refuses anything still in `draft`. A draft therefore ends up `status = 'sent'`
+with `is_published = 0` and `share_token = NULL`, and the delivery email's
+`public_url` is built from the pre-call object, so it is `null`. Every first-time
+send emails an invoice with no link to view or pay it. This is a live defect in
+the main send path, and it is the exact link every fallback below depends on.
 
 **In cloud mode the OSS gateway webhooks are disabled.** `init.ts:165` calls
 `setGatewayWebhooksDisabled(...)`, so `routes/webhooks.ts` returns 410 and
@@ -103,13 +112,15 @@ profile whose gateway does not declare `supportsAutoBill`.
 
 ## Data model
 
-Four OSS migrations (versions 27–30, appended to `MIGRATIONS` in
-`database/migrations.ts`). Cloud tenant databases run OSS `runMigrations()`
+Four OSS migrations, appended to `MIGRATIONS` in `database/migrations.ts`:
+27 `recurring_auto_bill` (landed with Phase 0, which first needs the column),
+28 `customer_payment_methods`, 29 `auto_bill_attempts`,
+30 `payments_reference_dedupe`. Cloud tenant databases run OSS `runMigrations()`
 before cloud migrations (`tenant-migrations.ts:329`), so these reach every
 tenant with no overlay migration.
 
 ```sql
--- 27: saved payment methods. Tokens and display metadata only, never a PAN.
+-- 28: saved payment methods. Tokens and display metadata only, never a PAN.
 CREATE TABLE customer_payment_methods (
   id                  TEXT PRIMARY KEY,
   customer_id         TEXT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
@@ -126,7 +137,7 @@ CREATE UNIQUE INDEX ux_cpm_gateway_method
   ON customer_payment_methods(gateway, gateway_method_id);
 CREATE INDEX idx_cpm_customer ON customer_payment_methods(customer_id);
 
--- 28: opt a recurring profile into auto-billing.
+-- 27: opt a recurring profile into auto-billing.
 ALTER TABLE recurring_invoices ADD COLUMN auto_bill INTEGER NOT NULL DEFAULT 0;
 
 -- 29: dunning log and audit trail.
@@ -248,8 +259,8 @@ Both webhook paths call this one function:
 The wiring is duplicated; the logic is not.
 
 The public invoice page gains the opt-in checkbox with explicit mandate copy,
-new i18n keys in the OSS `en.ts` / `tr.ts` (cloud's `cloud-*.ts` locale files
-are not wired in — see `cloud-i18n-files-inert`):
+new i18n keys in all five OSS locales (`en.ts`, `tr.ts`, `de.ts`, `es.ts`,
+`fr.ts`); cloud's `cloud-*.ts` locale files are inert and must not be used:
 
 > Save this card and authorise {company} to charge it for future invoices.
 > You can remove it at any time from your customer portal.
