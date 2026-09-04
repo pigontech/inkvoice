@@ -434,4 +434,22 @@ describe("chargeOffSession", () => {
 
     expect(result.status).toBe("requires_action");
   });
+
+  test("a resolver that cannot produce a client resolves soft_failed instead of throwing", async () => {
+    setStripeClientResolver(async () => null);
+
+    // No try/catch here on purpose: if chargeOffSession rejects instead of
+    // resolving, this await throws inside the test body and bun:test fails
+    // the test on the uncaught rejection, it does not pass silently.
+    const result = await chargeOffSession({
+      invoiceId: "inv_no_client",
+      amount: 10,
+      currency: "USD",
+      gatewayCustomerId: "cus_1",
+      gatewayMethodId: "pm_1",
+      attemptNo: 1,
+    });
+
+    expect(result.status).toBe("soft_failed");
+  });
 });

@@ -211,8 +211,12 @@ export function classifyStripeError(code: string | undefined): OffSessionStatus 
 }
 
 export async function chargeOffSession(ctx: OffSessionContext): Promise<OffSessionResult> {
-  const stripe = await getStripe();
   try {
+    // getStripe() must be called inside the try. A resolver failure (missing
+    // key, decrypt error, transient store read) is a normal condition in a
+    // multi-tenant deployment, not a bug, and must classify as a retryable
+    // failure like any other Stripe error, not escape as a thrown exception.
+    const stripe = await getStripe();
     const intent = await stripe.paymentIntents.create(
       {
         amount: Math.round(ctx.amount * 100),
