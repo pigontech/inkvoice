@@ -454,13 +454,19 @@ describe("chargeOffSession", () => {
   });
 });
 
+import { listActivity } from "../services/activity.service";
 import { attemptAutoBill } from "../services/auto-bill.service";
 import { createInvoice, finaliseForSending, getInvoice } from "../services/invoice.service";
+import { recordPayment } from "../services/payment.service";
 
 function attemptsFor(invoiceId: string) {
   return getDb()
     .query("SELECT * FROM auto_bill_attempts WHERE invoice_id = ? ORDER BY attempt_no ASC")
     .all(invoiceId) as any[];
+}
+
+function paymentsFor(invoiceId: string) {
+  return getDb().query("SELECT * FROM payments WHERE invoice_id = ?").all(invoiceId) as any[];
 }
 
 function sentInvoiceFor(customer: string, amount: number) {
@@ -598,43 +604,151 @@ describe("attemptAutoBill", () => {
     expect(attemptsFor(inv.id)[0].next_retry_at).toBeNull();
   });
 
-  test("two ticks in the same window charge exactly once", async () => {
+  test("two concurrent ticks in the same window charge exactly once", async () => {
+    // A faithful stand in for Stripe's real idempotency guarantee: the same
+    // idempotency key always returns the same PaymentIntent instead of
+    // minting a new one. Without this the mock itself would create two
+    // separate charges, which is not the scenario under test, two of OUR
+    // ticks racing for the SAME underlying charge.
     let created = 0;
+    const byIdempotencyKey = new Map<string, { id: string; status: string }>();
     setStripeClientResolver(
       async () =>
         ({
           paymentIntents: {
-            create: async () => {
+            create: async (_params: any, opts: any) => {
+              const key = opts?.idempotencyKey;
+              const cached = key ? byIdempotencyKey.get(key) : undefined;
+              if (cached) return cached;
               created++;
-              return { id: "pi_once", status: "succeeded" };
+              const intent = { id: "pi_concurrent", status: "succeeded" };
+              if (key) byIdempotencyKey.set(key, intent);
+              return intent;
             },
           },
         }) as any,
     );
     const inv = sentInvoiceFor(customerId, 60);
 
-    await attemptAutoBill(inv.id, { attemptNo: 1 });
-    await attemptAutoBill(inv.id, { attemptNo: 1 });
+    // Genuinely concurrent: both calls pass every precondition before either
+    // one writes anything, this is the real double-collection window, not a
+    // sequential call where the second is skipped before it starts. No
+    // try/catch on purpose: if either call rejects, this await throws and
+    // bun:test fails the test, it does not pass silently.
+    const results = await Promise.all([
+      attemptAutoBill(inv.id, { attemptNo: 1 }),
+      attemptAutoBill(inv.id, { attemptNo: 1 }),
+    ]);
 
+    expect(results.every((r) => r.status === "succeeded")).toBe(true);
     expect(created).toBe(1);
     expect(attemptsFor(inv.id)).toHaveLength(1);
-    const payments = getDb()
-      .query("SELECT * FROM payments WHERE invoice_id = ?")
-      .all(inv.id) as any[];
-    expect(payments).toHaveLength(1);
+    expect(paymentsFor(inv.id)).toHaveLength(1);
   });
 
   test("skips an invoice with no balance due", async () => {
+    const inv = sentInvoiceFor(customerId, 40);
+    // Force a settled balance without going through recordPayment, which
+    // would also flip the status to paid and let the earlier
+    // invoice_status_paid guard catch it first instead of no_balance_due.
+    getDb().run("UPDATE invoices SET amount_paid = ? WHERE id = ?", [40, inv.id]);
+
+    const result = await attemptAutoBill(inv.id);
+    expect(result.status).toBe("skipped");
+    expect((result as any).errorCode).toBe("no_balance_due");
+  });
+
+  test("a charge that lands after the invoice was settled elsewhere is not recorded again", async () => {
+    const inv = sentInvoiceFor(customerId, 70);
     setStripeClientResolver(
       async () =>
         ({
-          paymentIntents: { create: async () => ({ id: "pi_nope", status: "succeeded" }) },
+          paymentIntents: {
+            create: async () => {
+              // Simulate the customer paying through the public invoice page
+              // while this off session charge is in flight at the gateway.
+              recordPayment(inv.id, {
+                amount: 70,
+                payment_date: "2026-09-04",
+                method: "bank_transfer",
+                reference: "other_channel_1",
+              });
+              return { id: "pi_race", status: "succeeded" };
+            },
+          },
         }) as any,
     );
-    const inv = sentInvoiceFor(customerId, 40);
-    await attemptAutoBill(inv.id);
 
-    const second = await attemptAutoBill(inv.id, { attemptNo: 2 });
-    expect(second.status).toBe("skipped");
+    const result = await attemptAutoBill(inv.id);
+    expect(result.status).toBe("succeeded");
+
+    // Only the other channel's payment exists, the auto-bill charge is not
+    // also recorded on top of it even though the card was actually charged.
+    const payments = paymentsFor(inv.id);
+    expect(payments).toHaveLength(1);
+    expect(payments[0].reference).toBe("other_channel_1");
+    expect(getInvoice(inv.id)!.amount_paid).toBe(70);
+
+    const activity = listActivity({
+      resource_type: "invoice",
+      action: "auto_bill_failed",
+      page: 1,
+      limit: 50,
+    });
+    expect(activity.items.some((a) => a.resource_id === inv.id)).toBe(true);
+  });
+
+  test("a recordPayment duplicate reference from a concurrent tick does not throw", async () => {
+    const inv = sentInvoiceFor(customerId, 65);
+    // Pre seed a payment row as if a concurrent tick already recorded this
+    // exact gateway reference for this invoice, without going through
+    // recordPayment so the invoice status and balance stay untouched.
+    getDb().run(
+      "INSERT INTO payments (id, invoice_id, amount, payment_date, method, reference) VALUES (?, ?, ?, ?, ?, ?)",
+      [crypto.randomBytes(16).toString("hex"), inv.id, 65, "2026-09-04", "card", "pi_dup"],
+    );
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentIntents: { create: async () => ({ id: "pi_dup", status: "succeeded" }) },
+        }) as any,
+    );
+
+    const result = await attemptAutoBill(inv.id);
+    expect(result.status).toBe("succeeded");
+    // No throw, and no second payment row from the duplicate insert attempt.
+    expect(paymentsFor(inv.id)).toHaveLength(1);
+  });
+
+  test("a captured charge that recordPayment refuses still notifies the admin", async () => {
+    const inv = sentInvoiceFor(customerId, 55);
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentIntents: {
+            create: async () => {
+              // Simulate the invoice being voided by another actor while the
+              // charge is in flight, recordPayment will refuse a voided
+              // invoice, but the card has already been charged by then.
+              getDb().run("UPDATE invoices SET status = 'voided' WHERE id = ?", [inv.id]);
+              return { id: "pi_voided_race", status: "succeeded" };
+            },
+          },
+        }) as any,
+    );
+
+    const result = await attemptAutoBill(inv.id);
+    expect(result.status).toBe("succeeded");
+    expect(paymentsFor(inv.id)).toHaveLength(0);
+
+    const activity = listActivity({
+      resource_type: "invoice",
+      action: "auto_bill_failed",
+      page: 1,
+      limit: 50,
+    });
+    const entry = activity.items.find((a) => a.resource_id === inv.id);
+    expect(entry).toBeTruthy();
+    expect(JSON.parse(entry!.metadata!).reason).toContain("captured");
   });
 });

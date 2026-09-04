@@ -24,6 +24,19 @@ function isoDaysFromNow(days: number): string {
   return d.toISOString();
 }
 
+/** True only for a SQLite UNIQUE index violation, never a foreign key or NOT NULL failure. */
+function isUniqueConstraintViolation(err: unknown): boolean {
+  return (err as { code?: string } | null | undefined)?.code === "SQLITE_CONSTRAINT_UNIQUE";
+}
+
+/** Has this exact gateway reference already been recorded as a payment on this invoice. */
+function paymentAlreadyRecorded(invoiceId: string, reference: string): boolean {
+  const row = getDb()
+    .query("SELECT 1 FROM payments WHERE invoice_id = ? AND reference = ? LIMIT 1")
+    .get(invoiceId, reference);
+  return row !== null;
+}
+
 function writeAttempt(row: {
   invoiceId: string;
   recurringId?: string;
@@ -57,16 +70,22 @@ function writeAttempt(row: {
   } catch (err) {
     // ux_aba_invoice_attempt rejected a duplicate (invoice_id, attempt_no).
     // That means a concurrent tick already logged this attempt: a no-op.
-    const msg = String(err);
-    if (!msg.includes("UNIQUE") && !msg.includes("constraint")) throw err;
+    if (!isUniqueConstraintViolation(err)) throw err;
   }
 }
 
-/** Best-effort admin notification. Mirrors notifyInvoiceViewed exactly. */
+/**
+ * Best-effort admin notification. Mirrors notifyInvoiceViewed exactly, except
+ * the email wording branches on `kind`: a plain decline never touched the
+ * customer's card (a payment link went out instead), while "capture_unrecorded"
+ * means the card WAS charged and Inkvoice could not record it, which needs
+ * manual reconciliation, and possibly a refund, not a payment link.
+ */
 async function notifyFailure(
   invoiceId: string,
   invoiceNumber: string,
   reason: string,
+  kind: "declined" | "capture_unrecorded" = "declined",
 ): Promise<void> {
   try {
     logActivity({
@@ -75,13 +94,14 @@ async function notifyFailure(
       action: "auto_bill_failed",
       resource_type: "invoice",
       resource_id: invoiceId,
-      metadata: { invoice_number: invoiceNumber, reason },
+      metadata: { invoice_number: invoiceNumber, reason, kind },
     });
 
     void dispatchEvent("invoice.auto_bill_failed", {
       invoice_id: invoiceId,
       invoice_number: invoiceNumber,
       reason,
+      kind,
     });
 
     if (getSetting("notify_on_auto_bill_failure") !== "true") return;
@@ -92,12 +112,20 @@ async function notifyFailure(
     const to = settings.company_email;
     if (!to) return;
 
-    await sendEmail({
-      to,
-      subject: `Auto-billing failed for invoice ${invoiceNumber}`,
-      text: `The saved card for invoice ${invoiceNumber} could not be charged (${reason}). The customer has been emailed a payment link.`,
-      html: `<p>The saved card for invoice <strong>${invoiceNumber}</strong> could not be charged (${reason}).</p><p>The customer has been emailed a payment link.</p>`,
-    });
+    const subject =
+      kind === "capture_unrecorded"
+        ? `Auto-billing captured a payment that needs reconciliation, invoice ${invoiceNumber}`
+        : `Auto-billing failed for invoice ${invoiceNumber}`;
+    const text =
+      kind === "capture_unrecorded"
+        ? `The saved card for invoice ${invoiceNumber} was charged (${reason}), but Inkvoice could not record the payment. Reconcile it at the payment provider manually, a refund may be required.`
+        : `The saved card for invoice ${invoiceNumber} could not be charged (${reason}). The customer has been emailed a payment link.`;
+    const html =
+      kind === "capture_unrecorded"
+        ? `<p>The saved card for invoice <strong>${invoiceNumber}</strong> was charged (${reason}), but Inkvoice could not record the payment.</p><p>Reconcile it at the payment provider manually. A refund may be required.</p>`
+        : `<p>The saved card for invoice <strong>${invoiceNumber}</strong> could not be charged (${reason}).</p><p>The customer has been emailed a payment link.</p>`;
+
+    await sendEmail({ to, subject, text, html });
   } catch (err) {
     logger.warn({ err, invoiceId }, "Auto-bill failure notification did not send");
   }
@@ -160,19 +188,68 @@ export async function attemptAutoBill(
   });
 
   if (result.status === "succeeded" && result.reference) {
-    const recorded = recordPayment(invoiceId, {
-      amount: balanceDue,
-      payment_date: todayIso(),
-      method: "card",
-      reference: result.reference,
-      notes: "Auto-billed via Stripe",
-    });
+    // This exact charge (same gateway reference) may already sit in the
+    // payments table if a concurrent tick on the same attempt got here first,
+    // that is a harmless re-observation of the one real charge, not a second
+    // collection. Only check for a genuine double collection, the invoice
+    // settled by a DIFFERENT reference while this charge was in flight, when
+    // this reference is still new.
+    const alreadyRecorded = paymentAlreadyRecorded(invoiceId, result.reference);
+
+    if (!alreadyRecorded) {
+      const fresh = getInvoice(invoiceId);
+      const freshBalance = fresh ? fresh.total - (fresh.amount_paid || 0) : balanceDue;
+      if (freshBalance <= 0) {
+        // The invoice was paid through another channel (for example the
+        // customer paying the public invoice page) during the round trip to
+        // the gateway. The card has genuinely been charged a second time:
+        // REFUND REQUIRED at the gateway. Do not record this as a payment,
+        // that would only hide the duplicate collection.
+        logger.error(
+          { invoiceId, reference: result.reference },
+          `REFUND REQUIRED: auto-bill charged ${result.reference} for invoice ${invoiceId}, but the invoice was already settled through another channel. Refund this reference at the gateway, do not record it as a payment.`,
+        );
+        await notifyFailure(
+          invoiceId,
+          invoice.invoice_number,
+          `refund required, reference ${result.reference} charged after the invoice was already settled elsewhere`,
+          "capture_unrecorded",
+        );
+        return result;
+      }
+    }
+
+    let recorded: { success: boolean; error?: string };
+    try {
+      recorded = recordPayment(invoiceId, {
+        amount: balanceDue,
+        payment_date: todayIso(),
+        method: "card",
+        reference: result.reference,
+        notes: "Auto-billed via Stripe",
+      });
+    } catch (err) {
+      if (!isUniqueConstraintViolation(err)) throw err;
+      // ux_payments_invoice_reference rejected a duplicate (invoice_id,
+      // reference). A concurrent tick already recorded this exact charge:
+      // a no-op, not a fault.
+      recorded = { success: true };
+    }
+
     if (!recorded.success) {
-      // The card was charged but the invoice cannot take the payment. Surface
-      // loudly so ops can reconcile rather than losing money silently.
+      // The card was charged but the invoice cannot take the payment. Give
+      // this at least as much visibility as a decline: money actually left
+      // the customer's card and needs reconciling, so notify the merchant
+      // as well as logging it.
       logger.error(
         { invoiceId, reference: result.reference, error: recorded.error },
         "Auto-bill charge captured but not recorded",
+      );
+      await notifyFailure(
+        invoiceId,
+        invoice.invoice_number,
+        `charge captured but not recorded (${recorded.error ?? "unknown error"}), reference ${result.reference}`,
+        "capture_unrecorded",
       );
     }
     return result;
