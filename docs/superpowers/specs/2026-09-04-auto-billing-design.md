@@ -224,7 +224,7 @@ charge is attempted only after generation has fully committed.
 
 ## Phase 1 — capture at checkout
 
-`createCheckoutSession` gains `saveCard?: boolean`. When set:
+`createCheckoutSession` gains `save_card?: boolean`. When set:
 
 ```ts
 customer_creation: "always",
@@ -262,7 +262,7 @@ The public invoice page gains the opt-in checkbox with explicit mandate copy,
 new i18n keys in all five OSS locales (`en.ts`, `tr.ts`, `de.ts`, `es.ts`,
 `fr.ts`); cloud's `cloud-*.ts` locale files are inert and must not be used:
 
-> Save this card and authorise {company} to charge it for future invoices.
+> Save this card and authorise {{company}} to charge it for future invoices.
 > You can remove it at any time from your customer portal.
 
 The rendered string is what gets stored in `consent_text`.

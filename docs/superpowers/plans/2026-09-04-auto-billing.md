@@ -17,7 +17,8 @@
 - **Never use em dashes or en dashes** in code comments, copy, commit messages, or documentation. Use commas, periods, or parentheses.
 - **Commit messages: title line only, no body. No `Co-Authored-By` trailer.**
 - **Commit directly to `main`. Do not open pull requests.**
-- **i18n:** the OSS app has five locales — `en.ts`, `tr.ts`, `de.ts`, `es.ts`, `fr.ts` in `packages/frontend/src/i18n/`. Every new user-facing string needs a key in all five. The cloud repo's `cloud-*.ts` locale files are inert and must not be used.
+- **i18n keys are snake_case** (`namespace.descriptive_key`), and interpolation uses `{{variable}}`. Match the existing keys in each namespace.
+- **i18n:** the OSS app has five locales — `en.ts`, `tr.ts`, `de.ts`, `es.ts`, `fr.ts` in `packages/frontend/src/i18n/`. `tr.ts`, `es.ts`, `de.ts` and `fr.ts` each declare `const x: TranslationKeys`, so a key added to `en.ts` alone fails typecheck in all four. Every new string needs a key in all five. The cloud repo's `cloud-*.ts` locale files are inert and must not be used.
 - **Test command:** `bun test` from `packages/backend/`, or `bun run test` from the OSS repo root. Full gate: `bun run check` (lint + typecheck + test).
 - **Verification:** run the actual command and read the output before claiming a step passed.
 
@@ -41,12 +42,12 @@
 | `packages/backend/src/routes/invoices.ts:445` | `POST /:id/send` becomes a thin wrapper over the new service; publish ordering fixed. |
 | `packages/backend/src/services/invoice.service.ts` | `publishInvoice` accepts a freshly-sent invoice. |
 | `packages/backend/src/services/recurring.service.ts` | `auto_bill` column, async `generateInvoice`/`processAllDue`, finalize and hand off. |
-| `packages/backend/src/services/stripe.service.ts` | Client resolver hook, `saveCard` on checkout, off-session charge. |
+| `packages/backend/src/services/stripe.service.ts` | Client resolver hook, `save_card` on checkout, off-session charge. |
 | `packages/backend/src/services/payment-gateways/types.ts` | Optional `saveMethod` / `chargeOffSession` / `supportsAutoBill`. |
 | `packages/backend/src/services/payment-gateways/stripe.gateway.ts` | Implements the new members. |
 | `packages/backend/src/services/payment-gateways/registry.ts` | `getAutoBillGateways()`. |
 | `packages/backend/src/services/scheduler.ts` | Calls `processAutoBillRetries()`. |
-| `packages/backend/src/routes/public.ts` | `saveCard` passthrough, portal payment-method endpoints. |
+| `packages/backend/src/routes/public.ts` | `save_card` passthrough, portal payment-method endpoints. |
 | `packages/backend/src/routes/recurring.ts` | `auto_bill` in the schema, `await` on generate. |
 | `packages/backend/src/routes/settings.ts` | `notify_on_auto_bill_failure` in the allowlist. |
 | `packages/backend/src/tests/recurring-cron.test.ts` | `await` at call sites, Phase 0 coverage. |
@@ -1353,7 +1354,7 @@ git commit -m "feat: store and revoke tokenised customer payment methods"
 - Produces:
   ```ts
   // types.ts
-  export interface CheckoutContext { /* existing fields */ saveCard?: boolean; customerId?: string | null; consentText?: string | null; }
+  export interface CheckoutContext { /* existing fields */ save_card?: boolean; customerId?: string | null; consentText?: string | null; }
   // stripe.service.ts
   export async function saveMethodFromCheckoutSession(session: Stripe.Checkout.Session): Promise<void>;
   ```
@@ -1445,7 +1446,7 @@ In `packages/backend/src/services/payment-gateways/types.ts`, add to `CheckoutCo
 
 ```ts
   /** Payer opted in to saving this card for future invoices. */
-  saveCard?: boolean;
+  save_card?: boolean;
   /** Inkvoice customer id, needed to attach a saved method on the way back. */
   customerId?: string | null;
   /** Mandate copy shown at capture, stored verbatim with the saved method. */
@@ -1455,7 +1456,7 @@ In `packages/backend/src/services/payment-gateways/types.ts`, add to `CheckoutCo
 In `packages/backend/src/services/stripe.service.ts`, extend `createCheckoutSession`'s options with the same three fields and add, inside the `stripe.checkout.sessions.create({…})` call:
 
 ```ts
-    ...(opts.saveCard
+    ...(opts.save_card
       ? {
           customer_creation: "always" as const,
           payment_intent_data: { setup_future_usage: "off_session" as const },
@@ -1464,7 +1465,7 @@ In `packages/backend/src/services/stripe.service.ts`, extend `createCheckoutSess
     metadata: {
       invoice_id: opts.invoiceId,
       share_token: opts.shareToken,
-      ...(opts.saveCard
+      ...(opts.save_card
         ? {
             save_card: "1",
             customer_id: opts.customerId ?? "",
@@ -1549,7 +1550,7 @@ In `payment-gateways/stripe.gateway.ts`, pass the new fields through `createChec
       customerEmail: ctx.customerEmail,
       successUrl: ctx.successUrl,
       cancelUrl: ctx.cancelUrl,
-      saveCard: ctx.saveCard,
+      save_card: ctx.save_card,
       customerId: ctx.customerId,
       consentText: ctx.consentText,
     });
@@ -1585,7 +1586,7 @@ In `packages/backend/src/routes/public.ts`, the `POST /invoices/:shareToken/pay`
 and in the `gateway.createCheckout({…})` call add:
 
 ```ts
-      saveCard: body.save_card === true,
+      save_card: body.save_card === true,
       customerId: invoice.customer_id ?? null,
       consentText: body.save_card === true ? (body.consent_text ?? "").slice(0, 480) : null,
 ```
@@ -1605,14 +1606,14 @@ Expected: 10 pass.
 Add to the `public` namespace in `packages/frontend/src/i18n/en.ts`:
 
 ```ts
-    saveCard: "Save this card for future invoices",
-    saveCardConsent:
-      "You authorise {company} to charge this card for future invoices. You can remove it at any time from your customer portal.",
+    save_card: "Save this card for future invoices",
+    save_card_consent:
+      "You authorise {{company}} to charge this card for future invoices. You can remove it at any time from your customer portal.",
 ```
 
 Add the same two keys to `tr.ts`, `de.ts`, `es.ts`, `fr.ts`, translated. Follow the existing placeholder convention in each file (check how another key with a `{…}` placeholder is written before adding these).
 
-In `packages/frontend/src/pages/PublicInvoice.tsx`, add a checkbox above the pay button, shown only when the selected gateway is `stripe`. Wire its state into the `POST /invoices/:shareToken/pay` request body as `save_card`, and send the rendered `saveCardConsent` string (with `{company}` interpolated) as `consent_text`. Follow the component's existing pattern for reading `t(…)` and posting to the pay endpoint.
+In `packages/frontend/src/pages/PublicInvoice.tsx`, add a checkbox above the pay button, shown only when the selected gateway is `stripe`. Wire its state into the `POST /invoices/:shareToken/pay` request body as `save_card`, and send the rendered `save_card_consent` string (with `{{company}}` interpolated) as `consent_text`. Follow the component's existing pattern for reading `t(…)` and posting to the pay endpoint.
 
 - [ ] **Step 8: Verify in the browser**
 
@@ -2773,31 +2774,31 @@ git commit -m "feat: let a customer see and revoke saved cards from the portal"
 Add to the `portal` namespace in `packages/frontend/src/i18n/en.ts`:
 
 ```ts
-    savedCards: "Saved cards",
-    savedCardsEmpty: "No saved cards. Tick \"save this card\" when you next pay an invoice.",
-    removeCard: "Remove",
-    removeCardConfirm: "Remove this card? Future invoices will not be charged automatically.",
-    removeCardFailed: "Could not remove the card. Please try again.",
-    cardLine: "{brand} ending {last4}, expires {month}/{year}",
+    saved_cards: "Saved cards",
+    saved_cards_empty: "No saved cards. Tick \"save this card\" when you next pay an invoice.",
+    remove_card: "Remove",
+    remove_card_confirm: "Remove this card? Future invoices will not be charged automatically.",
+    remove_card_failed: "Could not remove the card. Please try again.",
+    card_line: "{{brand}} ending {{last4}}, expires {{month}}/{{year}}",
 ```
 
 and to the `recurring` namespace:
 
 ```ts
-    autoBill: "Charge the saved card automatically",
-    autoBillHelp: "When this profile fires, charge the customer's saved card. If the charge fails they are emailed a payment link.",
-    autoBillNoCard: "This customer has no saved card yet. They can save one when they next pay an invoice.",
+    auto_bill: "Charge the saved card automatically",
+    auto_bill_help: "When this profile fires, charge the customer's saved card. If the charge fails they are emailed a payment link.",
+    auto_bill_no_card: "This customer has no saved card yet. They can save one when they next pay an invoice.",
 ```
 
 Add all nine keys to `tr.ts`, `de.ts`, `es.ts`, and `fr.ts`, translated.
 
 - [ ] **Step 2: Create the shared list component**
 
-Create `packages/frontend/src/components/PaymentMethodList.tsx`, a presentational component taking `methods`, `onRemove`, and a `readOnly` flag. It renders brand, last4, expiry, and a default badge, using the `portal.cardLine` key. Follow the styling conventions of an existing list component in the same directory; do not introduce a new UI dependency.
+Create `packages/frontend/src/components/PaymentMethodList.tsx`, a presentational component taking `methods`, `onRemove`, and a `readOnly` flag. It renders brand, last4, expiry, and a default badge, using the `portal.card_line` key. Follow the styling conventions of an existing list component in the same directory; do not introduce a new UI dependency.
 
 - [ ] **Step 3: Use it in the portal**
 
-In `packages/frontend/src/pages/ClientPortal.tsx`, fetch `GET /api/v1/public/portal/:token/payment-methods` alongside the existing portal fetch, render a "Saved cards" section with `PaymentMethodList`, and wire removal to `DELETE …/payment-methods/:id` behind the existing confirm-dialog pattern. Show `savedCardsEmpty` when the list is empty, and `removeCardFailed` on a non-200 response.
+In `packages/frontend/src/pages/ClientPortal.tsx`, fetch `GET /api/v1/public/portal/:token/payment-methods` alongside the existing portal fetch, render a "Saved cards" section with `PaymentMethodList`, and wire removal to `DELETE …/payment-methods/:id` behind the existing confirm-dialog pattern. Show `saved_cards_empty` when the list is empty, and `remove_card_failed` on a non-200 response.
 
 - [ ] **Step 4: Use it in the admin customer page**
 
@@ -2805,7 +2806,7 @@ In `packages/frontend/src/pages/CustomerView.tsx`, add the same section in read-
 
 - [ ] **Step 5: Add the recurring toggle**
 
-In `packages/frontend/src/pages/RecurringInvoiceForm.tsx`, add an `auto_bill` checkbox next to the existing `auto_send` one. Disable it with the `autoBillNoCard` hint when the selected customer has no saved method, determined from the customer payment-methods endpoint added in Step 4.
+In `packages/frontend/src/pages/RecurringInvoiceForm.tsx`, add an `auto_bill` checkbox next to the existing `auto_send` one. Disable it with the `auto_bill_no_card` hint when the selected customer has no saved method, determined from the customer payment-methods endpoint added in Step 4.
 
 - [ ] **Step 6: Verify in the browser**
 
