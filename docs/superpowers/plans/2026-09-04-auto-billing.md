@@ -1881,8 +1881,11 @@ export function classifyStripeError(code: string | undefined): OffSessionStatus 
 }
 
 export async function chargeOffSession(ctx: OffSessionContext): Promise<OffSessionResult> {
-  const stripe = await getStripe();
   try {
+    // getStripe() must be INSIDE the try. Under the cloud resolver it throws
+    // when a tenant's key cannot be produced (rotation, decrypt failure), and
+    // this function's contract is that a failure is a return value, not a throw.
+    const stripe = await getStripe();
     const intent = await stripe.paymentIntents.create(
       {
         amount: Math.round(ctx.amount * 100),
