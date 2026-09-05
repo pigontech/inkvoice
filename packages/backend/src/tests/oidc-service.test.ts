@@ -28,10 +28,10 @@ let nextIdToken = "";
 let certDir: string | null = null;
 let prevTlsRejectUnauthorized: string | undefined;
 
-async function signIdToken(claims: Record<string, unknown>): Promise<string> {
+async function signIdToken(claims: Record<string, unknown>, tokenIssuer = issuer): Promise<string> {
   return new SignJWT(claims)
     .setProtectedHeader({ alg: "ES256", kid: "test-kid" })
-    .setIssuer(issuer)
+    .setIssuer(tokenIssuer)
     .setAudience(CLIENT_ID)
     .setSubject("sub-123")
     .setExpirationTime("5m")
@@ -239,6 +239,22 @@ describe("token exchange + id_token validation", () => {
       .setExpirationTime("5m")
       .sign(privateKey);
     await expect(validateIdToken(idToken, "nonce-1")).rejects.toThrow();
+  });
+
+  test("accepts an id_token whose issuer has a trailing slash", async () => {
+    resetOidcServiceForTesting();
+    trailingSlashIssuer = true;
+    try {
+      const idToken = await signIdToken(
+        { email: "alice@example.com", email_verified: true, nonce: "nonce-1" },
+        `${issuer}/`,
+      );
+      const info = await validateIdToken(idToken, "nonce-1");
+      expect(info.email).toBe("alice@example.com");
+    } finally {
+      trailingSlashIssuer = false;
+      resetOidcServiceForTesting();
+    }
   });
 
   test("id_token with wrong audience is rejected", async () => {
