@@ -456,7 +456,12 @@ describe("chargeOffSession", () => {
 
 import { listActivity } from "../services/activity.service";
 import { attemptAutoBill } from "../services/auto-bill.service";
-import { createInvoice, finaliseForSending, getInvoice } from "../services/invoice.service";
+import {
+  createInvoice,
+  finaliseForSending,
+  getInvoice,
+  voidInvoice,
+} from "../services/invoice.service";
 import { recordPayment } from "../services/payment.service";
 import { updateSettings } from "../services/settings.service";
 
@@ -851,14 +856,48 @@ describe("attemptAutoBill", () => {
     }));
 
     try {
-      const inv = sentInvoiceFor(customerId, 40);
-      getDb().run("UPDATE invoices SET amount_paid = ? WHERE id = ?", [40, inv.id]);
+      const noBalanceInv = sentInvoiceFor(customerId, 40);
+      getDb().run("UPDATE invoices SET amount_paid = ? WHERE id = ?", [40, noBalanceInv.id]);
 
-      const result = await attemptAutoBill(inv.id);
-      expect(result.status).toBe("skipped");
-      expect((result as any).errorCode).toBe("no_balance_due");
-      expect(result.emailedPaymentLink).toBe(false);
+      const noBalanceResult = await attemptAutoBill(noBalanceInv.id);
+      expect(noBalanceResult.status).toBe("skipped");
+      expect((noBalanceResult as any).errorCode).toBe("no_balance_due");
+      expect(noBalanceResult.emailedPaymentLink).toBe(false);
+
+      // invoice_status_draft: a draft never went through finaliseForSending.
+      const draftInv = createInvoice({
+        customer_id: customerId,
+        issue_date: "2026-09-04",
+        currency: "USD",
+        items: [{ description: "Work", quantity: 1, unit_price: 40 }],
+      });
+
+      const draftResult = await attemptAutoBill(draftInv.id);
+      expect(draftResult.status).toBe("skipped");
+      expect((draftResult as any).errorCode).toBe("invoice_status_draft");
+      expect(draftResult.emailedPaymentLink).toBe(false);
+
+      // invoice_status_voided: sent, then voided before the auto-bill tick.
+      const voidedInv = sentInvoiceFor(customerId, 45);
+      voidInvoice(voidedInv.id);
+
+      const voidedResult = await attemptAutoBill(voidedInv.id);
+      expect(voidedResult.status).toBe("skipped");
+      expect((voidedResult as any).errorCode).toBe("invoice_status_voided");
+      expect(voidedResult.emailedPaymentLink).toBe(false);
+
+      // None of the three skips above emailed the customer.
       expect(emailCalls).toHaveLength(0);
+
+      // Nor did any of them notify the admin, unlike no_saved_method.
+      const activity = listActivity({
+        resource_type: "invoice",
+        action: "auto_bill_failed",
+        page: 1,
+        limit: 50,
+      });
+      const silentIds = [noBalanceInv.id, draftInv.id, voidedInv.id];
+      expect(activity.items.some((a) => silentIds.includes(a.resource_id!))).toBe(false);
     } finally {
       mock.module("../services/invoice-send.service", () => realSend);
     }

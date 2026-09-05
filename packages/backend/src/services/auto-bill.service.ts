@@ -22,11 +22,13 @@ export const MAX_ATTEMPTS = 3;
 
 export type AutoBillOutcome = (OffSessionResult | { status: "skipped"; errorCode: string }) & {
   /**
-   * True exactly when this call already emailed the customer a payment link
-   * (the terminal-failure path). A caller that also sends its own invoice
-   * email on a failed charge, such as generateInvoice's auto_send path, must
-   * skip that email when this is true, so the customer is not emailed twice
-   * for the same invoice.
+   * True exactly when this call already emailed the customer a payment link.
+   * That happens on the terminal-failure path, and on the three "could not
+   * bill this" skips: no_saved_method, gateway_cannot_auto_bill, and
+   * gateway_disabled. A caller that also sends its own invoice email on a
+   * failed charge, such as generateInvoice's auto_send path, must skip that
+   * email when this is true, so the customer is not emailed twice for the
+   * same invoice.
    */
   emailedPaymentLink: boolean;
 };

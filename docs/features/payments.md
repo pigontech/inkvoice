@@ -103,7 +103,7 @@ Some charges cannot succeed without the customer present, most commonly a bank r
 ### Environment variables and settings
 
 - `PUBLIC_BASE_URL`: the public URL Inkvoice uses to build the payment link it emails a customer after a failed or non-retryable auto-bill charge. Set this to your instance's public URL if it is not already configured for outgoing email links generally.
-- `notify_on_auto_bill_failure`: a business setting (off by default) that, when enabled, also emails the company's own address on a terminal (non-retryable) failed or unrecorded auto-bill charge, in addition to the customer's payment-link email. A soft decline with retries still pending does not notify, only the final outcome does, whether that is a success or a terminal failure.
+- `notify_on_auto_bill_failure`: a business setting (off by default) that, when enabled, also emails the company's own address on a terminal (non-retryable) failed or unrecorded auto-bill charge, in addition to the customer's payment-link email. A soft decline with retries still pending does not notify. A successful charge does not notify anyone either, only a terminal failure does.
 
 ### Chargebacks
 
