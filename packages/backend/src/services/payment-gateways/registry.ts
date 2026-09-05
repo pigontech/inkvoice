@@ -10,9 +10,29 @@ export function getGateway(id: string): PaymentGateway | undefined {
   return GATEWAYS.find((g) => g.id === id);
 }
 
-/** True when a gateway has credentials AND is toggled on in Settings. */
+/**
+ * Extension point for "is this gateway enabled" when a deployment has no
+ * merchant-facing Settings toggle to read. Cloud tenants connect a gateway by
+ * storing their own encrypted credentials (see `payment_credentials` in the
+ * cloud overlay) rather than by flipping `${id}_enabled` in Settings, which
+ * cloud never writes, so an overlay registers a checker that answers per
+ * gateway id from its own source of truth instead of inkvoice keeping a
+ * second copy of the flag. Returning null for a given id defers to the
+ * Settings toggle for that id. Self-hosted never registers one, so the
+ * Settings-based gate below is unchanged.
+ */
+export type GatewayEnabledChecker = (gatewayId: string) => boolean | null;
+let gatewayEnabledChecker: GatewayEnabledChecker | null = null;
+export function setGatewayEnabledChecker(checker: GatewayEnabledChecker | null): void {
+  gatewayEnabledChecker = checker;
+}
+
+/** True when a gateway has credentials AND is toggled on (Settings, or the registered checker). */
 export function isGatewayEnabled(gateway: PaymentGateway): boolean {
-  return gateway.isConfigured() && getSetting(`${gateway.id}_enabled`) === "true";
+  if (!gateway.isConfigured()) return false;
+  const answer = gatewayEnabledChecker ? gatewayEnabledChecker(gateway.id) : null;
+  if (answer !== null) return answer;
+  return getSetting(`${gateway.id}_enabled`) === "true";
 }
 
 /** Gateways available to payers right now (configured ∧ enabled). */

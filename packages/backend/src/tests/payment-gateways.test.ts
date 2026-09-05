@@ -19,6 +19,7 @@ import {
   getGateway,
   isGatewayEnabled,
   listEnabledGatewayMeta,
+  setGatewayEnabledChecker,
 } from "../services/payment-gateways/registry";
 import { updateSettings } from "../services/settings.service";
 import { resetEnvCache } from "../utils/env";
@@ -170,6 +171,51 @@ describe("Gateway registry", () => {
     process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
     resetEnvCache();
     expect(isGatewayEnabled(stripe)).toBe(true);
+  });
+
+  test("with no checker registered, the Settings toggle still governs", () => {
+    const stripe = getGateway("stripe")!;
+    // Configured (from the previous test) but toggled off in Settings.
+    updateSettings({ stripe_enabled: "false" });
+    expect(isGatewayEnabled(stripe)).toBe(false);
+
+    updateSettings({ stripe_enabled: "true" });
+    expect(isGatewayEnabled(stripe)).toBe(true);
+  });
+
+  test("a registered checker governs instead of the Settings toggle", () => {
+    const stripe = getGateway("stripe")!;
+    updateSettings({ stripe_enabled: "true" });
+
+    try {
+      // The checker says no even though Settings says yes and credentials
+      // are present: the checker's answer wins.
+      setGatewayEnabledChecker((id) => (id === "stripe" ? false : null));
+      expect(isGatewayEnabled(stripe)).toBe(false);
+
+      // The checker says yes: it wins even with Settings off.
+      updateSettings({ stripe_enabled: "false" });
+      setGatewayEnabledChecker((id) => (id === "stripe" ? true : null));
+      expect(isGatewayEnabled(stripe)).toBe(true);
+
+      // The checker declines to answer (null) for this id: falls back to
+      // Settings, which is off, so the gateway stays disabled.
+      setGatewayEnabledChecker(() => null);
+      expect(isGatewayEnabled(stripe)).toBe(false);
+
+      // isConfigured() still gates first: an unconfigured gateway stays
+      // disabled even when the checker would say yes.
+      process.env.STRIPE_SECRET_KEY = "";
+      process.env.STRIPE_WEBHOOK_SECRET = "";
+      resetEnvCache();
+      setGatewayEnabledChecker(() => true);
+      expect(isGatewayEnabled(stripe)).toBe(false);
+    } finally {
+      setGatewayEnabledChecker(null);
+      process.env.STRIPE_SECRET_KEY = "sk_test";
+      process.env.STRIPE_WEBHOOK_SECRET = "whsec_test";
+      resetEnvCache();
+    }
   });
 });
 
