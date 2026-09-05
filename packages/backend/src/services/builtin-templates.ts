@@ -39,6 +39,14 @@ export const BUILTIN_TEMPLATES: BuiltinTemplate[] = [
     file: "template-minimal.html",
     isDefault: false,
   },
+  {
+    slug: "din5008",
+    name: "DIN 5008",
+    description:
+      "A German-business-letter-compliant invoice template following the DIN 5008 standard",
+    file: "template-din5008.html",
+    isDefault: false,
+  },
 ];
 
 export function readTemplateFile(filename: string): string {
