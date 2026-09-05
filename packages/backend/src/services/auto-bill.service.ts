@@ -8,7 +8,7 @@ import { getInvoice } from "./invoice.service";
 import { sendInvoiceEmail } from "./invoice-send.service";
 import { dispatchEvent } from "./outgoing-webhooks.service";
 import { recordPayment } from "./payment.service";
-import { getGateway } from "./payment-gateways/registry";
+import { getAutoBillGateways, getGateway } from "./payment-gateways/registry";
 import type { OffSessionResult } from "./payment-gateways/types";
 import { getAllSettings, getSetting } from "./settings.service";
 
@@ -90,15 +90,21 @@ function writeAttempt(row: {
 /**
  * Best-effort admin notification. Mirrors notifyInvoiceViewed exactly, except
  * the email wording branches on `kind`: a plain decline never touched the
- * customer's card (a payment link went out instead), while "capture_unrecorded"
- * means the card WAS charged and Inkvoice could not record it, which needs
- * manual reconciliation, and possibly a refund, not a payment link.
+ * customer's card (a payment link went out instead, or at least was
+ * attempted), while "capture_unrecorded" means the card WAS charged and
+ * Inkvoice could not record it, which needs manual reconciliation, and
+ * possibly a refund, not a payment link.
+ *
+ * `emailOutcome` is only meaningful for kind "declined": it says whether the
+ * payment-link email actually went out, so this notification never claims a
+ * delivery that did not happen.
  */
 async function notifyFailure(
   invoiceId: string,
   invoiceNumber: string,
   reason: string,
   kind: "declined" | "capture_unrecorded" = "declined",
+  emailOutcome?: { emailed: boolean; error?: string },
 ): Promise<void> {
   try {
     logActivity({
@@ -129,19 +135,55 @@ async function notifyFailure(
       kind === "capture_unrecorded"
         ? `Auto-billing captured a payment that needs reconciliation, invoice ${invoiceNumber}`
         : `Auto-billing failed for invoice ${invoiceNumber}`;
+    const emailedPaymentLink = kind === "declined" && emailOutcome?.emailed === true;
+    const emailFailureSuffix =
+      kind === "declined" && emailOutcome?.emailed === false && emailOutcome.error
+        ? ` (${emailOutcome.error})`
+        : "";
     const text =
       kind === "capture_unrecorded"
         ? `The saved card for invoice ${invoiceNumber} was charged (${reason}), but Inkvoice could not record the payment. Reconcile it at the payment provider manually, a refund may be required.`
-        : `The saved card for invoice ${invoiceNumber} could not be charged (${reason}). The customer has been emailed a payment link.`;
+        : emailedPaymentLink
+          ? `The saved card for invoice ${invoiceNumber} could not be charged (${reason}). The customer has been emailed a payment link.`
+          : `The saved card for invoice ${invoiceNumber} could not be charged (${reason}). The customer could NOT be emailed a payment link${emailFailureSuffix}, reach out to them directly.`;
     const html =
       kind === "capture_unrecorded"
         ? `<p>The saved card for invoice <strong>${invoiceNumber}</strong> was charged (${reason}), but Inkvoice could not record the payment.</p><p>Reconcile it at the payment provider manually. A refund may be required.</p>`
-        : `<p>The saved card for invoice <strong>${invoiceNumber}</strong> could not be charged (${reason}).</p><p>The customer has been emailed a payment link.</p>`;
+        : emailedPaymentLink
+          ? `<p>The saved card for invoice <strong>${invoiceNumber}</strong> could not be charged (${reason}).</p><p>The customer has been emailed a payment link.</p>`
+          : `<p>The saved card for invoice <strong>${invoiceNumber}</strong> could not be charged (${reason}).</p><p>The customer could <strong>NOT</strong> be emailed a payment link${emailFailureSuffix}. Reach out to them directly.</p>`;
 
     await sendEmail({ to, subject, text, html });
   } catch (err) {
     logger.warn({ err, invoiceId }, "Auto-bill failure notification did not send");
   }
+}
+
+/**
+ * Email the customer a payment link for an invoice auto-bill could not (or
+ * did not) charge, then tell the merchant the truth about whether that email
+ * actually went out. Shared by every "we could not bill this" skip reason
+ * (no saved method, gateway cannot auto-bill, gateway disabled) and by the
+ * terminal charge-failure path at the bottom of attemptAutoBill, so both
+ * notify identically and neither can silently claim a delivery that failed.
+ */
+async function emailPaymentLinkAndNotify(
+  invoiceId: string,
+  invoiceNumber: string,
+  reason: string,
+): Promise<boolean> {
+  let emailed = false;
+  let error: string | undefined;
+  try {
+    const sent = await sendInvoiceEmail(invoiceId, { attachEinvoice: true });
+    emailed = sent.success;
+    if (!sent.success) error = sent.error;
+  } catch (err) {
+    error = err instanceof Error ? err.message : String(err);
+    logger.warn({ err, invoiceId }, "Could not email the payment link after a failed charge");
+  }
+  await notifyFailure(invoiceId, invoiceNumber, reason, "declined", { emailed, error });
+  return emailed;
 }
 
 /**
@@ -174,13 +216,43 @@ export async function attemptAutoBill(
     return { status: "skipped", errorCode: "no_balance_due", emailedPaymentLink: false };
   }
 
+  // Every branch from here down means "we could not bill this", which is not
+  // the same as "there is nothing to bill" (no_balance_due, invoice_status_*
+  // above): the customer still owes the money, so each one must reach the
+  // customer with a payment link and tell the merchant, exactly like a
+  // declined charge would.
   const method = getDefaultMethod(invoice.customer_id);
-  if (!method)
-    return { status: "skipped", errorCode: "no_saved_method", emailedPaymentLink: false };
+  if (!method) {
+    const emailedPaymentLink = await emailPaymentLinkAndNotify(
+      invoiceId,
+      invoice.invoice_number,
+      "no saved payment method on file",
+    );
+    return { status: "skipped", errorCode: "no_saved_method", emailedPaymentLink };
+  }
 
   const gateway = getGateway(method.gateway);
   if (!gateway?.supportsAutoBill || !gateway.chargeOffSession) {
-    return { status: "skipped", errorCode: "gateway_cannot_auto_bill", emailedPaymentLink: false };
+    const emailedPaymentLink = await emailPaymentLinkAndNotify(
+      invoiceId,
+      invoice.invoice_number,
+      "the saved payment gateway cannot auto-bill",
+    );
+    return { status: "skipped", errorCode: "gateway_cannot_auto_bill", emailedPaymentLink };
+  }
+
+  // supportsAutoBill is necessary but not sufficient: the merchant may have
+  // turned the gateway off in Settings (this workspace's kill switch for the
+  // public Pay button), and that must stop off-session charging too, not just
+  // voluntary payments. getAutoBillGateways() is the one place that already
+  // encodes "configured AND enabled AND capable of auto-bill".
+  if (!getAutoBillGateways().some((g) => g.id === gateway.id)) {
+    const emailedPaymentLink = await emailPaymentLinkAndNotify(
+      invoiceId,
+      invoice.invoice_number,
+      "the payment gateway is disabled in Settings",
+    );
+    return { status: "skipped", errorCode: "gateway_disabled", emailedPaymentLink };
   }
 
   const result = await gateway.chargeOffSession({
@@ -276,16 +348,15 @@ export async function attemptAutoBill(
     return { ...result, emailedPaymentLink: false };
   }
 
-  // Terminal failure: hand the customer a way to pay, and tell the merchant.
+  // Terminal failure: hand the customer a way to pay, and tell the merchant
+  // the truth about whether that actually happened.
   let emailedPaymentLink = false;
   if (!canRetry) {
-    emailedPaymentLink = true;
-    try {
-      await sendInvoiceEmail(invoiceId, { attachEinvoice: true });
-    } catch (err) {
-      logger.warn({ err, invoiceId }, "Could not email the payment link after a failed charge");
-    }
-    await notifyFailure(invoiceId, invoice.invoice_number, result.errorCode ?? result.status);
+    emailedPaymentLink = await emailPaymentLinkAndNotify(
+      invoiceId,
+      invoice.invoice_number,
+      result.errorCode ?? result.status,
+    );
   }
 
   return { ...result, emailedPaymentLink };

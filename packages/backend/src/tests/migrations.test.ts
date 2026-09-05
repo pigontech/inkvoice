@@ -446,4 +446,61 @@ describe("schema migration runner", () => {
     );
     warnSpy.mockRestore();
   });
+
+  test("migration 30 recalculates amount_paid for an invoice whose dedupe destroyed a genuine partial payment", () => {
+    // Two GENUINE partial payments on the same invoice, both tagged with the
+    // same free text reference ("cash") because that is all the user typed
+    // into the manual payment endpoint. The dedupe cannot tell this apart
+    // from a retried webhook and still has to remove one to satisfy the
+    // unique index, but afterwards invoices.amount_paid must reflect the rows
+    // that actually survived, not the stale pre-dedupe total.
+    runWith(db, () => runMigrations());
+    db.exec("DROP INDEX IF EXISTS ux_payments_invoice_reference");
+    db.exec("DELETE FROM schema_migrations WHERE version = 30");
+
+    db.exec(`
+      INSERT INTO customers (id, name) VALUES ('cust2', 'Recalc Co');
+      INSERT INTO invoices (id, invoice_number, customer_id, issue_date, status, total, amount_paid)
+        VALUES ('inv2', 'INV-0002', 'cust2', '2026-01-01', 'partially_paid', 300, 120);
+    `);
+
+    // pay-cash-1 (50) and pay-cash-2 (70) are two real payments, correctly
+    // summed into the invoice's seeded amount_paid of 120 before migration.
+    db.query(`
+      INSERT INTO payments (id, invoice_id, amount, payment_date, reference)
+      VALUES ('pay-cash-1', 'inv2', 50, '2026-01-01', 'cash')
+    `).run();
+    db.query(`
+      INSERT INTO payments (id, invoice_id, amount, payment_date, reference)
+      VALUES ('pay-cash-2', 'inv2', 70, '2026-01-05', 'cash')
+    `).run();
+
+    const warnSpy = spyOn(logger, "warn");
+    runWith(db, () => runMigrations());
+
+    // The dedupe kept the older row and removed the newer one, exactly like
+    // the existing dedupe test, even though both were genuine payments.
+    const remaining = db.query("SELECT id FROM payments WHERE invoice_id = 'inv2'").all() as {
+      id: string;
+    }[];
+    expect(remaining.map((r) => r.id)).toEqual(["pay-cash-1"]);
+
+    // amount_paid must now match the SUM of the surviving rows (50), not the
+    // stale pre-dedupe value (120) the invoice was seeded with, and status
+    // must be recalculated the same way the app would.
+    const invoice = db
+      .query("SELECT amount_paid, status FROM invoices WHERE id = 'inv2'")
+      .get() as { amount_paid: number; status: string };
+    expect(invoice.amount_paid).toBe(50);
+    expect(invoice.status).toBe("partially_paid");
+
+    // The removed row's invoice_id, reference and amount are logged, not just
+    // a count, so an operator can reconcile a genuine payment the dedupe had
+    // to remove.
+    expect(warnSpy).toHaveBeenCalledWith(
+      { removedRows: [{ invoice_id: "inv2", reference: "cash", amount: 70 }] },
+      "Duplicate payment rows removed by migration 30, reconcile manually if any were genuine partial payments",
+    );
+    warnSpy.mockRestore();
+  });
 });

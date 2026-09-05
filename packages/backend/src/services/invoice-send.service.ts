@@ -51,6 +51,17 @@ export async function sendInvoiceEmail(
 
   const settings = getAllSettings();
   const origin = resolvePublicOrigin(opts.origin);
+  if (!origin) {
+    // Neither a live request origin nor PUBLIC_BASE_URL is available, so this
+    // email will ship with no link to view or pay the invoice. This is the
+    // normal shape for scheduler-sent mail (no request to read an origin
+    // from) on a stock install that never set PUBLIC_BASE_URL, so warn rather
+    // than silently mailing a dead end.
+    logger.warn(
+      { invoiceId: finalised.id },
+      "PUBLIC_BASE_URL is not set, this email has no link to view or pay the invoice. Set PUBLIC_BASE_URL so scheduler-sent mail can include one.",
+    );
+  }
   const publicUrl =
     finalised.share_token && origin ? `${origin}/public/invoice/${finalised.share_token}` : null;
 

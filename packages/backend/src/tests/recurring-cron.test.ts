@@ -7,7 +7,8 @@ import { seed } from "../database/seed";
 import { saveMethod } from "../services/customer-payment-method.service";
 import { createInvoice, getInvoice } from "../services/invoice.service";
 import { createRecurring, generateInvoice, processAllDue } from "../services/recurring.service";
-import { setStripeClientResolver } from "../services/stripe.service";
+import { updateSettings } from "../services/settings.service";
+import { setStripeClientResolver, setStripeConfiguredChecker } from "../services/stripe.service";
 import { resetEnvCache } from "../utils/env";
 
 const TEST_DB = "./data/test-recurring-cron.db";
@@ -32,9 +33,21 @@ beforeAll(async () => {
 
   customerId = crypto.randomBytes(16).toString("hex");
   getDb().run("INSERT INTO customers (id, name) VALUES (?, ?)", [customerId, "Recurring Co"]);
+
+  // attemptAutoBill now gates on isGatewayEnabled (finding 1), the same kill
+  // switch the public pay endpoint already honours. The auto_bill tests below
+  // expect stripe to be usable, so make that the default for this file.
+  setStripeConfiguredChecker(() => true);
+  updateSettings({ stripe_enabled: "true" });
 });
 
 afterAll(() => {
+  // The configured checker is a module-level singleton in stripe.service.ts,
+  // shared by every test file in the same bun test process. Reset it so a
+  // later file (e.g. payment-gateways.test.ts, which asserts on real env-var
+  // based configuration) does not inherit this file's "always configured"
+  // override.
+  setStripeConfiguredChecker(null);
   closeDatabase();
   for (const suffix of ["", "-wal", "-shm"]) {
     try {

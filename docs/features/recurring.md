@@ -12,7 +12,7 @@ Automate invoice generation for subscription billing, retainers, or any regular 
    - **End Date** — Optional end date to stop generation
 4. Optionally turn on:
    - **Auto-send**: email the generated invoice to the customer as soon as it is created, instead of leaving it a draft for you to review first.
-   - **Auto-bill**: charge the customer's saved card automatically when the invoice is generated. This is disabled in the form until the customer has a saved card (a card is saved from a "save this card" checkbox they see at checkout, see Online Payments). If the charge fails, the customer is emailed a payment link instead of being billed silently.
+   - **Auto-bill**: charge the customer's saved card automatically when the invoice is generated. This is disabled in the form until the customer has a saved card (a card is saved from a "save this card" checkbox they see at checkout, see Online Payments). If the charge fails, or cannot even be attempted (for example the customer later removed their saved card, or the gateway is turned off in Settings), the customer is emailed a payment link instead of being invoiced silently.
 5. Save
 
 ## How It Works
@@ -23,7 +23,7 @@ A profile left at its defaults (both Auto-send and Auto-bill off) only ever prod
 
 Turning on either toggle finalises the generated invoice right away (it is numbered, marked sent, and gets a shareable link), then:
 
-- With **Auto-bill** on, Inkvoice attempts to charge the customer's default saved card for the full balance. A successful charge marks the invoice paid. A failed charge (declined, requires authentication, or no usable saved card) leaves the invoice as sent and emails the customer a payment link so they can pay by hand. See Online Payments for the retry schedule that applies to a temporary decline.
+- With **Auto-bill** on, Inkvoice attempts to charge the customer's default saved card for the full balance. A successful charge marks the invoice paid. A failed charge (declined, requires authentication, no usable saved card, or the gateway cannot currently auto-bill) leaves the invoice as sent and emails the customer a payment link so they can pay by hand, and notifies you the same way. See Online Payments for the retry schedule that applies to a temporary decline.
 - With **Auto-send** on, the invoice is emailed to the customer as a normal delivery, unless Auto-bill already emailed a payment link for the same invoice on a failed charge. That way the customer is never emailed twice for the same event.
 
 ## Managing Recurring Invoices

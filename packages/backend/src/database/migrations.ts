@@ -994,6 +994,27 @@ const MIGRATIONS: Migration[] = [
       // deployments share one idempotency guarantee. An existing self-hosted
       // database may already hold duplicate (invoice_id, reference) pairs from
       // a retried webhook, so deduplicate before the unique index goes on.
+      //
+      // `reference` is free text on the manual payment endpoint, so a
+      // duplicate pair here is not necessarily a duplicated webhook, it could
+      // be two genuine partial payments a user tagged with the same note
+      // (e.g. "wire"). We cannot tell those apart from the data alone, so we
+      // still have to remove one to satisfy the unique index, but we read the
+      // doomed rows before deleting them and log invoice_id, reference and
+      // amount for every one, not just a count, so an operator can reconcile
+      // by hand if a removed row turns out to have been real money.
+      const doomed = db
+        .query(
+          `SELECT id, invoice_id, reference, amount FROM payments
+           WHERE reference IS NOT NULL
+             AND rowid NOT IN (
+               SELECT MIN(rowid) FROM payments
+               WHERE reference IS NOT NULL
+               GROUP BY invoice_id, reference
+             )`,
+        )
+        .all() as { id: string; invoice_id: string; reference: string; amount: number }[];
+
       const removed = db.run(`
         DELETE FROM payments
         WHERE reference IS NOT NULL
@@ -1008,11 +1029,63 @@ const MIGRATIONS: Migration[] = [
           { removed: removed.changes },
           "Removed duplicate payment rows before adding the reference index",
         );
+        logger.warn(
+          {
+            removedRows: doomed.map((row) => ({
+              invoice_id: row.invoice_id,
+              reference: row.reference,
+              amount: row.amount,
+            })),
+          },
+          "Duplicate payment rows removed by migration 30, reconcile manually if any were genuine partial payments",
+        );
       }
       db.exec(`
         CREATE UNIQUE INDEX IF NOT EXISTS ux_payments_invoice_reference
           ON payments(invoice_id, reference) WHERE reference IS NOT NULL
       `);
+
+      // The delete above can leave invoices.amount_paid and status
+      // inconsistent with the payments rows that actually survived, recompute
+      // both for every invoice that lost a row. This mirrors
+      // payment.service.ts's recalculateInvoicePayments logic, written inline
+      // in raw SQL because migrations must not import service code.
+      const affectedInvoiceIds = [...new Set(doomed.map((row) => row.invoice_id))];
+      for (const invoiceId of affectedInvoiceIds) {
+        const totals = db
+          .query(`SELECT COALESCE(SUM(amount), 0) as total_paid FROM payments WHERE invoice_id = ?`)
+          .get(invoiceId) as { total_paid: number };
+        const invoice = db
+          .query(`SELECT total, status, cash_discount_applied FROM invoices WHERE id = ?`)
+          .get(invoiceId) as {
+          total: number;
+          status: string;
+          cash_discount_applied: number;
+        } | null;
+        if (!invoice) continue;
+
+        const amountPaid = Math.round(totals.total_paid * 100) / 100;
+        const discountApplied = Math.round((invoice.cash_discount_applied || 0) * 100) / 100;
+        const settled = amountPaid + discountApplied;
+        let newStatus = invoice.status;
+        // Only auto-update status for non-draft, non-voided, non-complete
+        // invoices, same guard recalculateInvoicePayments uses.
+        if (!["draft", "voided", "complete"].includes(invoice.status)) {
+          if (settled >= invoice.total) {
+            newStatus = "paid";
+          } else if (amountPaid > 0) {
+            newStatus = "partially_paid";
+          } else {
+            newStatus = invoice.status === "overdue" ? "overdue" : "sent";
+          }
+        }
+
+        db.run(`UPDATE invoices SET amount_paid = ?, status = ? WHERE id = ?`, [
+          amountPaid,
+          newStatus,
+          invoiceId,
+        ]);
+      }
     },
   },
 ];

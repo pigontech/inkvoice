@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, mock, test } from "bun:test";
 import crypto from "node:crypto";
 import { unlinkSync } from "node:fs";
 import { closeDatabase, getDb, initDatabase } from "../database/connection";
@@ -458,6 +458,7 @@ import { listActivity } from "../services/activity.service";
 import { attemptAutoBill } from "../services/auto-bill.service";
 import { createInvoice, finaliseForSending, getInvoice } from "../services/invoice.service";
 import { recordPayment } from "../services/payment.service";
+import { updateSettings } from "../services/settings.service";
 
 function attemptsFor(invoiceId: string) {
   return getDb()
@@ -481,6 +482,20 @@ function sentInvoiceFor(customer: string, amount: number) {
 }
 
 describe("attemptAutoBill", () => {
+  // attemptAutoBill now gates on isGatewayEnabled (finding 1), the same kill
+  // switch the public pay endpoint already honours. Every test below expects
+  // stripe to be usable unless it explicitly disables it, so make that the
+  // default for every test in this describe. This has to be beforeEach, not
+  // beforeAll: bun:test runs every describe's beforeAll upfront, in file
+  // order, before any test in the file runs, so a beforeAll here would still
+  // be clobbered by the "stripe client resolution" describe's own afterEach
+  // (which resets the configured checker to null) once that describe's tests
+  // actually execute, later in the run.
+  beforeEach(() => {
+    setStripeConfiguredChecker(() => true);
+    updateSettings({ stripe_enabled: "true" });
+  });
+  afterAll(() => setStripeConfiguredChecker(null));
   afterEach(() => setStripeClientResolver(null));
 
   test("skips a customer with no saved method", async () => {
@@ -751,11 +766,176 @@ describe("attemptAutoBill", () => {
     expect(entry).toBeTruthy();
     expect(JSON.parse(entry!.metadata!).reason).toContain("captured");
   });
+
+  // Finding 1: turning Stripe off in Settings is the merchant's kill switch
+  // for the public Pay button, and it must stop off-session charging too, not
+  // just voluntary payments.
+  test("stripe disabled in Settings makes zero gateway calls and skips", async () => {
+    let gatewayCalls = 0;
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentIntents: {
+            create: async () => {
+              gatewayCalls++;
+              return { id: "pi_should_never_happen", status: "succeeded" };
+            },
+          },
+        }) as any,
+    );
+    updateSettings({ stripe_enabled: "false" });
+
+    try {
+      const inv = sentInvoiceFor(customerId, 33);
+      const result = await attemptAutoBill(inv.id);
+
+      expect(result.status).toBe("skipped");
+      expect((result as any).errorCode).toBe("gateway_disabled");
+      expect(gatewayCalls).toBe(0);
+      expect(attemptsFor(inv.id)).toHaveLength(0);
+    } finally {
+      updateSettings({ stripe_enabled: "true" });
+    }
+  });
+
+  // Finding 2: a skip that means "we could not bill this" (no saved card,
+  // gateway cannot auto-bill, gateway disabled) must behave like a terminal
+  // failure for delivery and notification, exactly like no_balance_due and
+  // invoice_status_* must NOT: there is nothing owed there, so those stay silent.
+  test("a customer with no saved card gets exactly one payment-link email and the admin is notified", async () => {
+    const bare = crypto.randomBytes(16).toString("hex");
+    getDb().run("INSERT INTO customers (id, name) VALUES (?, ?)", [bare, "No Card Notify Co"]);
+    const inv = sentInvoiceFor(bare, 42);
+
+    const emailCalls: string[] = [];
+    const realSend = await import("../services/invoice-send.service");
+    mock.module("../services/invoice-send.service", () => ({
+      ...realSend,
+      sendInvoiceEmail: async (invoiceId: string) => {
+        emailCalls.push(invoiceId);
+        return { success: true };
+      },
+    }));
+
+    try {
+      const result = await attemptAutoBill(inv.id);
+      expect(result.status).toBe("skipped");
+      expect((result as any).errorCode).toBe("no_saved_method");
+      // Exactly one customer email, the payment link.
+      expect(emailCalls).toEqual([inv.id]);
+      expect(result.emailedPaymentLink).toBe(true);
+
+      // An admin notification (the in-app bell / webhook path notifyFailure
+      // always fires) was recorded for this invoice.
+      const activity = listActivity({
+        resource_type: "invoice",
+        action: "auto_bill_failed",
+        page: 1,
+        limit: 50,
+      });
+      expect(activity.items.some((a) => a.resource_id === inv.id)).toBe(true);
+    } finally {
+      mock.module("../services/invoice-send.service", () => realSend);
+    }
+  });
+
+  test("no_balance_due and invoice_status_* skips stay silent, unlike no_saved_method", async () => {
+    const emailCalls: string[] = [];
+    const realSend = await import("../services/invoice-send.service");
+    mock.module("../services/invoice-send.service", () => ({
+      ...realSend,
+      sendInvoiceEmail: async (invoiceId: string) => {
+        emailCalls.push(invoiceId);
+        return { success: true };
+      },
+    }));
+
+    try {
+      const inv = sentInvoiceFor(customerId, 40);
+      getDb().run("UPDATE invoices SET amount_paid = ? WHERE id = ?", [40, inv.id]);
+
+      const result = await attemptAutoBill(inv.id);
+      expect(result.status).toBe("skipped");
+      expect((result as any).errorCode).toBe("no_balance_due");
+      expect(result.emailedPaymentLink).toBe(false);
+      expect(emailCalls).toHaveLength(0);
+    } finally {
+      mock.module("../services/invoice-send.service", () => realSend);
+    }
+  });
+
+  // Finding 3: the fallback payment-link email must never be reported as sent
+  // when it was not. sendInvoiceEmail returning {success:false} (the normal
+  // outcome for "email not configured", not a thrown error) must flip
+  // emailedPaymentLink to false and must stop the admin notification from
+  // claiming the customer was emailed.
+  test("when the payment-link email fails, emailedPaymentLink is false and the admin is told the truth", async () => {
+    setStripeClientResolver(
+      async () =>
+        ({
+          paymentIntents: {
+            create: async () => {
+              const e: any = new Error("card declined");
+              e.code = "card_declined";
+              throw e;
+            },
+          },
+        }) as any,
+    );
+
+    const realSend = await import("../services/invoice-send.service");
+    mock.module("../services/invoice-send.service", () => ({
+      ...realSend,
+      sendInvoiceEmail: async () => ({
+        success: false,
+        error: "SMTP is not configured",
+        status: 400,
+      }),
+    }));
+
+    const realEmail = await import("../services/email.service");
+    const adminEmails: { text: string; html: string }[] = [];
+    mock.module("../services/email.service", () => ({
+      ...realEmail,
+      isEmailConfigured: async () => true,
+      sendEmail: async (opts: { text: string; html: string }) => {
+        adminEmails.push({ text: opts.text, html: opts.html });
+        return { success: true };
+      },
+    }));
+    updateSettings({ notify_on_auto_bill_failure: "true", company_email: "owner@example.test" });
+
+    try {
+      const inv = sentInvoiceFor(customerId, 88);
+      const result = await attemptAutoBill(inv.id);
+
+      expect(result.status).toBe("hard_failed");
+      // The email genuinely failed, this must not read true.
+      expect(result.emailedPaymentLink).toBe(false);
+
+      expect(adminEmails).toHaveLength(1);
+      expect(adminEmails[0].text).not.toContain("has been emailed a payment link");
+      expect(adminEmails[0].text).toContain("could NOT be emailed a payment link");
+    } finally {
+      mock.module("../services/invoice-send.service", () => realSend);
+      mock.module("../services/email.service", () => realEmail);
+      updateSettings({ notify_on_auto_bill_failure: "false" });
+    }
+  });
 });
 
 import { processAutoBillRetries } from "../services/auto-bill.service";
 
 describe("processAutoBillRetries", () => {
+  // Same reasoning as the "attemptAutoBill" describe above (beforeEach, not
+  // beforeAll, because of how bun:test schedules beforeAll across describes):
+  // keep stripe usable by default so a retried charge is not skipped as
+  // gateway_disabled.
+  beforeEach(() => {
+    setStripeConfiguredChecker(() => true);
+    updateSettings({ stripe_enabled: "true" });
+  });
+  afterAll(() => setStripeConfiguredChecker(null));
   afterEach(() => setStripeClientResolver(null));
 
   test("retries only attempts whose next_retry_at has passed", async () => {

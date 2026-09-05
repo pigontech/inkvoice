@@ -90,6 +90,8 @@ When a customer pays an invoice through Stripe Checkout, they see a "save this c
 
 A customer's saved card is what makes the **Auto-bill** toggle on a recurring invoice profile (see Recurring Invoices) usable: the toggle stays disabled until the selected customer has at least one saved card.
 
+Turning Stripe off under **Settings → Payments** (the same switch that hides the **Pay Now** button and blocks the public pay endpoint) also stops auto-billing: a recurring profile with Auto-bill on is skipped rather than charged while the gateway is disabled, and the customer is emailed a payment link as if the charge had failed, exactly like a saved card that stops working.
+
 ### Retry schedule
 
 If an automatic charge is declined for a retryable reason (for example insufficient funds), Inkvoice retries it, for three attempts in total: the initial attempt when the invoice is generated, a second attempt 1 day after that if it was declined, and a third attempt 3 days after the second if that one was declined too. Once the third attempt also fails, the failure is treated as final and the customer is emailed a payment link so they can pay by hand.
@@ -101,7 +103,7 @@ Some charges cannot succeed without the customer present, most commonly a bank r
 ### Environment variables and settings
 
 - `PUBLIC_BASE_URL`: the public URL Inkvoice uses to build the payment link it emails a customer after a failed or non-retryable auto-bill charge. Set this to your instance's public URL if it is not already configured for outgoing email links generally.
-- `notify_on_auto_bill_failure`: a business setting (off by default) that, when enabled, also emails the company's own address on every failed or unrecorded auto-bill charge, in addition to the customer's payment-link email.
+- `notify_on_auto_bill_failure`: a business setting (off by default) that, when enabled, also emails the company's own address on a terminal (non-retryable) failed or unrecorded auto-bill charge, in addition to the customer's payment-link email. A soft decline with retries still pending does not notify, only the final outcome does, whether that is a success or a terminal failure.
 
 ### Chargebacks
 
