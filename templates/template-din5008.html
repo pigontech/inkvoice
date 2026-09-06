@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <style>
+      /* @page margin stays 0 — every position below is measured from the physical A4 edge, per DIN 5008 */
+      @page {
+        size: A4;
+        margin: 0;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        font-size: 9.5pt;
+        color: #000039;
+        line-height: 1.45;
+        background: #fff;
+      }
+
+      .page {
+        position: relative;
+        width: 210mm;
+        /* Top padding only applies before the first page fragment; left/right repeat on every page */
+        padding: 95mm 20mm 15mm 25mm;
+      }
+
+      /* ---------- DIN 5008 guide marks (left edge, printer reference only) ---------- */
+      .fold-mark,
+      .punch-mark {
+        position: absolute;
+        left: 0;
+        border-top: 0.3pt solid #000;
+      }
+      .fold-mark { width: 5mm; }
+      .punch-mark { width: 4mm; }
+      .fold-mark--1 { top: 105mm; }
+      .fold-mark--2 { top: 210mm; }
+      .punch-mark { top: 148.5mm; }
+
+      /* ---------- Header zone (0–45mm): logo + document title only, DIN 5008 keeps this clear of address data ---------- */
+      .letterhead {
+        position: absolute;
+        top: 12mm;
+        left: 25mm;
+        right: 20mm;
+        height: 30mm;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+
+      .letterhead .logo img {
+        max-height: 40px;
+        max-width: 120px;
+      }
+
+      .letterhead .doc-title {
+        text-align: right;
+      }
+
+      .letterhead .doc-title .invoice-title {
+        font-size: 14pt;
+        font-weight: bold;
+        color: #1a1a4e;
+        margin-bottom: 1mm;
+      }
+
+      /* ---------- Anschriftfeld: 45–85mm from top, 85mm wide, starting 20mm from left ---------- */
+      .address-window {
+        position: absolute;
+        top: 45mm;
+        left: 20mm;
+        width: 85mm;
+        height: 40mm;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .return-line {
+        height: 5mm;
+        font-size: 7pt;
+        color: #333;
+        border-bottom: 0.3pt solid #999;
+        white-space: nowrap;
+        overflow: hidden;
+        line-height: 5mm;
+      }
+
+      .recipient-address {
+        flex: 1;
+        padding-top: 2mm;
+        font-size: 9.5pt;
+        line-height: 1.5;
+      }
+
+      .recipient-address strong {
+        display: block;
+        font-size: 10pt;
+        margin-bottom: 0.5mm;
+      }
+
+      .recipient-address p {
+        margin: 0;
+        white-space: pre-line;
+      }
+
+      /* ---------- Infoblock: aligned with the address window's top line, right of it ---------- */
+      .info-block {
+        position: absolute;
+        top: 45mm;
+        left: 125mm;
+        width: 65mm;
+        font-size: 8.5pt;
+      }
+
+      .info-block .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5mm 0;
+        border-bottom: 0.3pt solid #eee;
+      }
+
+      .info-block .info-row .label {
+        color: #555;
+      }
+
+      /* ---------- Body content, starts below the address window ---------- */
+      .currency-note {
+        font-size: 8.5pt;
+        color: #333;
+        text-align: right;
+        margin-bottom: 1.5mm;
+      }
+
+      .items-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 9pt;
+      }
+
+      .items-table thead th {
+        background-color: #fff;
+        border: 0.5px solid #000;
+        padding: 1.25mm 2.5mm;
+        text-align: left;
+        font-weight: bold;
+        font-size: 8.5pt;
+        color: #222;
+      }
+
+      .items-table thead th.num {
+        text-align: right;
+      }
+
+      .items-table thead th.center {
+        text-align: center;
+      }
+
+      .items-table tbody td {
+        border-inline: 1px solid #999;
+        border-block: 1px dashed #ccc;
+        padding: 1.5mm 2.5mm;
+        vertical-align: top;
+      }
+
+      .items-table tbody td.num {
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .items-table tbody td.center {
+        text-align: center;
+        white-space: nowrap;
+      }
+
+      .items-table tbody td.description {
+        width: 45%;
+      }
+
+      .items-table tbody tr.group-header td {
+        background-color: #f0f0f0;
+        border-block: 1px solid #999;
+        font-weight: bold;
+        padding: 1.5mm 2.5mm;
+      }
+
+      .items-table tbody tr.group-header .group-issue {
+        font-weight: normal;
+        color: #555;
+      }
+
+      .items-table tbody tr.group-subtotal td {
+        background-color: #fff;
+        border-block: 1px solid #999;
+        font-weight: bold;
+      }
+
+      .items-table tbody tr.group-subtotal td.num {
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .bottom-section {
+        display: flex;
+        justify-content: space-between;
+        gap: 10mm;
+        margin-top: 4mm;
+      }
+
+      .payment-info {
+        flex: 1.2;
+        font-size: 9pt;
+        line-height: 1.55;
+      }
+
+      .payment-info .payment-terms-line {
+        margin-bottom: 2mm;
+      }
+
+      .payment-info .payment-terms-line strong {
+        font-weight: bold;
+      }
+
+      .payment-info h4 {
+        font-size: 9pt;
+        font-weight: bold;
+        margin-bottom: 0.5mm;
+        color: #222;
+      }
+
+      .payment-info .bank-details {
+        margin-top: 1mm;
+      }
+
+      .payment-info .bank-details p {
+        margin-bottom: 0;
+        line-height: 1.4;
+      }
+
+      .payments-history {
+        margin-top: 5mm;
+        font-size: 9pt;
+      }
+
+      .payments-history h4 {
+        font-weight: bold;
+        color: #222;
+        margin-bottom: 1mm;
+        font-size: 10pt;
+      }
+
+      .payments-history table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .payments-history th,
+      .payments-history td {
+        padding: 1.2mm 2mm;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .payments-history th {
+        text-align: left;
+        font-weight: bold;
+        color: #555;
+        font-size: 8pt;
+        text-transform: uppercase;
+      }
+
+      .totals-box {
+        min-width: 55mm;
+        font-size: 9pt;
+        align-self: flex-start;
+      }
+
+      .totals-box table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      .totals-box table td {
+        padding: 0.5mm 2.5mm;
+      }
+
+      .totals-box table td:first-child {
+        white-space: nowrap;
+        color: #222;
+      }
+
+      .totals-box table td:last-child {
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .totals-box table tr.total-inc td {
+        background-color: #d9d9d9;
+        font-weight: bold;
+      }
+
+      /* ---------- Footer: full sender details (replaces the old "From" box in the address window) ---------- */
+      .footer {
+        margin-top: 10mm;
+        padding-top: 2mm;
+        border-top: 0.5pt solid #999;
+        font-size: 7.5pt;
+        color: #444;
+        text-align: center;
+        line-height: 1.5;
+      }
+
+      .footer .footer-company {
+        font-weight: bold;
+      }
+
+      .footer .footer-sep {
+        margin: 0 1.5mm;
+        color: #bbb;
+      }
+    </style>
+    </head>
+    <body>
+        <div class="page">
+            <div class="fold-mark fold-mark--1"></div>
+            <div class="fold-mark fold-mark--2"></div>
+            <div class="punch-mark"></div>
+
+            <div class="letterhead">
+                <div class="logo">
+                    {{#company.logo}}
+                    <img src="{{company.logo}}" alt />
+                    {{/company.logo}}
+                </div>
+                <div class="doc-title">
+                    <div class="invoice-title">
+                        {{#is_quote}}{{document_title}}{{/is_quote}}{{^is_quote}}Rechnung{{/is_quote}}
+                        {{invoice_number}}
+                    </div>
+                </div>
+            </div>
+
+            <div class="address-window">
+                <div class="return-line">{{company.name}}</div>
+                <div class="recipient-address">
+                    <strong>{{customer.name}}</strong>
+                    {{#customer.address_line1}}<p>{{customer.address_line1}}</p>{{/customer.address_line1}}
+                    {{#customer.address_line2}}<p>{{customer.address_line2}}</p>{{/customer.address_line2}}
+                    {{#customer.city}}
+                    <p>{{customer.city}}{{#customer.state}},
+                        {{customer.state}}{{/customer.state}}
+                        {{customer.postal_code}}</p>
+                    {{/customer.city}}
+                    {{^customer.city}}
+                    {{#customer.postal_code}}<p>{{customer.postal_code}}</p>{{/customer.postal_code}}
+                    {{/customer.city}}
+                    {{#customer.country_name}}<p>{{customer.country_name}}</p>{{/customer.country_name}}{{^customer.country_name}}{{#customer.country}}<p>{{customer.country}}</p>{{/customer.country}}{{/customer.country_name}}
+                    {{#customer.phone}}<p>Telefon:
+                        {{customer.phone}}</p>{{/customer.phone}}
+                    {{#customer.email}}<p>{{customer.email}}</p>{{/customer.email}}
+                </div>
+            </div>
+
+            <div class="info-block">
+                <div class="info-row">
+                    <span
+                        class="label">{{#is_quote}}Angebotsdatum{{/is_quote}}{{^is_quote}}Rechnungsdatum{{/is_quote}}</span>
+                    <span>{{issue_date}}</span>
+                </div>
+                {{#due_date}}
+                <div class="info-row">
+                    <span class="label">{{#is_quote}}Gültig
+                        bis{{/is_quote}}{{^is_quote}}Fällig
+                        am{{/is_quote}}</span>
+                    <span>{{due_date}}</span>
+                </div>
+                {{/due_date}}
+                {{#customer.tax_id}}
+                <div class="info-row">
+                    <span class="label">USt-IdNr. des Kunden</span>
+                    <span>{{customer.tax_id}}</span>
+                </div>
+                {{/customer.tax_id}}
+            </div>
+
+            <div class="currency-note">Betrag in {{currency}}</div>
+
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th class="description">Beschreibung</th>
+                        <th class="center">USt.</th>
+                        <th class="num">Einzelpreis (netto)</th>
+                        <th class="num">Menge</th>
+                        <th class="center">Einheit</th>
+                        <th class="num">Gesamt (netto)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{#consolidated}}
+                    {{#sources}}
+                    <tr class="group-header">
+                        <td colspan="6">
+                            {{invoice_number}}
+                            {{#issue_date}}<span
+                                class="group-issue">&nbsp;&nbsp;{{issue_date}}</span>{{/issue_date}}
+                        </td>
+                    </tr>
+                    {{#items}}
+                    <tr>
+                        <td class="description">{{description}}</td>
+                        <td class="center">{{tax_rate}}%</td>
+                        <td class="num">{{formatted_unit_price}}</td>
+                        <td class="num">{{quantity}}</td>
+                        <td class="center">{{unit}}</td>
+                        <td class="num">{{formatted_line_total}}</td>
+                    </tr>
+                    {{/items}}
+                    <tr class="group-subtotal">
+                        <td colspan="5" class="description">Zwischensumme</td>
+                        <td class="num">{{formatted_subtotal}}</td>
+                    </tr>
+                    {{/sources}}
+                    {{/consolidated}}
+                    {{^consolidated}}
+                    {{#items}}
+                    <tr>
+                        <td class="description">{{description}}</td>
+                        <td class="center">{{tax_rate}}%</td>
+                        <td class="num">{{formatted_unit_price}}</td>
+                        <td class="num">{{quantity}}</td>
+                        <td class="center">{{unit}}</td>
+                        <td class="num">{{formatted_line_total}}</td>
+                    </tr>
+                    {{/items}}
+                    {{/consolidated}}
+                </tbody>
+            </table>
+
+            <div class="bottom-section">
+                <div class="payment-info">
+                    {{#payment_terms}}
+                    <div class="payment-terms-line">
+                        <strong>Zahlungsbedingungen:</strong> &nbsp;
+                        {{payment_terms}}
+                    </div>
+                    {{/payment_terms}}
+                    {{#company.bank_details}}
+                    <div class="bank-details">
+                        <h4>Zahlung per Überweisung auf folgendes
+                            Bankkonto:</h4>
+                        <p>{{{company.bank_details}}}</p>
+                    </div>
+                    {{/company.bank_details}}
+                    {{#epc_qr}}
+                    <div class="epc-qr"
+                        style="display:flex;align-items:center;gap:10px;margin-top:12px">
+                        <img src="{{epc_qr.image}}" alt="SEPA-Zahlungs-QR-Code"
+                            style="width:24mm;height:24mm;flex:none">
+                        <div style="font-size:8pt;line-height:1.35">
+                            <strong>Zum Bezahlen scannen</strong><br>
+                            Scannen Sie diesen Code mit Ihrer Banking-App, um
+                            die
+                            Überweisung vorauszufüllen.
+                        </div>
+                    </div>
+                    {{/epc_qr}}
+                </div>
+
+                <div class="totals-box">
+                    <table>
+                        <tr>
+                            <td>Gesamt (netto)</td>
+                            <td>{{formatted_subtotal}}</td>
+                        </tr>
+                        {{#has_discount}}
+                        <tr>
+                            <td>Rabatt</td>
+                            <td>&minus;{{formatted_discount}}</td>
+                        </tr>
+                        {{/has_discount}}
+                        {{#tax_summary}}
+                        <tr>
+                            <td>{{name}} ({{rate}}%)</td>
+                            <td>{{formatted_amount}}</td>
+                        </tr>
+                        {{/tax_summary}}
+                        <tr class="total-inc">
+                            <td>Gesamt (brutto)</td>
+                            <td>{{formatted_total}}</td>
+                        </tr>
+                        {{#has_cash_discount}}
+                        <tr>
+                            <td>Skonto (fällig bis
+                                {{cash_discount_deadline}})</td>
+                            <td>&minus;{{formatted_cash_discount}}</td>
+                        </tr>
+                        {{/has_cash_discount}}
+                        {{#has_cash_discount_applied}}
+                        <tr>
+                            <td>Skonto abgezogen</td>
+                            <td>&minus;{{formatted_cash_discount_applied}}</td>
+                        </tr>
+                        {{/has_cash_discount_applied}}
+                        {{#has_payments}}
+                        <tr>
+                            <td>Bezahlter Betrag</td>
+                            <td>&minus;{{formatted_amount_paid}}</td>
+                        </tr>
+                        <tr class="total-inc">
+                            <td>Offener Betrag</td>
+                            <td>{{formatted_balance_due}}</td>
+                        </tr>
+                        {{/has_payments}}
+                    </table>
+                </div>
+            </div>
+
+            {{#has_payments}}
+            <div class="payments-history">
+                <h4>Erhaltene Zahlungen</h4>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Datum</th>
+                            <th>Methode</th>
+                            <th>Referenz</th>
+                            <th style="text-align: right">Betrag</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#payments}}
+                        <tr>
+                            <td>{{payment_date}}</td>
+                            <td>{{method}}</td>
+                            <td>{{reference}}</td>
+                            <td
+                                style="text-align: right">{{formatted_amount}}</td>
+                        </tr>
+                        {{/payments}}
+                    </tbody>
+                </table>
+            </div>
+            {{/has_payments}}
+
+            {{#notes}}
+            <div style="margin-top: 4mm; font-size: 9pt; color: #444">
+                <h4
+                    style="font-weight: bold; color: #333; margin-bottom: 1mm">Anmerkungen:</h4>
+                <p>{{notes}}</p>
+            </div>
+            {{/notes}}
+
+            {{#qr}}
+            <div
+                style="margin-top: 6mm; display: flex; align-items: center; gap: 4mm">
+                <img src="{{qr.image}}" alt="Rechnung online ansehen"
+                    style="width: 22mm; height: 22mm" />
+                <div style="font-size: 8.5pt; color: #555; line-height: 1.45">
+                    <strong style="color: #222">Diese Rechnung online
+                        ansehen</strong>
+                    <div>QR-Code scannen, um die aktuelle Version zu
+                        öffnen.</div>
+                </div>
+            </div>
+            {{/qr}}
+
+            <div class="footer">
+                <span class="footer-company">{{company.name}}</span>
+                {{#company.address}}<span
+                    class="footer-sep">&middot;</span><span>{{{company.address}}}</span>{{/company.address}}
+                {{#company.phone}}<span
+                    class="footer-sep">&middot;</span><span>{{company.phone}}</span>{{/company.phone}}
+                {{#company.email}}<span
+                    class="footer-sep">&middot;</span><span>{{company.email}}</span>{{/company.email}}
+                {{#company.tax_id}}<span
+                    class="footer-sep">&middot;</span><span>USt-IdNr.:
+                    {{company.tax_id}}</span>{{/company.tax_id}}
+            </div>
+        </div>
+    </body>
+</html>
