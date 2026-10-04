@@ -98,6 +98,7 @@ describe("E-invoice emission", () => {
         company_street: "Hauptstraße 1",
         company_city: "Berlin",
         company_postal_code: "10115",
+        company_bank_details: "IBAN DE89 3704 0044 0532 0130 00",
         einvoice_enabled: "true",
       }),
     });

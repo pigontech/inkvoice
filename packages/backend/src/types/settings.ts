@@ -11,6 +11,8 @@ export interface Settings {
   company_bic?: string;
   /** Account holder, when it differs from company_name. */
   company_account_holder?: string;
+  /** Contact person (Ansprechpartner); the e-invoice seller contact point. */
+  company_contact_name?: string;
   company_logo: string;
   currency: string;
   tax_label: string;

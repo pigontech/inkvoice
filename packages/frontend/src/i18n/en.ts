@@ -851,6 +851,8 @@ const en = {
     // Business
     company_info: "Company Information",
     company_name: "Company Name",
+    contact_person: "Contact person",
+    contact_person_hint: "Shown as the contact on e-invoices. Defaults to the company name.",
     email: "Email",
     phone: "Phone",
     address: "Address",

@@ -850,6 +850,9 @@ const tr: TranslationKeys = {
     // İşletme
     company_info: "Şirket Bilgileri",
     company_name: "Şirket Adı",
+    contact_person: "İlgili kişi",
+    contact_person_hint:
+      "E-faturalarda iletişim kişisi olarak gösterilir. Boş bırakılırsa şirket adı kullanılır.",
     email: "E-posta",
     phone: "Telefon",
     address: "Adres",

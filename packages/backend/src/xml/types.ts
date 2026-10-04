@@ -38,6 +38,12 @@ export interface XmlInvoiceData {
     /** German Steuernummer (tax number; not the USt-IdNr). */
     tax_number: string | null;
     bank_details: string | null;
+    /** Structured payee account (validated in settings), preferred over bank_details. */
+    iban: string | null;
+    bic: string | null;
+    account_holder: string | null;
+    /** Seller contact point (BT-41); falls back to the company name. */
+    contact_name: string | null;
     peppol_endpoint_id: string | null;
     peppol_scheme_id: string | null;
   };

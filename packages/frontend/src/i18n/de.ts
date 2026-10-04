@@ -874,6 +874,9 @@ const de: TranslationKeys = {
     // Unternehmen
     company_info: "Unternehmensdaten",
     company_name: "Firmenname",
+    contact_person: "Ansprechpartner",
+    contact_person_hint:
+      "Wird in E-Rechnungen als Ansprechpartner angegeben. Ohne Angabe wird der Firmenname verwendet.",
     email: "E-Mail",
     phone: "Telefon",
     address: "Adresse",

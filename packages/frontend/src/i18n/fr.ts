@@ -864,6 +864,9 @@ const fr: TranslationKeys = {
     // Entreprise
     company_info: "Informations de l'entreprise",
     company_name: "Nom de l'entreprise",
+    contact_person: "Personne de contact",
+    contact_person_hint:
+      "Indiquée comme contact sur les factures électroniques. À défaut, le nom de l'entreprise est utilisé.",
     email: "E-mail",
     phone: "Téléphone",
     address: "Adresse",

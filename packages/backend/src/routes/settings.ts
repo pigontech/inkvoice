@@ -50,6 +50,7 @@ const ALLOWED_SETTINGS = new Set([
   "company_name",
   "company_email",
   "company_phone",
+  "company_contact_name",
   "company_address",
   "company_street",
   "company_city",

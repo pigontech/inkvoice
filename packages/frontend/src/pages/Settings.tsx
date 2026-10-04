@@ -707,6 +707,15 @@ export default function Settings() {
               <FormField label={t("settings.company_name")}>
                 <Input value={settings.company_name || ""} onChange={set("company_name")} />
               </FormField>
+              <FormField
+                label={t("settings.contact_person")}
+                hint={t("settings.contact_person_hint")}
+              >
+                <Input
+                  value={settings.company_contact_name || ""}
+                  onChange={set("company_contact_name")}
+                />
+              </FormField>
               <div className="grid grid-cols-2 gap-4">
                 <FormField label={t("settings.email")} error={emailError}>
                   <Input

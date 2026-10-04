@@ -1,3 +1,4 @@
+import { payeeAccount, vatGroups } from "../xml/en16931";
 import type { XmlInvoiceData } from "../xml/types";
 
 export type EinvoiceSeverity = "error" | "warning";
@@ -14,7 +15,7 @@ export interface EinvoiceIssue {
  * monetary sums, VAT categories); German specifics (USt-IdNr format,
  * Steuernummer, reverse charge) surface as errors/warnings.
  */
-export function validateEinvoice(data: XmlInvoiceData): EinvoiceIssue[] {
+export function validateEinvoice(data: XmlInvoiceData, format?: string): EinvoiceIssue[] {
   const issues: EinvoiceIssue[] = [];
   const cur = data.currency || "";
 
@@ -42,15 +43,47 @@ export function validateEinvoice(data: XmlInvoiceData): EinvoiceIssue[] {
     issues.push(error("buyer_address", "Buyer address is required."));
   }
 
-  // German specifics
-  if ((data.supplier.country || "").toUpperCase() === "DE" && !data.supplier.tax_id) {
+  if (!data.supplier.country) {
+    issues.push(error("seller_country", "Seller country is required."));
+  }
+  // BR-CO-26: the seller must be identifiable. Inkvoice emits the VAT ID for
+  // this; a Steuernummer (BT-32) does not satisfy the rule.
+  if (!data.supplier.tax_id) {
     issues.push(
-      warning(
+      error(
         "seller_vat_id",
-        "USt-IdNr of the seller is missing (recommended for German invoices).",
+        "The seller VAT ID (USt-IdNr) is required for e-invoices; a tax number alone is rejected by EN 16931 validators (BR-CO-26).",
       ),
     );
   }
+  if (!payeeAccount(data.supplier)) {
+    issues.push(
+      warning(
+        "seller_iban",
+        "No valid IBAN configured (Settings → IBAN); the e-invoice will not contain bank transfer instructions.",
+      ),
+    );
+  }
+
+  // XRechnung (CIUS) requirements on top of EN 16931.
+  if (format === "xrechnung-ubl") {
+    if (!data.supplier.phone) {
+      issues.push(error("seller_phone", "XRechnung requires the seller phone number (BR-DE-6)."));
+    }
+    if (!data.supplier.email) {
+      issues.push(error("seller_email", "XRechnung requires the seller email address (BR-DE-7)."));
+    }
+    if (!data.customer.leitweg_id && !data.customer.einvoice_receiver_id && !data.customer.email) {
+      issues.push(
+        error(
+          "buyer_electronic_address",
+          "XRechnung requires an electronic address for the buyer: an email, Leitweg-ID or receiver ID.",
+        ),
+      );
+    }
+  }
+
+  // German specifics
   if (
     (data.supplier.country || "").toUpperCase() === "DE" &&
     data.supplier.tax_id &&
@@ -144,6 +177,24 @@ export function validateEinvoice(data: XmlInvoiceData): EinvoiceIssue[] {
         error(
           "tax_category",
           `Tax category "${tax.category_code}" is not a valid EN 16931 category (use S, AA, Z, E, AE, …).`,
+        ),
+      );
+    }
+  }
+
+  // BR-CO-17: VAT per category must equal taxable amount × rate.
+  for (const g of vatGroups(data)) {
+    if (g.category !== "S") continue;
+    const expected = Math.round(g.taxable * g.rate) / 100;
+    if (Math.abs(expected - g.tax) > 0.01) {
+      const discountHint =
+        data.discount_amount > 0
+          ? " The document discount must also reduce the VAT base (§ 10 UStG)."
+          : "";
+      issues.push(
+        error(
+          "vat_amount",
+          `VAT at ${g.rate}% is ${g.tax.toFixed(2)}, but ${g.taxable.toFixed(2)} × ${g.rate}% = ${expected.toFixed(2)}.${discountHint}`,
         ),
       );
     }
