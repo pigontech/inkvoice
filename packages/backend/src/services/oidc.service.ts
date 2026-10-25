@@ -120,7 +120,7 @@ export async function validateIdToken(idToken: string, nonce: string): Promise<O
     jwksCache = { uri: doc.jwks_uri, set: createRemoteJWKSet(new URL(doc.jwks_uri)) };
   }
   const { payload } = await jwtVerify(idToken, jwksCache.set, {
-    issuer: env.OIDC_ISSUER_URL,
+    issuer: doc.issuer,
     audience: env.OIDC_CLIENT_ID,
   });
   if (payload.nonce !== nonce) {

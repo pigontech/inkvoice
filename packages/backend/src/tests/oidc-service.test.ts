@@ -241,6 +241,21 @@ describe("token exchange + id_token validation", () => {
     await expect(validateIdToken(idToken, "nonce-1")).rejects.toThrow();
   });
 
+  test("id_token from an issuer with a trailing slash is accepted", async () => {
+    resetOidcServiceForTesting();
+    trailingSlashIssuer = true;
+    const idToken = await new SignJWT({ email: "a@b.c", nonce: "nonce-1" })
+      .setProtectedHeader({ alg: "ES256", kid: "test-kid" })
+      .setIssuer(`${issuer}/`)
+      .setAudience(CLIENT_ID)
+      .setSubject("sub-123")
+      .setExpirationTime("5m")
+      .sign(privateKey);
+    expect((await validateIdToken(idToken, "nonce-1")).subject).toBe("sub-123");
+    trailingSlashIssuer = false;
+    resetOidcServiceForTesting();
+  });
+
   test("id_token with wrong audience is rejected", async () => {
     const idToken = await new SignJWT({ email_verified: true })
       .setProtectedHeader({ alg: "ES256", kid: "test-kid" })
