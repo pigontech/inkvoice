@@ -73,7 +73,7 @@ export async function discoverOidc(): Promise<OidcDiscoveryDocument> {
     token_endpoint: raw.token_endpoint as string,
     jwks_uri: raw.jwks_uri as string,
   };
-  if (doc.issuer.replace(/\/+$/, "") !== env.OIDC_ISSUER_URL) {
+  if (doc.issuer.replace(/\/$/, "") !== env.OIDC_ISSUER_URL) {
     throw new Error("OIDC discovery issuer mismatch");
   }
   discoveryCache = { doc, fetchedAt: Date.now() };
@@ -110,8 +110,11 @@ export function buildOidcAuthorizationUrl(
 }
 
 /**
- * Verifies an id_token against the discovered JWKS and the configured
- * issuer/client, then checks the nonce binding. Throws on any mismatch.
+ * Verifies an id_token against the discovered JWKS, issuer and the configured
+ * client, then checks the nonce binding. Throws on any mismatch. The issuer is
+ * checked against the discovered form (some providers, e.g. Authentik, keep a
+ * trailing slash) and the configured form; discoverOidc pins both to the same
+ * URL.
  */
 export async function validateIdToken(idToken: string, nonce: string): Promise<OidcUserInfo> {
   const env = getEnv();
@@ -120,7 +123,7 @@ export async function validateIdToken(idToken: string, nonce: string): Promise<O
     jwksCache = { uri: doc.jwks_uri, set: createRemoteJWKSet(new URL(doc.jwks_uri)) };
   }
   const { payload } = await jwtVerify(idToken, jwksCache.set, {
-    issuer: doc.issuer,
+    issuer: [doc.issuer, env.OIDC_ISSUER_URL],
     audience: env.OIDC_CLIENT_ID,
   });
   if (payload.nonce !== nonce) {
