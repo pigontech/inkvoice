@@ -86,6 +86,12 @@ Inkvoice is a lightweight, **self-hosted** invoicing dashboard for people who'd 
 - **Dark mode**, fully responsive
 - Single Docker container, native SQLite, tiny footprint
 
+## Mobile app
+
+Create invoices, record payments and log expenses from your phone with the free Inkvoice app. It works with Inkvoice Cloud and with your own server (0.3.1 or later).
+
+**[App Store](https://apps.apple.com/app/id6821815185) · [Google Play](https://play.google.com/store/apps/details?id=com.pigontech.inkvoice)**
+
 ## Screenshots
 
 |  |  |
