@@ -4,7 +4,7 @@ import type { Customer } from "../types/customer";
 import { cashDiscountDeadline, cashDiscountOn, hasCashDiscount } from "../utils/cash-discount";
 import { formatCurrency } from "../utils/currency";
 import { buildEpcPayload } from "../utils/epc-qr";
-import { escapeMultiline } from "../utils/html";
+import { escapeMultiline, inlineAddress } from "../utils/html";
 import { qrToDataUri } from "../utils/qr-code";
 import { getInvoice } from "./invoice.service";
 import { listPayments } from "./payment.service";
@@ -169,6 +169,7 @@ export function buildInvoiceContext(invoiceId: string) {
       email: settings.company_email || "",
       phone: settings.company_phone || "",
       address: escapeMultiline(settings.company_address || ""),
+      address_inline: inlineAddress(settings.company_address || ""),
       tax_id: settings.company_tax_id || "",
       logo: settings.company_logo || "",
       bank_details: escapeMultiline(settings.company_bank_details ?? ""),
@@ -390,6 +391,7 @@ export function buildQuoteContext(quoteId: string) {
       email: settings.company_email || "",
       phone: settings.company_phone || "",
       address: escapeMultiline(settings.company_address || ""),
+      address_inline: inlineAddress(settings.company_address || ""),
       tax_id: settings.company_tax_id || "",
       logo: settings.company_logo || "",
       bank_details: escapeMultiline(settings.company_bank_details ?? ""),

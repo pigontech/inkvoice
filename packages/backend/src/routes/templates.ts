@@ -179,6 +179,7 @@ function getSampleContext() {
       email: "hello@mycompany.com",
       phone: "+1 555-0123",
       address: "123 Main St, City, ST 12345",
+      address_inline: "123 Main St, City, ST 12345",
       tax_id: "CHE-123.456.789 MWST",
       bank_details: "IBAN: CH00 0000 0000 0000 0000 0<br>Bank: Example Bank AG",
     },
