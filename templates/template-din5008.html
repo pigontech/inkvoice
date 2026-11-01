@@ -3,10 +3,14 @@
     <head>
         <meta charset="utf-8" />
         <style>
-      /* @page margin stays 0 — every position below is measured from the physical A4 edge, per DIN 5008 */
+      /* Page 1 keeps a 0 top margin: every position below is measured from the physical A4 edge, per DIN 5008 */
       @page {
         size: A4;
-        margin: 0;
+        margin: 15mm 0;
+      }
+
+      @page :first {
+        margin: 0 0 15mm;
       }
 
       * {
@@ -18,7 +22,7 @@
       body {
         font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
         font-size: 9.5pt;
-        color: #000039;
+        color: #000;
         line-height: 1.45;
         background: #fff;
       }
@@ -27,7 +31,7 @@
         position: relative;
         width: 210mm;
         /* Top padding only applies before the first page fragment; left/right repeat on every page */
-        padding: 95mm 20mm 15mm 25mm;
+        padding: 95mm 20mm 0 25mm;
       }
 
       /* ---------- DIN 5008 guide marks (left edge, printer reference only) ---------- */
@@ -67,7 +71,7 @@
       .letterhead .doc-title .invoice-title {
         font-size: 14pt;
         font-weight: bold;
-        color: #1a1a4e;
+        color: #000;
         margin-bottom: 1mm;
       }
 
@@ -107,7 +111,6 @@
 
       .recipient-address p {
         margin: 0;
-        white-space: pre-line;
       }
 
       /* ---------- Infoblock: aligned with the address window's top line, right of it ---------- */
@@ -339,30 +342,25 @@
                 </div>
                 <div class="doc-title">
                     <div class="invoice-title">
-                        {{#is_quote}}{{document_title}}{{/is_quote}}{{^is_quote}}Rechnung{{/is_quote}}
+                        {{#is_quote}}Angebot{{/is_quote}}{{^is_quote}}Rechnung{{/is_quote}}
                         {{invoice_number}}
                     </div>
                 </div>
             </div>
 
             <div class="address-window">
-                <div class="return-line">{{company.name}}</div>
+                <div class="return-line">{{company.name}}{{#company.address_inline}}, {{company.address_inline}}{{/company.address_inline}}</div>
                 <div class="recipient-address">
                     <strong>{{customer.name}}</strong>
                     {{#customer.address_line1}}<p>{{customer.address_line1}}</p>{{/customer.address_line1}}
                     {{#customer.address_line2}}<p>{{customer.address_line2}}</p>{{/customer.address_line2}}
                     {{#customer.city}}
-                    <p>{{customer.city}}{{#customer.state}},
-                        {{customer.state}}{{/customer.state}}
-                        {{customer.postal_code}}</p>
+                    <p>{{customer.postal_code}} {{customer.city}}{{#customer.state}}, {{customer.state}}{{/customer.state}}</p>
                     {{/customer.city}}
                     {{^customer.city}}
                     {{#customer.postal_code}}<p>{{customer.postal_code}}</p>{{/customer.postal_code}}
                     {{/customer.city}}
                     {{#customer.country_name}}<p>{{customer.country_name}}</p>{{/customer.country_name}}{{^customer.country_name}}{{#customer.country}}<p>{{customer.country}}</p>{{/customer.country}}{{/customer.country_name}}
-                    {{#customer.phone}}<p>Telefon:
-                        {{customer.phone}}</p>{{/customer.phone}}
-                    {{#customer.email}}<p>{{customer.email}}</p>{{/customer.email}}
                 </div>
             </div>
 
@@ -414,7 +412,7 @@
                     {{#items}}
                     <tr>
                         <td class="description">{{description}}</td>
-                        <td class="center">{{tax_rate}}%</td>
+                        <td class="center">{{#tax_rate}}{{tax_rate}}%{{/tax_rate}}{{^tax_rate}}0%{{/tax_rate}}</td>
                         <td class="num">{{formatted_unit_price}}</td>
                         <td class="num">{{quantity}}</td>
                         <td class="center">{{unit}}</td>
@@ -431,7 +429,7 @@
                     {{#items}}
                     <tr>
                         <td class="description">{{description}}</td>
-                        <td class="center">{{tax_rate}}%</td>
+                        <td class="center">{{#tax_rate}}{{tax_rate}}%{{/tax_rate}}{{^tax_rate}}0%{{/tax_rate}}</td>
                         <td class="num">{{formatted_unit_price}}</td>
                         <td class="num">{{quantity}}</td>
                         <td class="center">{{unit}}</td>
@@ -572,8 +570,8 @@
 
             <div class="footer">
                 <span class="footer-company">{{company.name}}</span>
-                {{#company.address}}<span
-                    class="footer-sep">&middot;</span><span>{{{company.address}}}</span>{{/company.address}}
+                {{#company.address_inline}}<span
+                    class="footer-sep">&middot;</span><span>{{company.address_inline}}</span>{{/company.address_inline}}
                 {{#company.phone}}<span
                     class="footer-sep">&middot;</span><span>{{company.phone}}</span>{{/company.phone}}
                 {{#company.email}}<span

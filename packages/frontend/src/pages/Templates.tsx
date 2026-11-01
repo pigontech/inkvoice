@@ -317,6 +317,7 @@ const TEMPLATE_VARIABLES = [
       { tag: "company.email", desc: "Company email" },
       { tag: "company.phone", desc: "Company phone" },
       { tag: "company.address", desc: "Company address (HTML, <br> separated)" },
+      { tag: "company.address_inline", desc: "Company address on one line, comma separated" },
       { tag: "company.tax_id", desc: "Company tax/VAT ID" },
       { tag: "company.bank_details", desc: "Bank details (HTML, <br> separated)" },
     ],
