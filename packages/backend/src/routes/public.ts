@@ -11,6 +11,7 @@ import {
 import * as quoteService from "../services/quote.service";
 import { getAllSettings, getSetting } from "../services/settings.service";
 import { isStripeConfigured } from "../services/stripe.service";
+import { outstandingBalance } from "../utils/currency";
 import { DEMO_ADMIN_PASS, DEMO_ADMIN_USER, getEnv } from "../utils/env";
 import { isLikelyBot } from "../utils/user-agent";
 import { APP_VERSION } from "../utils/version";
@@ -155,7 +156,7 @@ publicRoutes.post("/invoices/:shareToken/pay", async (c) => {
   if (invoice.status === "voided")
     return c.json({ success: false, error: "Invoice is voided" }, 400);
 
-  const balanceDue = invoice.total - (invoice.amount_paid || 0);
+  const balanceDue = outstandingBalance(invoice.total, invoice.amount_paid || 0, invoice.currency);
   if (balanceDue <= 0) return c.json({ success: false, error: "No balance due" }, 400);
 
   const origin = c.req.header("origin") || "";

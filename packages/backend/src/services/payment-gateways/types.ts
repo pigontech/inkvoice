@@ -84,4 +84,10 @@ export interface OffSessionResult {
   reference?: string;
   errorCode?: string;
   errorMessage?: string;
+  /**
+   * What the card was actually charged, in the invoice currency. It can differ
+   * from the requested amount when the currency cannot carry the fraction
+   * (a JPY balance of 1,357.40 is charged as 1,357).
+   */
+  amountCharged?: number;
 }

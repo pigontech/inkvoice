@@ -13,6 +13,7 @@ import {
   setStripeClientResolver,
   toStripeAmount,
 } from "../services/stripe.service";
+import { outstandingBalance } from "../utils/currency";
 import { resetEnvCache } from "../utils/env";
 
 const TEST_DB = "./data/test-stripe-amounts.db";
@@ -60,6 +61,35 @@ describe("Stripe amount conversion", () => {
   test("three-decimal currencies use thousandths ending in 0", () => {
     expect(toStripeAmount(10.5, "KWD")).toBe(10500);
     expect(fromStripeAmount(10500, "kwd")).toBe(10.5);
+  });
+
+  test("zero-decimal fractions round half down, never above the balance", () => {
+    expect(toStripeAmount(1357.4, "JPY")).toBe(1357);
+    expect(toStripeAmount(1357.5, "JPY")).toBe(1357);
+    expect(toStripeAmount(1357.6, "JPY")).toBe(1358);
+  });
+
+  test("ISK and UGX are sent x100 but in whole units", () => {
+    expect(toStripeAmount(1234.56, "ISK")).toBe(123500);
+    expect(toStripeAmount(1000, "ugx")).toBe(100000);
+    expect(fromStripeAmount(123500, "isk")).toBe(1235);
+  });
+});
+
+describe("outstandingBalance", () => {
+  test("a remainder below half a yen counts as settled", () => {
+    expect(outstandingBalance(1357.4, 1357, "JPY")).toBe(0);
+    expect(outstandingBalance(1357.5, 1357, "JPY")).toBe(0);
+    expect(outstandingBalance(1358.4, 1357, "JPY")).toBeCloseTo(1.4);
+  });
+
+  test("a cent is still owed in two-decimal currencies", () => {
+    expect(outstandingBalance(10, 9.99, "USD")).toBeCloseTo(0.01);
+    expect(outstandingBalance(10, 10, "USD")).toBe(0);
+  });
+
+  test("an unknown currency code counts as two-decimal", () => {
+    expect(outstandingBalance(10, 9.99, "EU")).toBeCloseTo(0.01);
   });
 });
 
@@ -146,6 +176,21 @@ describe("chargeOffSession amounts", () => {
     });
     expect(calls[0].amount).toBe(12550);
   });
+
+  test("reports the amount actually charged for a fractional JPY balance", async () => {
+    const calls: any[] = [];
+    setStripeClientResolver(chargeClient(calls));
+    const result = await chargeOffSession({
+      invoiceId: "inv_jpy_frac",
+      amount: 1357.4,
+      currency: "JPY",
+      gatewayCustomerId: "cus_1",
+      gatewayMethodId: "pm_1",
+      attemptNo: 1,
+    });
+    expect(calls[0].amount).toBe(1357);
+    expect(result.amountCharged).toBe(1357);
+  });
 });
 
 function sentInvoice(currency: string, amount: number) {
@@ -182,5 +227,39 @@ describe("handlePaymentSuccess amounts", () => {
       payment_intent: "pi_usd",
     } as any);
     expect(getInvoice(inv.id)!.amount_paid).toBe(inv.total);
+  });
+
+  test("a fractional JPY total is settled by the whole-yen charge", () => {
+    const inv = sentInvoice("JPY", 1357.4);
+    handlePaymentSuccess({
+      metadata: { invoice_id: inv.id },
+      amount_total: toStripeAmount(inv.total, "JPY"),
+      currency: "jpy",
+      payment_intent: "pi_jpy_frac",
+    } as any);
+    const after = getInvoice(inv.id)!;
+    expect(after.amount_paid).toBe(1357);
+    expect(after.status).toBe("paid");
+  });
+
+  test("a three-decimal checkout round-trips", () => {
+    const inv = sentInvoice("KWD", 10.5);
+    handlePaymentSuccess({
+      metadata: { invoice_id: inv.id },
+      amount_total: toStripeAmount(inv.total, "KWD"),
+      currency: "kwd",
+      payment_intent: "pi_kwd",
+    } as any);
+    expect(getInvoice(inv.id)!.amount_paid).toBe(10.5);
+  });
+
+  test("a session without currency falls back on the invoice currency", () => {
+    const inv = sentInvoice("JPY", 5000);
+    handlePaymentSuccess({
+      metadata: { invoice_id: inv.id },
+      amount_total: 5000,
+      payment_intent: "pi_jpy_nocur",
+    } as any);
+    expect(getInvoice(inv.id)!.amount_paid).toBe(5000);
   });
 });

@@ -6,6 +6,7 @@ import {
   hasCashDiscount,
   isWithinCashDiscountWindow,
 } from "../utils/cash-discount";
+import { outstandingBalance } from "../utils/currency";
 
 export interface Payment {
   id: string;
@@ -29,10 +30,11 @@ export function recalculateInvoicePayments(invoiceId: string): void {
     .get(invoiceId) as { total_paid: number };
 
   const invoice = db
-    .query("SELECT total, status, cash_discount_applied FROM invoices WHERE id = ?")
+    .query("SELECT total, status, currency, cash_discount_applied FROM invoices WHERE id = ?")
     .get(invoiceId) as {
     total: number;
     status: string;
+    currency: string;
     cash_discount_applied: number;
   } | null;
   if (!invoice) return;
@@ -45,7 +47,7 @@ export function recalculateInvoicePayments(invoiceId: string): void {
 
   // Only auto-update status for non-draft, non-voided, non-complete invoices
   if (!["draft", "voided", "complete"].includes(invoice.status)) {
-    if (settled >= invoice.total) {
+    if (outstandingBalance(invoice.total, settled, invoice.currency) === 0) {
       newStatus = "paid";
     } else if (amountPaid > 0) {
       newStatus = "partially_paid";
