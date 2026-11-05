@@ -43,9 +43,11 @@ export function getStats() {
     )
     .get() as { total: number };
 
+  // Outstanding is the unpaid balance, so partially paid invoices count with
+  // what is still due and payments already received on them are left out.
   const outstanding = db
     .query(
-      "SELECT COALESCE(SUM(total * COALESCE(exchange_rate, 1)), 0) as total FROM invoices WHERE status IN ('sent', 'overdue') AND deleted_at IS NULL",
+      "SELECT COALESCE(SUM((total - COALESCE(amount_paid, 0)) * COALESCE(exchange_rate, 1)), 0) as total FROM invoices WHERE status IN ('sent', 'partially_paid', 'overdue') AND deleted_at IS NULL",
     )
     .get() as { total: number };
 
@@ -91,9 +93,9 @@ export function getStats() {
     .all() as { month: string; value: number }[];
   const outstandingPerMonth = db
     .query(
-      `SELECT strftime('%Y-%m', issue_date) as month, COALESCE(SUM(total * COALESCE(exchange_rate, 1)), 0) as value
+      `SELECT strftime('%Y-%m', issue_date) as month, COALESCE(SUM((total - COALESCE(amount_paid, 0)) * COALESCE(exchange_rate, 1)), 0) as value
        FROM invoices
-       WHERE status IN ('sent', 'overdue') AND deleted_at IS NULL
+       WHERE status IN ('sent', 'partially_paid', 'overdue') AND deleted_at IS NULL
          AND issue_date >= date('now', '-12 months')
        GROUP BY month`,
     )
