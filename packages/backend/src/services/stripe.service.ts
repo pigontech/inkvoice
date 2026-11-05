@@ -14,6 +14,45 @@ import type {
 // never enable Stripe.
 let stripeClientPromise: Promise<Stripe> | null = null;
 
+// Stripe takes amounts in the currency's smallest unit, which is not always
+// a hundredth: https://docs.stripe.com/currencies#zero-decimal
+const ZERO_DECIMAL_CURRENCIES = new Set([
+  "BIF",
+  "CLP",
+  "DJF",
+  "GNF",
+  "JPY",
+  "KMF",
+  "KRW",
+  "MGA",
+  "PYG",
+  "RWF",
+  "VND",
+  "VUV",
+  "XAF",
+  "XOF",
+  "XPF",
+]);
+// https://docs.stripe.com/currencies#three-decimal
+const THREE_DECIMAL_CURRENCIES = new Set(["BHD", "JOD", "KWD", "OMR", "TND"]);
+
+/** Convert an amount in the invoice currency (e.g. 12.5 USD) to Stripe's integer amount. */
+export function toStripeAmount(amount: number, currency: string): number {
+  const code = currency.toUpperCase();
+  if (ZERO_DECIMAL_CURRENCIES.has(code)) return Math.round(amount);
+  // Stripe requires three-decimal amounts to end in 0, so round to cents first.
+  if (THREE_DECIMAL_CURRENCIES.has(code)) return Math.round(amount * 100) * 10;
+  return Math.round(amount * 100);
+}
+
+/** Convert a Stripe integer amount back to the invoice currency. */
+export function fromStripeAmount(amount: number, currency: string): number {
+  const code = currency.toUpperCase();
+  if (ZERO_DECIMAL_CURRENCIES.has(code)) return amount;
+  if (THREE_DECIMAL_CURRENCIES.has(code)) return amount / 1000;
+  return amount / 100;
+}
+
 /**
  * Extension point for deployments where the Stripe account is not a process-wide
  * env var. The cloud overlay registers a resolver that decrypts the current
@@ -74,7 +113,7 @@ export async function createCheckoutSession(opts: {
       {
         price_data: {
           currency: opts.currency.toLowerCase(),
-          unit_amount: Math.round(opts.amount * 100),
+          unit_amount: toStripeAmount(opts.amount, opts.currency),
           product_data: { name: `Invoice Payment` },
         },
         quantity: 1,
@@ -118,7 +157,7 @@ export function handlePaymentSuccess(session: Stripe.Checkout.Session): void {
   const invoiceId = session.metadata?.invoice_id;
   if (!invoiceId) return;
 
-  const amount = (session.amount_total || 0) / 100;
+  const amount = fromStripeAmount(session.amount_total || 0, session.currency || "");
   const paymentIntentId =
     typeof session.payment_intent === "string"
       ? session.payment_intent
@@ -219,7 +258,7 @@ export async function chargeOffSession(ctx: OffSessionContext): Promise<OffSessi
     const stripe = await getStripe();
     const intent = await stripe.paymentIntents.create(
       {
-        amount: Math.round(ctx.amount * 100),
+        amount: toStripeAmount(ctx.amount, ctx.currency),
         currency: ctx.currency.toLowerCase(),
         customer: ctx.gatewayCustomerId,
         payment_method: ctx.gatewayMethodId,
