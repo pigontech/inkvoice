@@ -31,6 +31,17 @@ export function resolvePublicOrigin(requestOrigin?: string): string {
   return getEnv().PUBLIC_BASE_URL || "";
 }
 
+/**
+ * Whether the delivery email should carry the e-invoice attachment. Settings
+ * are stored as strings, so a disabled module is the truthy string "false".
+ */
+export function shouldAttachEinvoice(
+  settings: Record<string, string>,
+  opts: Pick<SendInvoiceOptions, "attachEinvoice">,
+): boolean {
+  return opts.attachEinvoice !== false && settings.einvoice_enabled === "true";
+}
+
 export async function sendInvoiceEmail(
   invoiceId: string,
   opts: SendInvoiceOptions = {},
@@ -83,7 +94,7 @@ export async function sendInvoiceEmail(
     content: Buffer | Uint8Array;
     contentType: string;
   }> = [];
-  const wantEinvoice = opts.attachEinvoice !== false && !!settings.einvoice_enabled;
+  const wantEinvoice = shouldAttachEinvoice(settings, opts);
   if (wantEinvoice) {
     try {
       const emitted = await emitEinvoice(finalised.id);

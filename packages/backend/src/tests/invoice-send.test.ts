@@ -5,7 +5,12 @@ import { closeDatabase, getDb, initDatabase } from "../database/connection";
 import { runMigrations } from "../database/migrations";
 import { seed } from "../database/seed";
 import { createInvoice, finaliseForSending } from "../services/invoice.service";
-import { resolvePublicOrigin, sendInvoiceEmail } from "../services/invoice-send.service";
+import {
+  resolvePublicOrigin,
+  sendInvoiceEmail,
+  shouldAttachEinvoice,
+} from "../services/invoice-send.service";
+import { getAllSettings } from "../services/settings.service";
 import { resetEnvCache } from "../utils/env";
 
 const TEST_DB = "./data/test-invoice-send.db";
@@ -156,5 +161,26 @@ describe("sendInvoiceEmail", () => {
     const result = await sendInvoiceEmail(inv.id);
     expect(result.success).toBe(false);
     if (!result.success) expect(result.status).toBe(400);
+  });
+});
+
+describe("shouldAttachEinvoice", () => {
+  test('a disabled module (stored as the string "false") attaches nothing', () => {
+    expect(shouldAttachEinvoice({ einvoice_enabled: "false" }, {})).toBe(false);
+  });
+
+  test("the seeded default on a fresh install attaches nothing", () => {
+    expect(shouldAttachEinvoice(getAllSettings(), {})).toBe(false);
+  });
+
+  test("a missing setting attaches nothing", () => {
+    expect(shouldAttachEinvoice({}, {})).toBe(false);
+  });
+
+  test("an enabled module attaches unless the caller opts out", () => {
+    expect(shouldAttachEinvoice({ einvoice_enabled: "true" }, {})).toBe(true);
+    expect(shouldAttachEinvoice({ einvoice_enabled: "true" }, { attachEinvoice: false })).toBe(
+      false,
+    );
   });
 });
