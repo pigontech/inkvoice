@@ -243,19 +243,23 @@ describe("token exchange + id_token validation", () => {
   });
 
   test("id_token with wrong nonce is rejected", async () => {
-    const idToken = await signIdToken({ email_verified: true });
-    await expect(validateIdToken(idToken, "wrong-nonce")).rejects.toThrow();
+    const idToken = await signIdToken({ email: "a@b.c", nonce: "nonce-1" });
+    await expect(validateIdToken(idToken, "wrong-nonce")).rejects.toThrow(
+      "OIDC id_token nonce mismatch",
+    );
   });
 
   test("id_token with wrong issuer is rejected", async () => {
-    const idToken = await new SignJWT({ email_verified: true })
+    const idToken = await new SignJWT({ email_verified: true, nonce: "nonce-1" })
       .setProtectedHeader({ alg: "ES256", kid: "test-kid" })
       .setIssuer("https://evil.example.com")
       .setAudience(CLIENT_ID)
       .setSubject("sub-123")
       .setExpirationTime("5m")
       .sign(privateKey);
-    await expect(validateIdToken(idToken, "nonce-1")).rejects.toThrow();
+    await expect(validateIdToken(idToken, "nonce-1")).rejects.toThrow(
+      'unexpected "iss" claim value',
+    );
   });
 
   test("id_token from an issuer with a trailing slash is accepted", async () => {
@@ -291,14 +295,16 @@ describe("token exchange + id_token validation", () => {
   });
 
   test("id_token with wrong audience is rejected", async () => {
-    const idToken = await new SignJWT({ email_verified: true })
+    const idToken = await new SignJWT({ email_verified: true, nonce: "nonce-1" })
       .setProtectedHeader({ alg: "ES256", kid: "test-kid" })
       .setIssuer(issuer)
       .setAudience("some-other-client")
       .setSubject("sub-123")
       .setExpirationTime("5m")
       .sign(privateKey);
-    await expect(validateIdToken(idToken, "nonce-1")).rejects.toThrow();
+    await expect(validateIdToken(idToken, "nonce-1")).rejects.toThrow(
+      'unexpected "aud" claim value',
+    );
   });
 
   test("missing email in id_token is rejected", async () => {
