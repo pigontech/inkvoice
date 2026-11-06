@@ -300,8 +300,8 @@ describe("schema migration runner", () => {
     ).toThrow();
   });
 
-  test("migrations reach version 32", () => {
-    expect(LATEST_MIGRATION_VERSION).toBe(32);
+  test("migrations reach version 33", () => {
+    expect(LATEST_MIGRATION_VERSION).toBe(33);
   });
 
   test("customer_payment_methods has the expected shape", () => {

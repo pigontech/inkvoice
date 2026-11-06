@@ -1,5 +1,10 @@
 import crypto from "node:crypto";
-import { BUILTIN_TEMPLATES, readTemplateFile } from "../services/builtin-templates";
+import { BUNDLED_TEMPLATE_HISTORY } from "../services/builtin-template-history";
+import {
+  BUILTIN_TEMPLATES,
+  hashTemplateHtml,
+  readTemplateFile,
+} from "../services/builtin-templates";
 import { updateSettings } from "../services/settings.service";
 import { toIsoDate } from "../utils/date";
 import { getEnv } from "../utils/env";
@@ -34,23 +39,48 @@ const DEMO_SETTINGS: Record<string, string> = {
   default_notes: "Thank you for your business. Payment is due within 30 days.",
 };
 
+/** Whether `html` is exactly a version of built-in `name` that some release bundled. */
+function isBundledVersion(name: string, html: string): boolean {
+  const hash = hashTemplateHtml(html);
+  if (BUNDLED_TEMPLATE_HISTORY[name]?.includes(hash)) return true;
+  return !!getDb()
+    .query("SELECT 1 FROM builtin_template_versions WHERE name = ? AND sha256 = ?")
+    .get(name, hash);
+}
+
+/**
+ * Brings the built-in templates in line with the bundled files on every boot.
+ * Missing ones are inserted. An existing one moves to the bundled HTML only
+ * while its HTML is a version some release bundled: the template editor saves
+ * edits to built-ins, and an edit must survive upgrades. "Reset to default"
+ * saves the bundled HTML, so a reset template counts as unedited again.
+ */
 function seedBuiltinTemplates(): void {
   const db = getDb();
 
   for (const tmpl of BUILTIN_TEMPLATES) {
     const html = readTemplateFile(tmpl.file);
+    // Recorded even when the edit below is kept: a user who later resets the
+    // template gets this HTML, and the next release must still recognize it.
+    db.run("INSERT OR IGNORE INTO builtin_template_versions (name, sha256) VALUES (?, ?)", [
+      tmpl.name,
+      hashTemplateHtml(html),
+    ]);
     const existing = db
       .query("SELECT id, html_content FROM templates WHERE type = 'builtin' AND name = ?")
       .get(tmpl.name) as { id: string; html_content: string } | null;
 
     if (existing) {
-      // Update HTML content if changed
       if (existing.html_content !== html) {
-        db.run(
-          "UPDATE templates SET html_content = ?, description = ?, updated_at = datetime('now') WHERE id = ?",
-          [html, tmpl.description, existing.id],
-        );
-        logger.info({ template: tmpl.name }, "Updated builtin template");
+        if (isBundledVersion(tmpl.name, existing.html_content)) {
+          db.run(
+            "UPDATE templates SET html_content = ?, updated_at = datetime('now') WHERE id = ?",
+            [html, existing.id],
+          );
+          logger.info({ template: tmpl.name }, "Updated builtin template");
+        } else {
+          logger.info({ template: tmpl.name }, "Kept edited builtin template");
+        }
       }
     } else {
       const id = crypto.randomBytes(16).toString("hex");

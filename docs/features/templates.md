@@ -6,6 +6,8 @@ Customize the appearance of your invoice PDFs and public invoice pages with Must
 
 Inkvoice ships with built-in templates that cover common invoice layouts. You can use them as-is or as a starting point for customization.
 
+Upgrades bring new versions of the built-in templates you have not edited. Once you save changes to one, Inkvoice keeps your version. **Reset to default** in the editor, then **Save**, returns it to the bundled HTML, and later upgrades update it again.
+
 ## Custom Templates
 
 ### Creating a Template

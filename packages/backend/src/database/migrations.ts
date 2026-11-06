@@ -1137,6 +1137,23 @@ const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    version: 33,
+    name: "builtin_template_versions",
+    up: (db) => {
+      // The SHA-256 of every HTML a boot has bundled for each built-in
+      // template. A built-in whose HTML is one of these was never edited, so
+      // the boot sync may move it to a newer bundled version (see seed.ts).
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS builtin_template_versions (
+          name TEXT NOT NULL,
+          sha256 TEXT NOT NULL,
+          created_at TEXT DEFAULT (datetime('now')),
+          PRIMARY KEY (name, sha256)
+        );
+      `);
+    },
+  },
 ];
 
 export const LATEST_MIGRATION_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
