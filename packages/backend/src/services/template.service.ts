@@ -122,9 +122,14 @@ export function deleteTemplate(id: string): { success: boolean; error?: string }
 
 export function setDefault(id: string): Template | null {
   const db = getDb();
-  db.run("UPDATE templates SET is_default = 0");
-  db.run("UPDATE templates SET is_default = 1 WHERE id = ?", [id]);
-  return db.query("SELECT * FROM templates WHERE id = ?").get(id) as Template | null;
+  // Clearing the flag for an unknown id would leave no default template, and
+  // invoices without a template of their own would stop rendering.
+  if (!getTemplate(id)) return null;
+  db.transaction(() => {
+    db.run("UPDATE templates SET is_default = 0");
+    db.run("UPDATE templates SET is_default = 1 WHERE id = ?", [id]);
+  })();
+  return getTemplate(id);
 }
 
 export function renderTemplate(htmlContent: string, context: Record<string, unknown>): string {
