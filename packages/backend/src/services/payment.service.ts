@@ -7,6 +7,8 @@ import {
   isWithinCashDiscountWindow,
 } from "../utils/cash-discount";
 import { outstandingBalance } from "../utils/currency";
+import { logger } from "../utils/logger";
+import { logActivity } from "./activity.service";
 
 export interface Payment {
   id: string;
@@ -157,6 +159,64 @@ export function recordPayment(
 
   const payment = db.query("SELECT * FROM payments WHERE id = ?").get(id) as Payment;
   return { success: true, data: payment };
+}
+
+/**
+ * A gateway confirmed a payment, so the money has moved, but recordPayment
+ * refused it: the invoice was voided, completed or moved to the trash before
+ * the customer finished paying. Leave a trace the merchant can find, as
+ * auto-bill does for a charge it cannot record. A redelivered event is not
+ * logged when its reference is already recorded as a payment (the invoice
+ * may have been completed since) or already logged here.
+ */
+export function logUnrecordedGatewayPayment(details: {
+  invoiceId: string;
+  gateway: string;
+  amount: number;
+  reference?: string;
+  error: string;
+}): void {
+  const { invoiceId, gateway, amount, reference, error } = details;
+  // Nothing was paid, so there is nothing to reconcile.
+  if (!(amount > 0)) return;
+  const db = getDb();
+  if (
+    reference &&
+    (db
+      .query("SELECT 1 FROM payments WHERE invoice_id = ? AND reference = ? LIMIT 1")
+      .get(invoiceId, reference) ||
+      db
+        .query(
+          `SELECT 1 FROM activity_log WHERE action = 'payment_unrecorded' AND resource_id = ?
+           AND json_extract(metadata, '$.reference') = ? LIMIT 1`,
+        )
+        .get(invoiceId, reference))
+  ) {
+    return;
+  }
+
+  logger.error(
+    { invoiceId, gateway, reference, amount, error },
+    `${gateway} payment received but not recorded`,
+  );
+  // No deleted_at filter: a trashed invoice is one of the cases that lands here.
+  const invoice = db.query("SELECT invoice_number FROM invoices WHERE id = ?").get(invoiceId) as {
+    invoice_number: string;
+  } | null;
+  logActivity({
+    user_id: null,
+    user_name: "System",
+    action: "payment_unrecorded",
+    resource_type: "invoice",
+    resource_id: invoiceId,
+    metadata: {
+      invoice_number: invoice?.invoice_number,
+      gateway,
+      amount,
+      reference: reference ?? null,
+      reason: error,
+    },
+  });
 }
 
 export function listPayments(invoiceId: string): Payment[] {
