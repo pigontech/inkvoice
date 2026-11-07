@@ -1,7 +1,7 @@
 services:
   app:
     # Prebuilt multi-arch image (linux/amd64 + linux/arm64) - no build step needed.
-    # `latest` tracks main; pin a release tag (e.g. :0.3.3) for stable deployments.
+    # `latest` tracks main; pin a release tag (e.g. :0.3.4) for stable deployments.
     # To build from source instead: docker compose -f docker-compose.dev.yml up
     image: ghcr.io/pigontech/inkvoice:latest
     # Always re-check the registry on `up`. Without this, compose's default
