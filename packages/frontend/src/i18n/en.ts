@@ -879,6 +879,9 @@ const en = {
     bic: "BIC / SWIFT",
     account_holder: "Account holder",
     account_holder_hint: "Only if the account is not held under your company name.",
+    account_number: "Account Number",
+    account_number_hint: "Printed with the bank details on every invoice.",
+    bank_details_placeholder: "IBAN: …\nBIC: …\nBank name …",
     epc_qr_code: "SEPA payment QR code (EPC / GiroCode)",
     epc_qr_code_enabled: "Add a scannable payment QR code to invoices",
     epc_qr_code_hint:

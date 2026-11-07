@@ -4,12 +4,14 @@ import { requirePermission } from "../middleware/auth";
 import { logActivity } from "../services/activity.service";
 import * as customerService from "../services/customer.service";
 import { deleteMethod, listMethodsForCustomer } from "../services/customer-payment-method.service";
+import { getAllSettings } from "../services/settings.service";
 import { buildStatementData, renderStatementHtml } from "../services/statement.service";
 import { getTagsForItem, setItemTags } from "../services/tag.service";
 import type { Customer } from "../types/customer";
 import { buildCsv, type CsvColumn, csvHeaders } from "../utils/csv";
 import { parseCsv } from "../utils/csv-parser";
 import { todayIso } from "../utils/date";
+import { regionalColumns } from "../utils/region-terms";
 
 const customers = new Hono();
 
@@ -59,7 +61,7 @@ customers.get("/export/csv", requirePermission("customers", "export"), (c) => {
 
   const headers = csvHeaders(`customers-${todayIso()}.csv`);
   for (const [k, v] of Object.entries(headers)) c.header(k, v);
-  return c.body(buildCsv(rows, customerCsvColumns));
+  return c.body(buildCsv(rows, regionalColumns(customerCsvColumns, getAllSettings())));
 });
 
 customers.get("/:id", requirePermission("customers", "read"), (c) => {
@@ -296,7 +298,13 @@ customers.post("/import/preview", requirePermission("customers", "create"), asyn
     }
     // Common aliases
     if (!suggested[String(i)]) {
-      if (norm === "vat" || norm === "vat_number" || norm === "tax_number") {
+      if (
+        norm === "vat" ||
+        norm === "vat_number" ||
+        norm === "tax_number" ||
+        norm === "gst_number" ||
+        norm === "gst_no"
+      ) {
         suggested[String(i)] = "tax_id";
       } else if (norm === "zip" || norm === "zipcode") {
         suggested[String(i)] = "postal_code";

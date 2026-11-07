@@ -93,6 +93,8 @@ export default function Settings() {
         ? (tabParam as SettingsTab)
         : "general";
   const [settings, setSettings] = useState<Record<string, string>>({});
+  // NZ businesses get a plain bank account number instead of the SEPA IBAN/BIC fields.
+  const isNz = settings.locale === "en-NZ";
   const [pendingLanguage, setPendingLanguage] = useState<Language>(language);
   const [loading, setLoading] = useState(false);
   const [emailError, setEmailError] = useState("");
@@ -375,7 +377,19 @@ export default function Settings() {
               <FormField label={t("settings.language")} hint={t("settings.language_hint")}>
                 <select
                   value={pendingLanguage}
-                  onChange={(e) => setPendingLanguage(e.target.value as Language)}
+                  onChange={(e) => {
+                    const lang = e.target.value as Language;
+                    setPendingLanguage(lang);
+                    if (lang === "en-NZ") {
+                      setSettings({
+                        ...settings,
+                        currency: "NZD",
+                        base_currency: "NZD",
+                        locale: "en-NZ",
+                        tax_label: "GST",
+                      });
+                    }
+                  }}
                   className="form-select"
                 >
                   {(Object.entries(languages) as [Language, string][]).map(([code, name]) => (
@@ -399,6 +413,7 @@ export default function Settings() {
                     <option value="JPY">JPY</option>
                     <option value="CAD">CAD</option>
                     <option value="AUD">AUD</option>
+                    <option value="NZD">NZD</option>
                     <option value="CHF">CHF</option>
                   </select>
                 </FormField>
@@ -420,7 +435,7 @@ export default function Settings() {
                     onChange={(e) => setSettings({ ...settings, base_currency: e.target.value })}
                     className="form-select"
                   >
-                    {["USD", "EUR", "GBP", "TRY", "JPY", "CAD", "AUD", "CHF"].map((code) => (
+                    {["USD", "EUR", "GBP", "TRY", "JPY", "CAD", "AUD", "NZD", "CHF"].map((code) => (
                       <option key={code} value={code}>
                         {code}
                       </option>
@@ -459,6 +474,7 @@ export default function Settings() {
                     <option value="YYYY-MM-DD">YYYY-MM-DD (2026-12-31)</option>
                     <option value="DD.MM.YYYY">DD.MM.YYYY (31.12.2026)</option>
                     <option value="DD/MM/YYYY">DD/MM/YYYY (31/12/2026)</option>
+                    <option value="DD-MM-YYYY">DD-MM-YYYY (31-12-2026)</option>
                     <option value="MM/DD/YYYY">MM/DD/YYYY (12/31/2026)</option>
                   </select>
                 </FormField>
@@ -752,35 +768,50 @@ export default function Settings() {
                   value={settings.company_bank_details || ""}
                   onChange={set("company_bank_details")}
                   rows={4}
-                  placeholder={"IBAN: …\nBIC: …\nBank name …"}
+                  placeholder={t("settings.bank_details_placeholder")}
                 />
               </FormField>
-              <div className="grid grid-cols-2 gap-4">
-                <FormField label={t("settings.iban")} hint={t("settings.iban_hint")}>
+              {isNz ? (
+                <FormField
+                  label={t("settings.account_number")}
+                  hint={t("settings.account_number_hint")}
+                >
                   <Input
-                    value={settings.company_iban || ""}
-                    onChange={set("company_iban")}
-                    placeholder="DE89 3704 0044 0532 0130 00"
+                    value={settings.company_account_number || ""}
+                    onChange={set("company_account_number")}
+                    placeholder="12-3456-7890123-00"
                   />
                 </FormField>
-                <FormField label={t("settings.bic")}>
-                  <Input
-                    value={settings.company_bic || ""}
-                    onChange={set("company_bic")}
-                    placeholder="COBADEFFXXX"
-                  />
-                </FormField>
-              </div>
-              <FormField
-                label={t("settings.account_holder")}
-                hint={t("settings.account_holder_hint")}
-              >
-                <Input
-                  value={settings.company_account_holder || ""}
-                  onChange={set("company_account_holder")}
-                  placeholder={settings.company_name || ""}
-                />
-              </FormField>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField label={t("settings.iban")} hint={t("settings.iban_hint")}>
+                      <Input
+                        value={settings.company_iban || ""}
+                        onChange={set("company_iban")}
+                        placeholder="DE89 3704 0044 0532 0130 00"
+                      />
+                    </FormField>
+                    <FormField label={t("settings.bic")}>
+                      <Input
+                        value={settings.company_bic || ""}
+                        onChange={set("company_bic")}
+                        placeholder="COBADEFFXXX"
+                      />
+                    </FormField>
+                  </div>
+                  <FormField
+                    label={t("settings.account_holder")}
+                    hint={t("settings.account_holder_hint")}
+                  >
+                    <Input
+                      value={settings.company_account_holder || ""}
+                      onChange={set("company_account_holder")}
+                      placeholder={settings.company_name || ""}
+                    />
+                  </FormField>
+                </>
+              )}
               <FormField label={t("settings.logo")}>
                 <div className="flex items-center gap-4 mt-1">
                   {settings.company_logo && (
@@ -928,25 +959,27 @@ export default function Settings() {
                 </p>
               </FormField>
 
-              <FormField label={t("settings.epc_qr_code")}>
-                <label className="inline-flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={settings.pdf_epc_qr_enabled === "true"}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        pdf_epc_qr_enabled: e.target.checked ? "true" : "false",
-                      })
-                    }
-                    disabled={!settings.company_iban}
-                  />
-                  {t("settings.epc_qr_code_enabled")}
-                </label>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {t("settings.epc_qr_code_hint")}
-                </p>
-              </FormField>
+              {!isNz && (
+                <FormField label={t("settings.epc_qr_code")}>
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={settings.pdf_epc_qr_enabled === "true"}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          pdf_epc_qr_enabled: e.target.checked ? "true" : "false",
+                        })
+                      }
+                      disabled={!settings.company_iban}
+                    />
+                    {t("settings.epc_qr_code_enabled")}
+                  </label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t("settings.epc_qr_code_hint")}
+                  </p>
+                </FormField>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

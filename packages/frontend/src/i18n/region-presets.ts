@@ -8,7 +8,7 @@ export interface RegionPreset {
   label: string; // Display name (translated in the wizard if desired)
   currency: string; // ISO 4217
   locale: string; // BCP-47
-  date_format: string; // settings.date_format value
+  date_format: string; // settings.date_format value (DD/MM/YYYY tokens)
   default_tax?: { name: string; rate: number };
 }
 
@@ -18,7 +18,7 @@ export const REGION_PRESETS: RegionPreset[] = [
     label: "Türkiye",
     currency: "TRY",
     locale: "tr-TR",
-    date_format: "dd.MM.yyyy",
+    date_format: "DD.MM.YYYY",
     default_tax: { name: "KDV", rate: 20 },
   },
   {
@@ -26,14 +26,14 @@ export const REGION_PRESETS: RegionPreset[] = [
     label: "United States",
     currency: "USD",
     locale: "en-US",
-    date_format: "MM/dd/yyyy",
+    date_format: "MM/DD/YYYY",
   },
   {
     country: "GB",
     label: "United Kingdom",
     currency: "GBP",
     locale: "en-GB",
-    date_format: "dd/MM/yyyy",
+    date_format: "DD/MM/YYYY",
     default_tax: { name: "VAT", rate: 20 },
   },
   {
@@ -41,7 +41,7 @@ export const REGION_PRESETS: RegionPreset[] = [
     label: "Deutschland",
     currency: "EUR",
     locale: "de-DE",
-    date_format: "dd.MM.yyyy",
+    date_format: "DD.MM.YYYY",
     default_tax: { name: "USt", rate: 19 },
   },
   {
@@ -49,7 +49,7 @@ export const REGION_PRESETS: RegionPreset[] = [
     label: "France",
     currency: "EUR",
     locale: "fr-FR",
-    date_format: "dd/MM/yyyy",
+    date_format: "DD/MM/YYYY",
     default_tax: { name: "TVA", rate: 20 },
   },
   {
@@ -57,7 +57,7 @@ export const REGION_PRESETS: RegionPreset[] = [
     label: "España",
     currency: "EUR",
     locale: "es-ES",
-    date_format: "dd/MM/yyyy",
+    date_format: "DD/MM/YYYY",
     default_tax: { name: "IVA", rate: 21 },
   },
   {
@@ -65,7 +65,7 @@ export const REGION_PRESETS: RegionPreset[] = [
     label: "Italia",
     currency: "EUR",
     locale: "it-IT",
-    date_format: "dd/MM/yyyy",
+    date_format: "DD/MM/YYYY",
     default_tax: { name: "IVA", rate: 22 },
   },
   {
@@ -73,7 +73,7 @@ export const REGION_PRESETS: RegionPreset[] = [
     label: "Nederland",
     currency: "EUR",
     locale: "nl-NL",
-    date_format: "dd-MM-yyyy",
+    date_format: "DD-MM-YYYY",
     default_tax: { name: "BTW", rate: 21 },
   },
   {
@@ -81,7 +81,7 @@ export const REGION_PRESETS: RegionPreset[] = [
     label: "Ireland",
     currency: "EUR",
     locale: "en-IE",
-    date_format: "dd/MM/yyyy",
+    date_format: "DD/MM/YYYY",
     default_tax: { name: "VAT", rate: 23 },
   },
   {
@@ -89,16 +89,24 @@ export const REGION_PRESETS: RegionPreset[] = [
     label: "Australia",
     currency: "AUD",
     locale: "en-AU",
-    date_format: "dd/MM/yyyy",
+    date_format: "DD-MM-YYYY",
     default_tax: { name: "GST", rate: 10 },
   },
-  { country: "CA", label: "Canada", currency: "CAD", locale: "en-CA", date_format: "yyyy-MM-dd" },
+  {
+    country: "NZ",
+    label: "New Zealand",
+    currency: "NZD",
+    locale: "en-NZ",
+    date_format: "DD-MM-YYYY",
+    default_tax: { name: "GST", rate: 15 },
+  },
+  { country: "CA", label: "Canada", currency: "CAD", locale: "en-CA", date_format: "YYYY-MM-DD" },
   {
     country: "CH",
     label: "Schweiz",
     currency: "CHF",
     locale: "de-CH",
-    date_format: "dd.MM.yyyy",
+    date_format: "DD.MM.YYYY",
     default_tax: { name: "MWST", rate: 8.1 },
   },
   {
@@ -106,7 +114,7 @@ export const REGION_PRESETS: RegionPreset[] = [
     label: "Sverige",
     currency: "SEK",
     locale: "sv-SE",
-    date_format: "yyyy-MM-dd",
+    date_format: "YYYY-MM-DD",
     default_tax: { name: "Moms", rate: 25 },
   },
   {
@@ -114,7 +122,7 @@ export const REGION_PRESETS: RegionPreset[] = [
     label: "Norge",
     currency: "NOK",
     locale: "nb-NO",
-    date_format: "dd.MM.yyyy",
+    date_format: "DD.MM.YYYY",
     default_tax: { name: "MVA", rate: 25 },
   },
 ];

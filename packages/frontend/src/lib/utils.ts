@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { useSettingsStore } from "@/stores/settings.store";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -8,7 +9,7 @@ export function cn(...inputs: ClassValue[]) {
 function getCurrentLocale(): string {
   try {
     const lang = localStorage.getItem("inkvoice-lang") || "en";
-    const localeMap: Record<string, string> = { en: "en-US", tr: "tr-TR" };
+    const localeMap: Record<string, string> = { en: "en-US", "en-NZ": "en-NZ", tr: "tr-TR" };
     return localeMap[lang] || "en-US";
   } catch {
     return "en-US";
@@ -57,11 +58,14 @@ export function formatDate(dateString: string, dateFormat?: string): string {
   const d = dateOnly
     ? new Date(Number(dateOnly[1]), Number(dateOnly[2]) - 1, Number(dateOnly[3]))
     : new Date(dateString);
-  if (dateFormat) {
+  // App screens follow the business's Date Format setting, like the PDFs do.
+  const format = dateFormat || useSettingsStore.getState().settings.date_format;
+  if (format) {
     const yyyy = d.getFullYear().toString();
     const mm = (d.getMonth() + 1).toString().padStart(2, "0");
     const dd = d.getDate().toString().padStart(2, "0");
-    return dateFormat.replace("YYYY", yyyy).replace("MM", mm).replace("DD", dd);
+    // Accept both "DD/MM/YYYY" and the "dd/MM/yyyy" spelling the region presets used.
+    return format.toUpperCase().replace("YYYY", yyyy).replace("MM", mm).replace("DD", dd);
   }
   return d.toLocaleDateString(getCurrentLocale(), {
     year: "numeric",

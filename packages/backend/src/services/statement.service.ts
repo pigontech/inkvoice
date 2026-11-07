@@ -210,7 +210,8 @@ function formatDateStr(dateStr: string, dateFormat?: string, localeOverride?: st
     const yyyy = d.getFullYear().toString();
     const mm = (d.getMonth() + 1).toString().padStart(2, "0");
     const dd = d.getDate().toString().padStart(2, "0");
-    return dateFormat.replace("YYYY", yyyy).replace("MM", mm).replace("DD", dd);
+    // Accept both "DD/MM/YYYY" and the "dd/MM/yyyy" spelling the region presets used.
+    return dateFormat.toUpperCase().replace("YYYY", yyyy).replace("MM", mm).replace("DD", dd);
   }
   return d.toLocaleDateString(localeOverride || "en-US", {
     year: "numeric",

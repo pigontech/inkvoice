@@ -889,6 +889,9 @@ const es: TranslationKeys = {
     bic: "BIC / SWIFT",
     account_holder: "Titular de la cuenta",
     account_holder_hint: "Solo si la cuenta no está a nombre de tu empresa.",
+    account_number: "Número de cuenta",
+    account_number_hint: "Se imprime con los datos bancarios en cada factura.",
+    bank_details_placeholder: "IBAN: …\nBIC: …\nNombre del banco …",
     epc_qr_code: "Código QR de pago SEPA (EPC / GiroCode)",
     epc_qr_code_enabled: "Añadir un código QR de pago escaneable a las facturas",
     epc_qr_code_hint:

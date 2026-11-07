@@ -879,6 +879,9 @@ const tr: TranslationKeys = {
     bic: "BIC / SWIFT",
     account_holder: "Hesap sahibi",
     account_holder_hint: "Yalnızca hesap şirket adınıza değilse doldurun.",
+    account_number: "Hesap Numarası",
+    account_number_hint: "Her faturada banka bilgileriyle birlikte yazdırılır.",
+    bank_details_placeholder: "IBAN: …\nBIC: …\nBanka adı …",
     epc_qr_code: "SEPA ödeme QR kodu (EPC / GiroCode)",
     epc_qr_code_enabled: "Faturalara taranabilir ödeme QR kodu ekle",
     epc_qr_code_hint:

@@ -6,6 +6,7 @@ import { formatCurrency } from "../utils/currency";
 import { buildEpcPayload } from "../utils/epc-qr";
 import { escapeMultiline, inlineAddress } from "../utils/html";
 import { qrToDataUri } from "../utils/qr-code";
+import { isNzBusiness } from "../utils/region-terms";
 import { getInvoice } from "./invoice.service";
 import { listPayments } from "./payment.service";
 import { getQuote } from "./quote.service";
@@ -18,13 +19,23 @@ function formatDateStr(dateStr: string, dateFormat?: string, localeOverride?: st
     const yyyy = d.getFullYear().toString();
     const mm = (d.getMonth() + 1).toString().padStart(2, "0");
     const dd = d.getDate().toString().padStart(2, "0");
-    return dateFormat.replace("YYYY", yyyy).replace("MM", mm).replace("DD", dd);
+    // Accept both "DD/MM/YYYY" and the "dd/MM/yyyy" spelling the region presets used.
+    return dateFormat.toUpperCase().replace("YYYY", yyyy).replace("MM", mm).replace("DD", dd);
   }
   return d.toLocaleDateString(localeOverride || "en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
   });
+}
+
+/** Free-form bank details, led by the account number when one is set. */
+function bankDetails(settings: Record<string, string>): string {
+  const accountNumber = (settings.company_account_number || "").trim();
+  const details = settings.company_bank_details ?? "";
+  if (!accountNumber) return details;
+  const line = `Account number: ${accountNumber}`;
+  return details.trim() ? `${line}\n${details}` : line;
 }
 
 function buildWatermarkContext(
@@ -142,7 +153,9 @@ export function buildInvoiceContext(invoiceId: string) {
         existing.amount += item.tax_amount;
       } else {
         taxMap.set(key, {
-          name: (item.tax_id && taxDefNames.get(item.tax_id)) || `Tax ${item.tax_rate}%`,
+          name:
+            (item.tax_id && taxDefNames.get(item.tax_id)) ||
+            `${isNzBusiness(settings) ? "GST" : "Tax"} ${item.tax_rate}%`,
           rate: item.tax_rate,
           amount: item.tax_amount,
         });
@@ -172,8 +185,9 @@ export function buildInvoiceContext(invoiceId: string) {
       address_inline: inlineAddress(settings.company_address || ""),
       tax_id: settings.company_tax_id || "",
       logo: settings.company_logo || "",
-      bank_details: escapeMultiline(settings.company_bank_details ?? ""),
+      bank_details: escapeMultiline(bankDetails(settings)),
     },
+    nz: isNzBusiness(settings),
     watermark: buildWatermarkContext(settings, invoice.status),
     qr: buildQrContext(settings, invoice.share_token, "invoice"),
     epc_qr: buildEpcQrContext(settings, {
@@ -365,7 +379,9 @@ export function buildQuoteContext(quoteId: string) {
       if (existing) existing.amount += item.tax_amount;
       else
         taxMap.set(key, {
-          name: (item.tax_id && taxDefNames.get(item.tax_id)) || `Tax ${item.tax_rate}%`,
+          name:
+            (item.tax_id && taxDefNames.get(item.tax_id)) ||
+            `${isNzBusiness(settings) ? "GST" : "Tax"} ${item.tax_rate}%`,
           rate: item.tax_rate,
           amount: item.tax_amount,
         });
@@ -394,8 +410,9 @@ export function buildQuoteContext(quoteId: string) {
       address_inline: inlineAddress(settings.company_address || ""),
       tax_id: settings.company_tax_id || "",
       logo: settings.company_logo || "",
-      bank_details: escapeMultiline(settings.company_bank_details ?? ""),
+      bank_details: escapeMultiline(bankDetails(settings)),
     },
+    nz: isNzBusiness(settings),
     watermark: buildWatermarkContext(settings, quote.status),
     qr: buildQrContext(settings, quote.share_token, "quote"),
     customer: customer

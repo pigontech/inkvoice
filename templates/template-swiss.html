@@ -317,7 +317,7 @@
         {{#company.email}}<div>{{company.email}}</div>{{/company.email}}
         {{#company.phone}}<div>{{company.phone}}</div>{{/company.phone}}
         {{#company.address}}<div>{{{company.address}}}</div>{{/company.address}}
-        {{#company.tax_id}}<div class="tax-id">Tax ID: {{company.tax_id}}</div>{{/company.tax_id}}
+        {{#company.tax_id}}<div class="tax-id">{{#nz}}GST No.{{/nz}}{{^nz}}Tax ID{{/nz}}: {{company.tax_id}}</div>{{/company.tax_id}}
       </div>
     </div>
     <div class="party-block">
@@ -329,7 +329,7 @@
         {{#customer.address_line2}}<div>{{customer.address_line2}}</div>{{/customer.address_line2}}
         {{#customer.city}}<div>{{customer.city}}{{#customer.state}}, {{customer.state}}{{/customer.state}} {{customer.postal_code}}</div>{{/customer.city}}
         {{#customer.country}}<div>{{customer.country}}</div>{{/customer.country}}
-        {{#customer.tax_id}}<div class="tax-id">Tax ID: {{customer.tax_id}}</div>{{/customer.tax_id}}
+        {{#customer.tax_id}}<div class="tax-id">{{#nz}}GST No.{{/nz}}{{^nz}}Tax ID{{/nz}}: {{customer.tax_id}}</div>{{/customer.tax_id}}
       </div>
     </div>
   </div>
@@ -341,7 +341,7 @@
         <th>Description</th>
         <th class="num">Qty</th>
         <th class="num">Unit Price</th>
-        <th class="num">Tax</th>
+        <th class="num">{{#nz}}GST{{/nz}}{{^nz}}Tax{{/nz}}</th>
         <th class="num">Amount</th>
       </tr>
     </thead>

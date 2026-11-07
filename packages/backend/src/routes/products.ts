@@ -5,9 +5,11 @@ import { getDb } from "../database/connection";
 import { requirePermission } from "../middleware/auth";
 import { logActivity } from "../services/activity.service";
 import * as productService from "../services/product.service";
+import { getAllSettings } from "../services/settings.service";
 import { buildCsv, type CsvColumn, csvHeaders } from "../utils/csv";
 import { parseCsv } from "../utils/csv-parser";
 import { todayIso } from "../utils/date";
+import { regionalColumns } from "../utils/region-terms";
 
 const products = new Hono();
 
@@ -47,7 +49,7 @@ products.get("/export/csv", requirePermission("products", "export"), (c) => {
 
   const headers = csvHeaders(`products-${todayIso()}.csv`);
   for (const [k, v] of Object.entries(headers)) c.header(k, v);
-  return c.body(buildCsv(rows, productCsvColumns));
+  return c.body(buildCsv(rows, regionalColumns(productCsvColumns, getAllSettings())));
 });
 
 // CSV import (mirror of /customers/import — see comment there for the flow)

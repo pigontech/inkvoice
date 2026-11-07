@@ -325,7 +325,7 @@
             {{#due_date}}
             <div>{{#is_quote}}Valid until{{/is_quote}}{{^is_quote}}Due date{{/is_quote}}: {{due_date}}</div>
             {{/due_date}}
-            {{#customer.tax_id}}<div>Customer tax ID: {{customer.tax_id}}</div>{{/customer.tax_id}}
+            {{#customer.tax_id}}<div>{{#nz}}Customer GST No.{{/nz}}{{^nz}}Customer tax ID{{/nz}}: {{customer.tax_id}}</div>{{/customer.tax_id}}
           </div>
         </div>
       </div>
@@ -365,7 +365,7 @@
         <thead>
           <tr>
             <th class="description">Description</th>
-            <th class="center">Sales tax</th>
+            <th class="center">{{#nz}}GST{{/nz}}{{^nz}}Sales tax{{/nz}}</th>
             <th class="num">U.P. (net)</th>
             <th class="num">Qty</th>
             <th class="center">Unit</th>
@@ -447,7 +447,7 @@
         <div class="totals-box">
           <table>
             <tr>
-              <td>Total (excl. tax)</td>
+              <td>Total ({{#nz}}excl. GST{{/nz}}{{^nz}}excl. tax{{/nz}})</td>
               <td>{{formatted_subtotal}}</td>
             </tr>
             {{#has_discount}}
@@ -463,7 +463,7 @@
             </tr>
             {{/tax_summary}}
             <tr class="total-inc">
-              <td>Total (inc. tax)</td>
+              <td>Total ({{#nz}}incl. GST{{/nz}}{{^nz}}inc. tax{{/nz}})</td>
               <td>{{formatted_total}}</td>
             </tr>
             {{#has_cash_discount}}
@@ -536,7 +536,7 @@
       {{/qr}}
 
       <div class="footer">
-        {{#company.tax_id}}<div>VAT ID: {{company.tax_id}}</div>{{/company.tax_id}}
+        {{#company.tax_id}}<div>{{#nz}}GST No.{{/nz}}{{^nz}}VAT ID{{/nz}}: {{company.tax_id}}</div>{{/company.tax_id}}
       </div>
     </div>
   </body>

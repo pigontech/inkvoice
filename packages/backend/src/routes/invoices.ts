@@ -17,10 +17,12 @@ import { dispatchEvent } from "../services/outgoing-webhooks.service";
 import * as paymentService from "../services/payment.service";
 import * as quoteService from "../services/quote.service";
 import { getReminderLog } from "../services/reminder.service";
+import { getAllSettings } from "../services/settings.service";
 import { getTagsForItem, setItemTags } from "../services/tag.service";
 import type { Invoice } from "../types/invoice";
 import { buildCsv, type CsvColumn, csvHeaders } from "../utils/csv";
 import { todayIso } from "../utils/date";
+import { regionalColumns } from "../utils/region-terms";
 import { buildXmlInvoiceData } from "../xml/build-data";
 import { getProfile, listProfiles } from "../xml/profile-registry";
 
@@ -183,7 +185,7 @@ invoices.get("/export/csv", requirePermission("invoices", "export"), (c) => {
 
   const headers = csvHeaders(`invoices-${todayIso()}.csv`);
   for (const [k, v] of Object.entries(headers)) c.header(k, v);
-  return c.body(buildCsv(rows, invoiceCsvColumns));
+  return c.body(buildCsv(rows, regionalColumns(invoiceCsvColumns, getAllSettings())));
 });
 
 // Credit note routes

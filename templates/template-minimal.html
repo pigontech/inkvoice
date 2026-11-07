@@ -268,7 +268,7 @@
             {{#company.address}}<p>{{{company.address}}}</p>{{/company.address}}
             {{#company.email}}<p>{{company.email}}</p>{{/company.email}}
             {{#company.phone}}<p>{{company.phone}}</p>{{/company.phone}}
-            {{#company.tax_id}}<p>VAT: {{company.tax_id}}</p>{{/company.tax_id}}
+            {{#company.tax_id}}<p>{{#nz}}GST No.{{/nz}}{{^nz}}VAT{{/nz}}: {{company.tax_id}}</p>{{/company.tax_id}}
           </div>
         </div>
         <div class="col">
@@ -280,7 +280,7 @@
             {{#customer.city}}<p>{{customer.city}}{{#customer.state}}, {{customer.state}}{{/customer.state}} {{customer.postal_code}}</p>{{/customer.city}}
             {{#customer.country_name}}<p>{{customer.country_name}}</p>{{/customer.country_name}}{{^customer.country_name}}{{#customer.country}}<p>{{customer.country}}</p>{{/customer.country}}{{/customer.country_name}}
             {{#customer.email}}<p>{{customer.email}}</p>{{/customer.email}}
-            {{#customer.tax_id}}<p>Tax ID: {{customer.tax_id}}</p>{{/customer.tax_id}}
+            {{#customer.tax_id}}<p>{{#nz}}GST No.{{/nz}}{{^nz}}Tax ID{{/nz}}: {{customer.tax_id}}</p>{{/customer.tax_id}}
           </div>
         </div>
         <div class="col">

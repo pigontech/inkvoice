@@ -10,8 +10,10 @@ import {
 } from "../services/accounting-export.formats";
 import * as accountingExport from "../services/accounting-export.service";
 import * as reportService from "../services/report.service";
+import { getAllSettings } from "../services/settings.service";
 import { buildCsv, type CsvColumn, csvHeaders } from "../utils/csv";
 import { todayIso } from "../utils/date";
+import { regionalColumns } from "../utils/region-terms";
 
 const reports = new Hono();
 
@@ -37,7 +39,7 @@ reports.get("/tax-summary/csv", (c) => {
   const date = todayIso();
   const headers = csvHeaders(`tax-summary-${date}.csv`);
   for (const [k, v] of Object.entries(headers)) c.header(k, v);
-  return c.body(buildCsv(data.rows, cols));
+  return c.body(buildCsv(data.rows, regionalColumns(cols, getAllSettings())));
 });
 
 reports.get("/aging", (c) => {

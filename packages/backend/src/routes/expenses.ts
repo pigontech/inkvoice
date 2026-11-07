@@ -3,9 +3,11 @@ import { z } from "zod";
 import { requirePermission } from "../middleware/auth";
 import { logActivity } from "../services/activity.service";
 import * as expenseService from "../services/expense.service";
+import { getAllSettings } from "../services/settings.service";
 import { buildCsv, type CsvColumn, csvHeaders } from "../utils/csv";
 import { parseCsv } from "../utils/csv-parser";
 import { todayIso } from "../utils/date";
+import { regionalColumns } from "../utils/region-terms";
 
 const expenses = new Hono();
 
@@ -55,7 +57,7 @@ expenses.get("/export/csv", requirePermission("expenses", "export"), (c) => {
 
   const headers = csvHeaders(`expenses-${todayIso()}.csv`);
   for (const [k, v] of Object.entries(headers)) c.header(k, v);
-  return c.body(buildCsv(rows, expenseCsvColumns));
+  return c.body(buildCsv(rows, regionalColumns(expenseCsvColumns, getAllSettings())));
 });
 
 // CSV import (mirror of /products/import)

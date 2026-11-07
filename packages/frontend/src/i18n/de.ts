@@ -902,6 +902,9 @@ const de: TranslationKeys = {
     bic: "BIC / SWIFT",
     account_holder: "Kontoinhaber",
     account_holder_hint: "Nur nötig, wenn das Konto nicht auf den Firmennamen läuft.",
+    account_number: "Kontonummer",
+    account_number_hint: "Wird auf jeder Rechnung mit der Bankverbindung gedruckt.",
+    bank_details_placeholder: "IBAN: …\nBIC: …\nName der Bank …",
     epc_qr_code: "SEPA-Zahlungs-QR-Code (EPC / GiroCode)",
     epc_qr_code_enabled: "Scannbaren Zahlungs-QR-Code auf Rechnungen drucken",
     epc_qr_code_hint:

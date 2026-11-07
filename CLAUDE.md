@@ -489,6 +489,8 @@ The app supports multiple languages via a lightweight, custom i18n system (no ex
 
 ### Current Languages
 - **English (en)** — default
+- **English, New Zealand (en-NZ)** — overrides `en` with NZ business wording (GST, GST Number,
+  financial year); also used automatically when the business locale is `en-NZ`
 - **Turkish (tr)**
 - **Spanish (es)**
 - **German (de)**

@@ -14,8 +14,41 @@ import { useSettingsStore } from "@/stores/settings.store";
 
 const TOTAL_STEPS = 4;
 
+interface TaxDefinitionRow {
+  id: string;
+  name: string;
+  rate: number;
+  description: string | null;
+  category_code: string | null;
+  vendor_tax_id: string | null;
+  is_default: number;
+  is_active: number;
+}
+
+/**
+ * Make the country's standard tax (e.g. NZ GST 15%) the default tax, and turn
+ * the seeded "No Tax" placeholder into "No GST" / "No VAT" to match.
+ */
+async function applyRegionTax(tax: { name: string; rate: number }) {
+  const defs: TaxDefinitionRow[] = (await api.listTaxDefinitions()).data;
+  if (defs.some((d) => d.name === tax.name && d.rate === tax.rate)) return;
+  for (const d of defs.filter((d) => d.is_default)) {
+    const isPlaceholder = d.name === "No Tax";
+    await api.updateTaxDefinition(d.id, {
+      name: isPlaceholder ? `No ${tax.name}` : d.name,
+      rate: d.rate,
+      description: isPlaceholder ? `No ${tax.name} applied` : d.description || "",
+      category_code: d.category_code || undefined,
+      vendor_tax_id: d.vendor_tax_id || "",
+      is_default: 0,
+      is_active: d.is_active,
+    });
+  }
+  await api.createTaxDefinition({ name: tax.name, rate: tax.rate, is_default: 1 });
+}
+
 export default function OnboardingWizard() {
-  const { t } = useTranslation();
+  const { t, language, setLanguage } = useTranslation();
   const navigate = useNavigate();
   const fetchSettings = useSettingsStore((s) => s.fetchSettings);
   const initialSettings = useSettingsStore((s) => s.settings);
@@ -34,7 +67,7 @@ export default function OnboardingWizard() {
   );
   const [locale, setLocale] = useState(initialSettings.locale || initialPreset?.locale || "en-US");
   const [dateFormat, setDateFormat] = useState(
-    initialSettings.date_format || initialPreset?.date_format || "MM/dd/yyyy",
+    initialSettings.date_format || initialPreset?.date_format || "MM/DD/YYYY",
   );
   const [logo, setLogo] = useState<string | null>(initialSettings.company_logo || null);
   const [customerName, setCustomerName] = useState("");
@@ -61,7 +94,10 @@ export default function OnboardingWizard() {
       if (currency) settingsUpdate.currency = currency;
       if (locale) settingsUpdate.locale = locale;
       if (dateFormat) settingsUpdate.date_format = dateFormat;
+      const regionTax = findPresetByCountry(country)?.default_tax;
+      if (regionTax) settingsUpdate.tax_label = regionTax.name;
       await api.updateSettings(settingsUpdate);
+      if (regionTax) await applyRegionTax(regionTax);
 
       if (!skipCustomer && customerName.trim()) {
         await api.createCustomer({
@@ -70,6 +106,8 @@ export default function OnboardingWizard() {
         });
       }
 
+      // A New Zealand business starts in English (New Zealand) rather than plain English.
+      if (locale === "en-NZ" && language === "en") setLanguage("en-NZ");
       await fetchSettings();
       toast.success(t("settings.onboarding_completed_toast"));
       navigate("/", { replace: true });

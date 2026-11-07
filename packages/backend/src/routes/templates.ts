@@ -1,9 +1,11 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { requirePermission } from "../middleware/auth";
+import { getAllSettings } from "../services/settings.service";
 import * as templateService from "../services/template.service";
 import { buildEpcPayload } from "../utils/epc-qr";
 import { qrToDataUri } from "../utils/qr-code";
+import { isNzBusiness } from "../utils/region-terms";
 
 const templates = new Hono();
 
@@ -170,6 +172,7 @@ const SAMPLE_EPC_PAYLOAD = buildEpcPayload({
 
 function getSampleContext() {
   return {
+    nz: isNzBusiness(getAllSettings()),
     invoice_number: "INV-2026-0001",
     issue_date: "Apr 1, 2026",
     due_date: "May 1, 2026",

@@ -1,21 +1,23 @@
 import { createContext, useContext } from "react";
 import de from "./de";
 import en, { type TranslationKeys } from "./en";
+import enNZ from "./en-NZ";
 import es from "./es";
 import fr from "./fr";
 import tr from "./tr";
 
-export type Language = "en" | "tr" | "es" | "de" | "fr";
+export type Language = "en" | "en-NZ" | "tr" | "es" | "de" | "fr";
 
 export const languages: Record<Language, string> = {
   en: "English",
+  "en-NZ": "English (New Zealand)",
   tr: "Türkçe",
   es: "Español",
   de: "Deutsch",
   fr: "Français",
 };
 
-const translations: Record<Language, TranslationKeys> = { en, tr, es, de, fr };
+const translations: Record<Language, TranslationKeys> = { en, "en-NZ": enNZ, tr, es, de, fr };
 
 /**
  * Deep-merge partial translations into a language dictionary at import time.
@@ -65,7 +67,9 @@ export type TFunction = (key: string, params?: Record<string, string | number>) 
 function createT(lang: Language): TFunction {
   const dict = translations[lang];
   return (key: string, params?: Record<string, string | number>) => {
-    const value = getNestedValue(dict, key);
+    let value = getNestedValue(dict, key);
+    // en-NZ only overrides tax wording; plugin keys registered for "en" fall through.
+    if (value === key && lang === "en-NZ") value = getNestedValue(translations.en, key);
     return interpolate(value, params);
   };
 }

@@ -51,6 +51,7 @@ const ALLOWED_SETTINGS = new Set([
   "company_iban",
   "company_bic",
   "company_account_holder",
+  "company_account_number",
   "tax_label",
   "invoice_number_pattern",
   "quote_number_pattern",

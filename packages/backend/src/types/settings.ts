@@ -11,6 +11,8 @@ export interface Settings {
   company_bic?: string;
   /** Account holder, when it differs from company_name. */
   company_account_holder?: string;
+  /** Domestic bank account number (e.g. NZ 12-3456-7890123-00), shown with the bank details. */
+  company_account_number?: string;
   company_logo: string;
   currency: string;
   tax_label: string;

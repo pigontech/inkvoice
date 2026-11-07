@@ -1,6 +1,8 @@
 import { getDb } from "../database/connection";
 import { todayIso } from "../utils/date";
+import { isNzBusiness } from "../utils/region-terms";
 import { getBaseCurrency } from "./exchange-rate.service";
+import { getAllSettings } from "./settings.service";
 
 interface DateRangeParams {
   date_from?: string;
@@ -28,7 +30,7 @@ export function getTaxSummary(params: DateRangeParams) {
   const rows = db
     .query(
       `SELECT
-        COALESCE(t.name, 'No Tax') as tax_name,
+        COALESCE(t.name, ?) as tax_name,
         ii.tax_rate,
         SUM(ii.line_total) as taxable_amount,
         SUM(ii.tax_amount) as tax_collected
@@ -39,7 +41,7 @@ export function getTaxSummary(params: DateRangeParams) {
        GROUP BY ii.tax_rate, t.name
        ORDER BY ii.tax_rate`,
     )
-    .all(...queryParams) as {
+    .all(isNzBusiness(getAllSettings()) ? "No GST" : "No Tax", ...queryParams) as {
     tax_name: string;
     tax_rate: number;
     taxable_amount: number;
