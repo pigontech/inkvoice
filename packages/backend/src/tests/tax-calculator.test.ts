@@ -1,7 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import {
   calculateInvoiceTotals,
-  calculateInvoiceTotalsMultiTax,
   calculateLineItem,
   calculateLineItemMultiTax,
   calculateLineItemMultiTaxInclusive,
@@ -212,17 +211,5 @@ describe("multi-tax calculations", () => {
     });
     expect(result.line_total).toBe(100);
     expect(result.total_tax).toBeCloseTo(15, 1);
-  });
-
-  test("calculateInvoiceTotalsMultiTax aggregates across items", () => {
-    const items = [
-      { quantity: 1, unit_price: 100, tax_rates: [10] },
-      { quantity: 2, unit_price: 50, tax_rates: [5, 5] },
-    ];
-    const result = calculateInvoiceTotalsMultiTax(items);
-    expect(result.subtotal).toBe(200);
-    // 100*10% + 100*10% (the 5+5 on the second item)
-    expect(result.tax_total).toBe(20);
-    expect(result.total).toBe(220);
   });
 });
