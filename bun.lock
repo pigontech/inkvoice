@@ -12,7 +12,7 @@
     },
     "packages/backend": {
       "name": "backend",
-      "version": "0.3.3",
+      "version": "0.3.4",
       "dependencies": {
         "@pdf-lib/fontkit": "1.1.1",
         "@sentry/bun": "^10.53.1",
@@ -38,7 +38,7 @@
     },
     "packages/frontend": {
       "name": "frontend",
-      "version": "0.3.3",
+      "version": "0.3.4",
       "dependencies": {
         "@base-ui/react": "^1.3.0",
         "@codemirror/lang-css": "^6.3.1",
