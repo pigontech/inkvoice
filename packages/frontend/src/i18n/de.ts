@@ -523,6 +523,66 @@ const de: TranslationKeys = {
     emit_with_issues:
       "E-Rechnung mit {{count}} Validierungsfehler(n) erstellt. Firmeneinstellungen prüfen.",
     issues_title: "Vor dem Versand dieser E-Rechnung prüfen:",
+    issue: {
+      invoice_number: "Die Rechnungsnummer fehlt.",
+      issue_date: "Das Rechnungsdatum fehlt.",
+      seller_name: "Ihr Firmenname fehlt.",
+      buyer_name: "Der Name des Kunden fehlt.",
+      seller_address: "Ihre Anschrift fehlt (Straße, Ort).",
+      buyer_address: "Die Anschrift des Kunden fehlt.",
+      seller_vat_id: "Ihre USt-IdNr. fehlt (für deutsche Rechnungen empfohlen).",
+      seller_vat_format:
+        "„{{vat_id}}“ ist keine gültige deutsche USt-IdNr. (erwartetes Format: DE123456789).",
+      seller_tax_number_format:
+        "„{{tax_number}}“ sieht nicht wie eine deutsche Steuernummer aus (z. B. 12/345/67890).",
+      buyer_vat_id:
+        "Der Kunde sitzt nicht in Deutschland ({{country}}). Für innergemeinschaftliche B2B-Umsätze ist seine USt-IdNr. erforderlich (Reverse Charge, 0 % USt).",
+      buyer_vat_id_de:
+        "Die USt-IdNr. des Kunden fehlt (sie hilft dem Empfänger, die E-Rechnung zu verarbeiten).",
+      buyer_siren_fr:
+        "Die SIREN des Kunden fehlt (nötig, um E-Rechnungen an französische Unternehmen zuzustellen).",
+      kleinunternehmer_vat:
+        "Sie sind als Kleinunternehmer (§ 19 UStG) eingestellt, aber die Rechnung weist Umsatzsteuer aus.",
+      franchise_fr_vat:
+        "Sie sind als „franchise en base“ (art. 293 B CGI) eingestellt, aber die Rechnung weist Umsatzsteuer aus.",
+      reverse_charge_vat:
+        "Reverse-Charge-Rechnungen dürfen keine Umsatzsteuer berechnen (verwenden Sie den Satz 0 %).",
+      tax_category:
+        "Die Steuerkategorie „{{category}}“ ist keine gültige EN-16931-Kategorie (verwenden Sie S, AA, Z, E, AE, …).",
+      monetary_subtotal:
+        "Die Bemessungsgrundlage der Positionen passt nicht zur Zwischensumme der Rechnung.",
+      monetary_tax:
+        "Die Steueraufschlüsselung ({{breakdown}}) passt nicht zur Steuersumme der Rechnung ({{tax_total}}).",
+      monetary_total:
+        "Der Gesamtbetrag ({{total}}) entspricht nicht dem Nettobetrag plus Steuer ({{expected}}).",
+      currency: "Die Rechnungswährung fehlt.",
+      seller_country: "Ihr Land fehlt (Einstellungen → E-Rechnung). [BR-9]",
+      buyer_country: "Das Land des Kunden fehlt. [BR-11]",
+      seller_tax_registration:
+        "Tragen Sie Ihre USt-IdNr. oder Ihre Steuernummer ein (Einstellungen). [BR-S-02, BR-E-02, BR-CO-26]",
+      payment_due:
+        "Geben Sie auf der Rechnung ein Fälligkeitsdatum oder Zahlungsbedingungen an. [BR-CO-25]",
+      payment_iban:
+        "In den Einstellungen ist keine IBAN hinterlegt, daher enthält die E-Rechnung keine Bankverbindung für die Überweisung.",
+      reverse_charge_vat_ids:
+        "Reverse Charge benötigt Ihre USt-IdNr. und die USt-IdNr. des Kunden. [BR-AE-02]",
+      not_subject_mixed:
+        "Nicht steuerbare Positionen (Kategorie O) dürfen nicht mit anderen Steuerkategorien auf einer Rechnung stehen. Stellen Sie diese gesondert in Rechnung. [BR-O-11]",
+      not_subject_tax_number:
+        "Eine nicht steuerbare Rechnung (Kategorie O) darf Ihre USt-IdNr. nicht enthalten und benötigt daher Ihre Steuernummer (Einstellungen). [BR-O-02, BR-CO-26]",
+      intra_community_delivery:
+        "Eine innergemeinschaftliche Lieferung (Kategorie K) benötigt ein Lieferdatum und ein Lieferland, die Inkvoice noch nicht erfassen kann. Diese E-Rechnung besteht die Prüfung daher nicht. [BR-IC-11, BR-IC-12]",
+      en16931_totals:
+        "Die gespeicherten Summen entsprechen nicht der Berechnung nach EN 16931 (Umsatzsteuer auf den rabattierten Betrag). Öffnen Sie die Rechnung und speichern Sie sie erneut, um sie neu zu berechnen.",
+      xr_seller_city_postcode:
+        "XRechnung benötigt Ihre Postleitzahl und Ihren Ort (Einstellungen → E-Rechnung). [BR-DE-3, BR-DE-4]",
+      xr_seller_phone: "XRechnung benötigt Ihre Telefonnummer (Einstellungen). [BR-DE-6]",
+      xr_seller_email: "XRechnung benötigt Ihre E-Mail-Adresse (Einstellungen). [BR-DE-7]",
+      xr_buyer_city_postcode:
+        "XRechnung benötigt Postleitzahl und Ort des Kunden. [BR-DE-8, BR-DE-9]",
+      xr_buyer_address:
+        "XRechnung benötigt die Leitweg-ID oder die E-Mail-Adresse des Kunden. [PEPPOL-EN16931-R010]",
+    },
     draft_hint:
       "Markieren Sie die Rechnung zuerst als versendet (oder senden Sie sie): Die E-Rechnung braucht die endgültige Rechnungsnummer.",
     loading: "Lädt…",
@@ -562,7 +622,7 @@ const de: TranslationKeys = {
     restore: "Zurück in den Posteingang",
     mark_processed: "Verarbeitet",
     actions: "Aktionen",
-    source: "Source",
+    source: "Quelle",
     source_peppol: "PEPPOL",
     source_qonto: "Qonto (Frankreich)",
     source_upload: "Upload",
@@ -1266,6 +1326,7 @@ const de: TranslationKeys = {
     to: "An",
     subject: "Betreff",
     subject_hint: "Leer lassen, um den Standard zu verwenden",
+    subject_placeholder: "Wird automatisch erzeugt, wenn leer",
     message: "Nachricht",
     message_hint: "Optionale Nachricht, die in der E-Mail enthalten ist",
     send: "Senden",
@@ -1277,9 +1338,14 @@ const de: TranslationKeys = {
     from_hint: "Absenderadresse überschreiben (Standard: SMTP-Einstellung)",
     reply_to: "Antwort an",
     reply_to_hint: "Wohin Antworten des Kunden gehen sollen",
-    attach_einvoice: "E-Rechnung anhängen (ZUGFeRD-Hybrid-PDF)",
-    attach_einvoice_hint:
-      "Wenn aktiviert, wird eine ZUGFeRD-Hybrid-PDF automatisch angehängt, falls die E-Rechnungseinstellung aktiv ist",
+    attach_einvoice: "E-Rechnung anhängen ({{format}})",
+    attach_einvoice_hint: "Wenn aktiviert, wird diese Datei an die E-Mail angehängt",
+    einvoice_file: {
+      zugferd_pdf: "ZUGFeRD-Hybrid-PDF",
+      zugferd_xml: "ZUGFeRD-XML",
+      xrechnung_xml: "XRechnung-XML",
+      peppol_xml: "PEPPOL-BIS-XML",
+    },
     einvoice_errors_title: "Die E-Rechnung enthält Fehler",
     einvoice_errors_hint:
       "Ihr Kunde würde eine E-Rechnung erhalten, die die Prüfung nicht besteht. Beheben Sie zuerst die Fehler oder entfernen Sie den Haken, um die E-Mail ohne E-Rechnung zu senden.",

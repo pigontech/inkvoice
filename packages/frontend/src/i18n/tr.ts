@@ -498,25 +498,81 @@ const tr: TranslationKeys = {
 
   // Giderler
   einvoice: {
-    title: "E-invoices (E-Rechnung)",
-    emit: "Emit",
-    emit_success: "E-invoice emitted ({{format}})",
+    title: "E-faturalar (E-Rechnung)",
+    emit: "Oluştur",
+    emit_success: "E-fatura oluşturuldu ({{format}})",
     emit_with_issues:
-      "E-invoice emitted with {{count}} validation error(s). Review company settings.",
+      "E-fatura {{count}} doğrulama hatasıyla oluşturuldu. Şirket ayarlarını kontrol edin.",
     issues_title: "Bu e-faturayı göndermeden önce kontrol edin:",
+    issue: {
+      invoice_number: "Fatura numarası gerekli.",
+      issue_date: "Fatura tarihi gerekli.",
+      seller_name: "Firma adınız gerekli.",
+      buyer_name: "Müşteri adı gerekli.",
+      seller_address: "Adresiniz gerekli (sokak, şehir).",
+      buyer_address: "Müşteri adresi gerekli.",
+      seller_vat_id:
+        "USt-IdNr (Alman KDV kimlik numaranız) eksik (Alman faturaları için önerilir).",
+      seller_vat_format:
+        '"{{vat_id}}" geçerli bir Alman KDV kimlik numarası (USt-IdNr) değil (beklenen biçim: DE123456789).',
+      seller_tax_number_format:
+        '"{{tax_number}}" bir Alman vergi numarasına (Steuernummer) benzemiyor (örn. 12/345/67890).',
+      buyer_vat_id:
+        "Müşteri Almanya dışında ({{country}}); AB içi B2B teslimlerde müşterinin KDV numarası gerekir (reverse charge, %0 KDV).",
+      buyer_vat_id_de:
+        "Müşterinin USt-IdNr'si eksik (alıcının e-faturayı işlemesini kolaylaştırır).",
+      buyer_siren_fr:
+        "Müşterinin SIREN numarası eksik (Fransız şirketlerine e-fatura göndermek için gerekli).",
+      kleinunternehmer_vat:
+        "Kleinunternehmer (§ 19 UStG) olarak ayarlısınız, ancak faturada KDV var.",
+      franchise_fr_vat:
+        "Franchise en base (art. 293 B CGI) olarak ayarlısınız, ancak faturada KDV var.",
+      reverse_charge_vat: "Reverse charge faturalarında KDV alınmaz (%0 oranını kullanın).",
+      tax_category:
+        '"{{category}}" vergi kategorisi geçerli bir EN 16931 kategorisi değil (S, AA, Z, E, AE, … kullanın).',
+      monetary_subtotal: "Kalemlerden gelen vergi matrahı belgenin ara toplamıyla uyuşmuyor.",
+      monetary_tax:
+        "Vergi dökümü ({{breakdown}}) belgenin vergi toplamıyla ({{tax_total}}) uyuşmuyor.",
+      monetary_total: "Toplam ({{total}}), matrah artı vergiye ({{expected}}) eşit değil.",
+      currency: "Fatura para birimi gerekli.",
+      seller_country: "Ülkeniz gerekli (Ayarlar → E-fatura). [BR-9]",
+      buyer_country: "Müşterinin ülkesi gerekli. [BR-11]",
+      seller_tax_registration:
+        "USt-IdNr veya Steuernummer bilginizi ekleyin (Ayarlar). [BR-S-02, BR-E-02, BR-CO-26]",
+      payment_due: "Faturaya bir vade tarihi veya ödeme koşulları ekleyin. [BR-CO-25]",
+      payment_iban: "Ayarlarda IBAN yok, bu yüzden e-fatura havale için banka bilgisi içermiyor.",
+      reverse_charge_vat_ids:
+        "Reverse charge için sizin USt-IdNr'niz ve müşterinin KDV numarası gerekir. [BR-AE-02]",
+      not_subject_mixed:
+        "KDV'ye tabi olmayan kalemler (kategori O) diğer KDV kategorileriyle aynı faturada yer alamaz. Bunları ayrı bir faturayla kesin. [BR-O-11]",
+      not_subject_tax_number:
+        "KDV'ye tabi olmayan bir fatura (kategori O) USt-IdNr'nizi taşıyamaz, bu yüzden Steuernummer bilginiz gerekir (Ayarlar). [BR-O-02, BR-CO-26]",
+      intra_community_delivery:
+        "AB içi teslim (kategori K) bir teslim tarihi ve teslim ülkesi gerektirir; Inkvoice bunları henüz kaydedemiyor, bu yüzden bu e-fatura doğrulamadan geçmez. [BR-IC-11, BR-IC-12]",
+      en16931_totals:
+        "Kayıtlı toplamlar EN 16931'in istediği şekilde tutmuyor (indirimli tutar üzerinden KDV). Yeniden hesaplamak için faturayı açıp tekrar kaydedin.",
+      xr_seller_city_postcode:
+        "XRechnung için posta kodunuz ve şehriniz gerekli (Ayarlar → E-fatura). [BR-DE-3, BR-DE-4]",
+      xr_seller_phone: "XRechnung için telefon numaranız gerekli (Ayarlar). [BR-DE-6]",
+      xr_seller_email: "XRechnung için e-posta adresiniz gerekli (Ayarlar). [BR-DE-7]",
+      xr_buyer_city_postcode:
+        "XRechnung için müşterinin posta kodu ve şehri gerekli. [BR-DE-8, BR-DE-9]",
+      xr_buyer_address:
+        "XRechnung için müşterinin Leitweg-ID'si veya e-posta adresi gerekli. [PEPPOL-EN16931-R010]",
+    },
     draft_hint:
       "Önce faturayı gönderildi olarak işaretleyin (veya gönderin): e-fatura kesin numarasına ihtiyaç duyar.",
-    loading: "Loading…",
-    no_records: "No e-invoices emitted for this invoice yet.",
-    format: "Format",
-    emitted_at: "Emitted at",
-    download: "Download",
-    download_xml: "Download XML",
-    download_pdf: "Download hybrid PDF (ZUGFeRD)",
-    delete_record: "Delete e-invoice record",
+    loading: "Yükleniyor…",
+    no_records: "Bu fatura için henüz e-fatura oluşturulmadı.",
+    format: "Biçim",
+    emitted_at: "Oluşturulma",
+    download: "İndir",
+    download_xml: "XML indir",
+    download_pdf: "Hibrit PDF'i indir (ZUGFeRD)",
+    delete_record: "E-fatura kaydını sil",
     delete_record_desc:
-      "This removes the stored XML/PDF for this revision. Emitted invoices should normally be kept for tax archiving (8 years, §147 AO).",
-    record_deleted: "E-invoice record deleted",
+      "Bu revizyonun kayıtlı XML/PDF dosyasını kaldırır. Oluşturulan faturalar normalde vergi arşivi için saklanmalıdır (8 yıl, §147 AO).",
+    record_deleted: "E-fatura kaydı silindi",
     inbox_title: "Inbox (incoming e-invoices)",
     import: "Import",
     tab_all: "All",
@@ -1236,6 +1292,7 @@ const tr: TranslationKeys = {
     to: "Kime",
     subject: "Konu",
     subject_hint: "Varsayılanı kullanmak için boş bırakın",
+    subject_placeholder: "Boş bırakılırsa otomatik oluşturulur",
     message: "Mesaj",
     message_hint: "E-postaya dahil edilecek isteğe bağlı mesaj",
     send: "Gönder",
@@ -1247,9 +1304,14 @@ const tr: TranslationKeys = {
     from_hint: "Gönderen adresini geçersiz kıl (varsayılan SMTP ayarı)",
     reply_to: "Yanıt Adresi",
     reply_to_hint: "Müşteri yanıtlarının gideceği adres",
-    attach_einvoice: "E-faturayı ekle (ZUGFeRD hibrit PDF)",
-    attach_einvoice_hint:
-      "Etkinse, e-fatura ayarı açıkken otomatik olarak ZUGFeRD hibrit PDF eklenir",
+    attach_einvoice: "E-faturayı ekle ({{format}})",
+    attach_einvoice_hint: "İşaretliyse bu dosya e-postaya eklenir",
+    einvoice_file: {
+      zugferd_pdf: "ZUGFeRD hibrit PDF",
+      zugferd_xml: "ZUGFeRD XML",
+      xrechnung_xml: "XRechnung XML",
+      peppol_xml: "PEPPOL BIS XML",
+    },
     einvoice_errors_title: "E-faturada hatalar var",
     einvoice_errors_hint:
       "Müşteriniz doğrulamadan geçmeyen bir e-fatura alır. Önce bunları düzeltin ya da e-postayı e-fatura olmadan göndermek için işareti kaldırın.",

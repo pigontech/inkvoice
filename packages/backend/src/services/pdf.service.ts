@@ -5,6 +5,7 @@ import { cashDiscountDeadline, cashDiscountOn, hasCashDiscount } from "../utils/
 import { formatCurrency } from "../utils/currency";
 import { buildEpcPayload } from "../utils/epc-qr";
 import { escapeMultiline, inlineAddress } from "../utils/html";
+import { localizePaymentTerms } from "../utils/payment-terms";
 import { qrToDataUri } from "../utils/qr-code";
 import { type StoredTaxLine, taxByRate } from "../utils/tax-calculator";
 import { getInvoice } from "./invoice.service";
@@ -310,7 +311,7 @@ export function buildInvoiceContext(invoiceId: string) {
       reference: p.reference,
       formatted_amount: formatCurrency(p.amount, currency, numberFormat, localeOverride),
     })),
-    payment_terms: invoice.payment_terms,
+    payment_terms: localizePaymentTerms(invoice.payment_terms, locale),
     notes: invoice.notes,
     currency,
   };

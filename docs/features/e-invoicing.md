@@ -94,17 +94,26 @@ What the output contains:
 
 ```http
 POST /api/v1/invoices/:id/einvoice/emit
+GET  /api/v1/invoices/:id/einvoice/check
 GET  /api/v1/invoices/:id/einvoices
 GET  /api/v1/invoices/:id/einvoices/:recordId/xml
 GET  /api/v1/invoices/:id/einvoices/:recordId/pdf
 DELETE /api/v1/invoices/:id/einvoices/:recordId
 ```
 
+Emit returns the validation `issues`, each with a stable `code`, an English `message` and,
+when the message quotes a value, `params` holding those values. The app shows each issue in
+the user's language by its code. `GET …/einvoice/check` returns the same issues without
+creating an e-invoice, plus the format and the file an email would attach:
+`{ "format": "xrechnung-ubl", "file": "xml", "issues": [...] }` (`file` is `pdf`, `xml`, or
+`null` when the format can't be emitted).
+
 ## Sending by email
 
 When the module is enabled, **Send** on an invoice emits the e-invoice and attaches it to the
 email automatically: a **ZUGFeRD hybrid PDF** for `zugferd`, the **raw XML** for XRechnung.
-Per-email control lives in the send dialog (Advanced → "Attach e-invoice"), and the global
+Per-email control lives in the send dialog (Advanced → "Attach e-invoice"), which names the
+file this customer gets (for example XRechnung XML when they have a Leitweg-ID), and the global
 switch is the module toggle itself.
 
 ## Inbox (receiving)

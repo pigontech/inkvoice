@@ -1,5 +1,6 @@
 import { getDb } from "../database/connection";
 import { getAllSettings } from "../services/settings.service";
+import { localizePaymentTerms } from "../utils/payment-terms";
 import { taxByRate } from "../utils/tax-calculator";
 import type { XmlInvoiceData, XmlLineItem, XmlTaxBreakdown } from "./types";
 
@@ -15,7 +16,7 @@ export function buildXmlInvoiceData(invoiceId: string): XmlInvoiceData {
            c.einvoice_format as customer_einvoice_format, c.leitweg_id as customer_leitweg_id,
            c.einvoice_receiver_id as customer_einvoice_receiver_id,
            c.einvoice_receiver_scheme as customer_einvoice_receiver_scheme,
-           c.siren as customer_siren, c.siret as customer_siret
+           c.siren as customer_siren, c.siret as customer_siret, c.language as customer_language
     FROM invoices i
     LEFT JOIN customers c ON i.customer_id = c.id
     WHERE i.id = ?
@@ -92,7 +93,11 @@ export function buildXmlInvoiceData(invoiceId: string): XmlInvoiceData {
     locale: invoice.locale as string | null,
     type: (invoice.type as "invoice" | "credit_note") || "invoice",
     notes: (invoice.notes as string) || null,
-    payment_terms: (invoice.payment_terms as string) || null,
+    // In the invoice's language, chosen as for the PDF: invoice > customer > workspace.
+    payment_terms: localizePaymentTerms(
+      invoice.payment_terms as string | null,
+      (invoice.locale as string) || (invoice.customer_language as string) || settings.locale,
+    ),
     subtotal: Number(invoice.subtotal) || 0,
     tax_total: Number(invoice.tax_total) || 0,
     discount_amount: Number(invoice.discount_amount) || 0,

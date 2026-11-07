@@ -503,6 +503,63 @@ const en = {
     emit_with_issues:
       "E-invoice emitted with {{count}} validation error(s). Review company settings.",
     issues_title: "Check before sending this e-invoice:",
+    // Validator issues by `code` (backend einvoice-validator.service.ts); the
+    // English wording matches the API's `message`, which stays the fallback.
+    issue: {
+      invoice_number: "Rechnungsnummer (invoice number) is required.",
+      issue_date: "Invoice date is required.",
+      seller_name: "Seller name is required.",
+      buyer_name: "Buyer name is required.",
+      seller_address: "Seller address is required (street, city).",
+      buyer_address: "Buyer address is required.",
+      seller_vat_id: "USt-IdNr of the seller is missing (recommended for German invoices).",
+      seller_vat_format:
+        'USt-IdNr "{{vat_id}}" is not a valid German VAT ID (expected format DE123456789).',
+      seller_tax_number_format:
+        'Steuernummer "{{tax_number}}" does not look like a German tax number (e.g. 12/345/67890).',
+      buyer_vat_id:
+        "Buyer is in {{country}}; for intra-community B2B supplies the buyer VAT ID is required (reverse charge, 0% VAT).",
+      buyer_vat_id_de: "Buyer USt-IdNr is missing (helps your recipient process the e-invoice).",
+      buyer_siren_fr:
+        "Buyer SIREN is missing (required to deliver e-invoices to French businesses).",
+      kleinunternehmer_vat:
+        "The seller is flagged as Kleinunternehmer (§ 19 UStG) but the invoice carries VAT.",
+      franchise_fr_vat:
+        "The seller is flagged as franchise en base (art. 293 B CGI) but the invoice carries VAT.",
+      reverse_charge_vat: "Reverse charge invoices must not charge VAT (use the 0% rate).",
+      tax_category:
+        'Tax category "{{category}}" is not a valid EN 16931 category (use S, AA, Z, E, AE, …).',
+      monetary_subtotal: "Tax basis from line items does not match the document subtotal.",
+      monetary_tax:
+        "Tax breakdown ({{breakdown}}) does not match document tax total ({{tax_total}}).",
+      monetary_total: "Total ({{total}}) does not equal taxable amount + tax ({{expected}}).",
+      currency: "Invoice currency is required.",
+      seller_country: "Your country is required (Settings → E-invoicing). [BR-9]",
+      buyer_country: "The customer's country is required. [BR-11]",
+      seller_tax_registration:
+        "Add your USt-IdNr or your Steuernummer (Settings). [BR-S-02, BR-E-02, BR-CO-26]",
+      payment_due: "Set a due date or payment terms on the invoice. [BR-CO-25]",
+      payment_iban:
+        "No IBAN in Settings, so the e-invoice carries no bank details for the transfer.",
+      reverse_charge_vat_ids:
+        "Reverse charge needs your USt-IdNr and the customer's VAT ID. [BR-AE-02]",
+      not_subject_mixed:
+        "Lines not subject to VAT (category O) can't share an invoice with other VAT categories. Bill them on a separate invoice. [BR-O-11]",
+      not_subject_tax_number:
+        "An invoice not subject to VAT (category O) can't carry your USt-IdNr, so it needs your Steuernummer (Settings). [BR-O-02, BR-CO-26]",
+      intra_community_delivery:
+        "An intra-community supply (category K) needs a delivery date and a delivery country, which Inkvoice can't record yet, so this e-invoice won't pass validation. [BR-IC-11, BR-IC-12]",
+      en16931_totals:
+        "The stored totals do not add up as EN 16931 requires (VAT on a discount). Open the invoice and save it again to recalculate.",
+      xr_seller_city_postcode:
+        "XRechnung needs your postcode and city (Settings → E-invoicing). [BR-DE-3, BR-DE-4]",
+      xr_seller_phone: "XRechnung needs your phone number (Settings). [BR-DE-6]",
+      xr_seller_email: "XRechnung needs your email address (Settings). [BR-DE-7]",
+      xr_buyer_city_postcode:
+        "XRechnung needs the customer's postcode and city. [BR-DE-8, BR-DE-9]",
+      xr_buyer_address:
+        "XRechnung needs the customer's Leitweg-ID or email address. [PEPPOL-EN16931-R010]",
+    },
     draft_hint:
       "Mark the invoice as sent (or send it) first: the e-invoice needs its final number.",
     loading: "Loading…",
@@ -1234,6 +1291,7 @@ const en = {
     to: "To",
     subject: "Subject",
     subject_hint: "Leave blank to use default",
+    subject_placeholder: "Auto-generated if empty",
     message: "Message",
     message_hint: "Optional message included in the email",
     send: "Send",
@@ -1245,9 +1303,15 @@ const en = {
     from_hint: "Override the sender address (defaults to SMTP setting)",
     reply_to: "Reply-To",
     reply_to_hint: "Where customer replies should go",
-    attach_einvoice: "Attach e-invoice (ZUGFeRD hybrid PDF)",
-    attach_einvoice_hint:
-      "When enabled, a ZUGFeRD hybrid PDF is attached automatically if the e-invoice setting is on",
+    attach_einvoice: "Attach e-invoice ({{format}})",
+    attach_einvoice_hint: "When checked, this file is attached to the email",
+    // The file an email attaches, by the customer's resolved e-invoice format.
+    einvoice_file: {
+      zugferd_pdf: "ZUGFeRD hybrid PDF",
+      zugferd_xml: "ZUGFeRD XML",
+      xrechnung_xml: "XRechnung XML",
+      peppol_xml: "PEPPOL BIS XML",
+    },
     einvoice_errors_title: "The e-invoice has errors",
     einvoice_errors_hint:
       "Your customer would get an e-invoice that fails validation. Fix these first, or untick the box to send the email without it.",

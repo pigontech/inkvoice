@@ -29,6 +29,7 @@ import { SendInvoiceDialog } from "@/components/invoices/SendInvoiceDialog";
 import { TransmissionPanel } from "@/components/invoices/TransmissionPanel";
 import { Breadcrumbs } from "@/components/shared/Breadcrumbs";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { paymentTermsLabel } from "@/components/shared/PaymentTermsPicker";
 import { TagInput } from "@/components/shared/TagInput";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -598,7 +599,7 @@ export default function InvoiceView({ onBack }: Props) {
             {invoice.payment_terms && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t("invoices.payment_terms")}</span>
-                <span>{invoice.payment_terms}</span>
+                <span>{paymentTermsLabel(invoice.payment_terms, t)}</span>
               </div>
             )}
           </CardContent>

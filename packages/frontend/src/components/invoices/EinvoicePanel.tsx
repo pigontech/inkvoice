@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { useCan } from "@/hooks/use-can";
 import { useTranslation } from "@/i18n";
+import { type EinvoiceIssue, einvoiceIssueText } from "@/lib/einvoice-issues";
 import { formatApiError } from "@/lib/format-api-error";
 import { formatDate } from "@/lib/utils";
 
@@ -49,7 +50,7 @@ function EinvoicePanel({ invoiceId, draft = false }: Props) {
   const [emitting, setEmitting] = useState(false);
   const [deleting, setDeleting] = useState<EinvoiceRecord | null>(null);
   // Issues from the last emit, so the user sees what to fix.
-  const [issues, setIssues] = useState<{ severity: string; code: string; message: string }[]>([]);
+  const [issues, setIssues] = useState<EinvoiceIssue[]>([]);
 
   const load = useCallback(() => {
     api.listEinvoiceRecords(invoiceId).then((r) => {
@@ -67,7 +68,7 @@ function EinvoicePanel({ invoiceId, draft = false }: Props) {
     try {
       const r = await api.emitEinvoice(invoiceId);
       if (!r.success) throw new Error("emit failed");
-      const found: { severity: string; code: string; message: string }[] = r.data?.issues || [];
+      const found: EinvoiceIssue[] = r.data?.issues || [];
       setIssues(found);
       const errors = found.filter((i) => i.severity === "error");
       if (errors.length) {
@@ -132,7 +133,7 @@ function EinvoicePanel({ invoiceId, draft = false }: Props) {
                       : "text-amber-600 dark:text-amber-400"
                   }
                 >
-                  {issue.message}
+                  {einvoiceIssueText(issue, t)}
                 </li>
               ))}
             </ul>

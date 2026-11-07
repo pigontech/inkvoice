@@ -5,8 +5,12 @@ export type EinvoiceSeverity = "error" | "warning";
 
 export interface EinvoiceIssue {
   severity: EinvoiceSeverity;
+  /** Stable id; the app shows the message translated by this code. */
   code: string;
+  /** English text, for API clients and codes the app has no translation for. */
   message: string;
+  /** The values inside `message`, so a client can word it in another language. */
+  params?: Record<string, string>;
 }
 
 /**
@@ -62,6 +66,7 @@ export function validateEinvoice(data: XmlInvoiceData, format?: string): Einvoic
       error(
         "seller_vat_format",
         `USt-IdNr "${data.supplier.tax_id}" is not a valid German VAT ID (expected format DE123456789).`,
+        { vat_id: data.supplier.tax_id },
       ),
     );
   }
@@ -76,6 +81,7 @@ export function validateEinvoice(data: XmlInvoiceData, format?: string): Einvoic
       warning(
         "seller_tax_number_format",
         `Steuernummer "${data.supplier.tax_number}" does not look like a German tax number (e.g. 12/345/67890).`,
+        { tax_number: data.supplier.tax_number },
       ),
     );
   }
@@ -88,6 +94,7 @@ export function validateEinvoice(data: XmlInvoiceData, format?: string): Einvoic
       warning(
         "buyer_vat_id",
         `Buyer is in ${buyerCountry}; for intra-community B2B supplies the buyer VAT ID is required (reverse charge, 0% VAT).`,
+        { country: buyerCountry },
       ),
     );
   }
@@ -146,6 +153,7 @@ export function validateEinvoice(data: XmlInvoiceData, format?: string): Einvoic
         error(
           "tax_category",
           `Tax category "${tax.category_code}" is not a valid EN 16931 category (use S, AA, Z, E, AE, …).`,
+          { category: tax.category_code },
         ),
       );
     }
@@ -169,6 +177,7 @@ export function validateEinvoice(data: XmlInvoiceData, format?: string): Einvoic
       error(
         "monetary_tax",
         `Tax breakdown (${taxBreakdownSum.toFixed(2)}) does not match document tax total (${data.tax_total.toFixed(2)}).`,
+        { breakdown: taxBreakdownSum.toFixed(2), tax_total: data.tax_total.toFixed(2) },
       ),
     );
   }
@@ -180,6 +189,7 @@ export function validateEinvoice(data: XmlInvoiceData, format?: string): Einvoic
         `Total (${data.total.toFixed(
           2,
         )}) does not equal taxable amount + tax (${computedTotal.toFixed(2)}).`,
+        { total: data.total.toFixed(2), expected: computedTotal.toFixed(2) },
       ),
     );
   }
@@ -318,10 +328,10 @@ function xrechnungChecks(data: XmlInvoiceData): EinvoiceIssue[] {
   return issues;
 }
 
-function error(code: string, message: string): EinvoiceIssue {
-  return { severity: "error", code, message };
+function error(code: string, message: string, params?: Record<string, string>): EinvoiceIssue {
+  return { severity: "error", code, message, ...(params && { params }) };
 }
 
-function warning(code: string, message: string): EinvoiceIssue {
-  return { severity: "warning", code, message };
+function warning(code: string, message: string, params?: Record<string, string>): EinvoiceIssue {
+  return { severity: "warning", code, message, ...(params && { params }) };
 }

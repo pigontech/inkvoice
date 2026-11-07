@@ -615,8 +615,9 @@ invoices.post("/:id/einvoice/emit", requirePermission("invoices", "publish"), as
   }
 });
 
-// What the e-invoice would be missing, without creating one. The send dialog
-// uses it to warn before an e-invoice with errors goes out.
+// What the e-invoice would be missing, without creating one, and which file an
+// email would attach. The send dialog uses it to warn before an e-invoice with
+// errors goes out and to name the file.
 invoices.get("/:id/einvoice/check", requirePermission("invoices", "read"), (c) => {
   const id = c.req.param("id");
   const exists = getDb()

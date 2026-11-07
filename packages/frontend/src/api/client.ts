@@ -1,3 +1,5 @@
+import type { EinvoiceIssue } from "@/lib/einvoice-issues";
+
 const API_BASE = "/api/v1";
 
 let authToken: string | null = null;
@@ -217,7 +219,7 @@ export const api = {
   checkEinvoice: (id: string) =>
     request<{
       success: boolean;
-      data: { format: string; issues: { severity: string; code: string; message: string }[] };
+      data: { format: string; file: "pdf" | "xml" | null; issues: EinvoiceIssue[] };
     }>(`/invoices/${id}/einvoice/check`),
   listEinvoiceRecords: (id: string) =>
     request<{ success: boolean; data: any[] }>(`/invoices/${id}/einvoices`),

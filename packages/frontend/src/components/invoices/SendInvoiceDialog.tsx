@@ -15,6 +15,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useTranslation } from "@/i18n";
+import { type EinvoiceIssue, einvoiceIssueText } from "@/lib/einvoice-issues";
 import { formatApiError } from "@/lib/format-api-error";
 import { useSettingsStore } from "@/stores/settings.store";
 
@@ -27,6 +28,14 @@ interface Props {
   onSuccess: () => void;
   type?: "invoice" | "quote";
 }
+
+// `send_dialog.einvoice_file.*` key per "<format>:<file>" the backend plans to attach.
+const EINVOICE_FILE_KEYS: Record<string, string> = {
+  "zugferd:pdf": "zugferd_pdf",
+  "zugferd:xml": "zugferd_xml",
+  "xrechnung-ubl:xml": "xrechnung_xml",
+  "peppol:xml": "peppol_xml",
+};
 
 export function SendInvoiceDialog({
   open,
@@ -46,29 +55,41 @@ export function SendInvoiceDialog({
   const [replyTo, setReplyTo] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [attachEinvoice, setAttachEinvoice] = useState(true);
-  const [einvoiceErrors, setEinvoiceErrors] = useState<{ code: string; message: string }[]>([]);
+  const [einvoiceErrors, setEinvoiceErrors] = useState<EinvoiceIssue[]>([]);
+  // The file this email would carry (the format follows the customer, e.g. a
+  // Leitweg-ID means XRechnung); null hides the option, nothing would attach.
+  const [einvoiceFile, setEinvoiceFile] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   // Warn before an e-invoice with errors goes out with the email.
   useEffect(() => {
     if (!open || type !== "invoice" || !einvoiceEnabled) {
       setEinvoiceErrors([]);
+      setEinvoiceFile(null);
       return;
     }
     let cancelled = false;
     api
       .checkEinvoice(invoiceId)
       .then((r) => {
-        if (!cancelled) setEinvoiceErrors(r.data.issues.filter((i) => i.severity === "error"));
+        if (cancelled) return;
+        setEinvoiceErrors(r.data.issues.filter((i) => i.severity === "error"));
+        setEinvoiceFile(EINVOICE_FILE_KEYS[`${r.data.format}:${r.data.file}`] ?? null);
       })
       .catch(() => {
-        if (!cancelled) setEinvoiceErrors([]);
+        if (cancelled) return;
+        setEinvoiceErrors([]);
+        setEinvoiceFile(null);
       });
     return () => {
       cancelled = true;
     };
   }, [open, type, einvoiceEnabled, invoiceId]);
-  const einvoiceWarning = type === "invoice" && einvoiceEnabled && einvoiceErrors.length > 0;
+  const showEinvoice = type === "invoice" && einvoiceEnabled && einvoiceFile !== null;
+  const einvoiceWarning = showEinvoice && einvoiceErrors.length > 0;
+  const attachLabel = t("send_dialog.attach_einvoice", {
+    format: t(`send_dialog.einvoice_file.${einvoiceFile}`),
+  });
 
   const handleSubmit = async () => {
     if (!to) {
@@ -119,7 +140,7 @@ export function SendInvoiceDialog({
             <Input
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="Auto-generated if empty"
+              placeholder={t("send_dialog.subject_placeholder")}
             />
           </FormField>
           <FormField label={t("send_dialog.message")} hint={t("send_dialog.message_hint")}>
@@ -138,7 +159,7 @@ export function SendInvoiceDialog({
               <p className="font-medium">{t("send_dialog.einvoice_errors_title")}</p>
               <ul className="mt-1 space-y-1 text-destructive">
                 {einvoiceErrors.map((issue) => (
-                  <li key={issue.code}>{issue.message}</li>
+                  <li key={issue.code}>{einvoiceIssueText(issue, t)}</li>
                 ))}
               </ul>
               <p className="mt-2 text-xs text-muted-foreground">
@@ -151,7 +172,7 @@ export function SendInvoiceDialog({
                   onCheckedChange={(checked) => setAttachEinvoice(checked === true)}
                 />
                 <label htmlFor="attach-einvoice-warning" className="font-medium">
-                  {t("send_dialog.attach_einvoice")}
+                  {attachLabel}
                 </label>
               </div>
             </div>
@@ -182,7 +203,7 @@ export function SendInvoiceDialog({
                   placeholder="support@example.com"
                 />
               </FormField>
-              {type === "invoice" && einvoiceEnabled && !einvoiceWarning && (
+              {showEinvoice && !einvoiceWarning && (
                 <div className="flex items-start gap-2 text-sm">
                   <Checkbox
                     id="attach-einvoice"
@@ -191,7 +212,7 @@ export function SendInvoiceDialog({
                     className="mt-0.5"
                   />
                   <label htmlFor="attach-einvoice">
-                    <span className="font-medium">{t("send_dialog.attach_einvoice")}</span>
+                    <span className="font-medium">{attachLabel}</span>
                     <span className="block text-xs text-muted-foreground">
                       {t("send_dialog.attach_einvoice_hint")}
                     </span>
