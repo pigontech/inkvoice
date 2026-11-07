@@ -398,7 +398,7 @@ const de: TranslationKeys = {
     country_iso: "Land (ISO)",
     country_hint: "2-Buchstaben-Code, z. B. US",
     select_country: "Land auswählen...",
-    tax_id: "Steuernummer",
+    tax_id: "USt-IdNr.",
     language: "Bevorzugte Sprache",
     language_hint:
       "Wird für Währung, Datumsangaben und Ländernamen auf den PDFs dieses Kunden verwendet.",
@@ -522,6 +522,9 @@ const de: TranslationKeys = {
     emit_success: "E-Rechnung erstellt ({{format}})",
     emit_with_issues:
       "E-Rechnung mit {{count}} Validierungsfehler(n) erstellt. Firmeneinstellungen prüfen.",
+    issues_title: "Vor dem Versand dieser E-Rechnung prüfen:",
+    draft_hint:
+      "Markieren Sie die Rechnung zuerst als versendet (oder senden Sie sie): Die E-Rechnung braucht die endgültige Rechnungsnummer.",
     loading: "Lädt…",
     no_records: "Für diese Rechnung wurden noch keine E-Rechnungen erstellt.",
     format: "Format",
@@ -877,7 +880,7 @@ const de: TranslationKeys = {
     email: "E-Mail",
     phone: "Telefon",
     address: "Adresse",
-    tax_id: "Steuernummer",
+    tax_id: "USt-IdNr.",
     bank_details: "Bankverbindung (PDF-Vorlagen)",
     bank_details_hint:
       "Wird auf Rechnungsvorlagen mit Bankdaten-Block angezeigt. Eine Zeile pro Feld genügt.",
@@ -922,6 +925,31 @@ const de: TranslationKeys = {
     einvoice_enabled_hint:
       "Zeigt das E-Rechnungs-Panel auf Rechnungen, den E-Rechnungs-Posteingang in der Seitenleiste und die E-Rechnungsfelder beim Kunden. Nur für die deutsche E-Rechnung (ZUGFeRD/XRechnung/PEPPOL) erforderlich.",
     einvoice_enabled_checkbox: "E-Rechnungsmodul aktivieren",
+    einvoice_details_hint:
+      "E-Rechnungen brauchen Ihre Anschrift in getrennten Feldern und eine Steuernummer oder USt-IdNr. Einmal ausfüllen, sie gelten für jede E-Rechnung.",
+    einvoice_street: "Straße und Hausnummer",
+    einvoice_postal_code: "PLZ",
+    einvoice_city: "Ort",
+    einvoice_country: "Land",
+    einvoice_select_country: "Land wählen",
+    einvoice_tax_number: "Steuernummer",
+    einvoice_tax_number_hint: "Vom Finanzamt. Nötig, wenn Sie keine USt-IdNr. haben.",
+    einvoice_format_label: "Standardformat",
+    einvoice_format_hint:
+      "Kunden mit Leitweg-ID erhalten immer XRechnung. Das Format lässt sich pro Kunde ändern.",
+    einvoice_format_zugferd: "ZUGFeRD (PDF mit eingebettetem XML)",
+    einvoice_format_xrechnung: "XRechnung (XML)",
+    einvoice_kleinunternehmer_label: "Kleinunternehmer (§ 19 UStG)",
+    einvoice_kleinunternehmer_checkbox: "Ich bin Kleinunternehmer und weise keine Umsatzsteuer aus",
+    tax_category: "Umsatzsteuerkategorie (E-Rechnung)",
+    tax_category_hint: "Pflichtangabe in E-Rechnungen. S gilt für 19 % und 7 %.",
+    tax_category_s: "Regelsatz oder ermäßigt (S)",
+    tax_category_z: "Nullsatz (Z)",
+    tax_category_e: "Steuerbefreit (E)",
+    tax_category_ae: "Reverse Charge, § 13b UStG (AE)",
+    tax_category_k: "Innergemeinschaftliche Lieferung (K)",
+    tax_category_g: "Ausfuhr aus der EU (G)",
+    tax_category_o: "Nicht steuerbar (O)",
 
     backup_description:
       "Laden Sie eine vollständige Sicherung Ihrer Daten herunter. JSON ist menschenlesbar und leicht zu prüfen; SQLite ist ein byteidentischer Snapshot, den Sie durch Ersetzen der Live-Datenbankdatei wiederherstellen können.",

@@ -1,21 +1,50 @@
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import fontkit from "@pdf-lib/fontkit";
 import {
   AFRelationship,
+  type Color,
   PDFDocument,
   type PDFFont,
+  PDFHexString,
+  PDFName,
   type PDFPage,
+  PDFString,
+  popGraphicsState,
+  pushGraphicsState,
   rgb,
-  StandardFonts,
+  setLineWidth,
+  setStrokingColor,
+  setTextRenderingMode,
+  TextRenderingMode,
 } from "pdf-lib";
 import { formatCurrency } from "../utils/currency";
 import type { XmlInvoiceData } from "../xml/types";
 
 // Lightweight A4 renderer for the ZUGFeRD hybrid PDF. It embeds the Factur-X
 // CII XML as an associated file (PDF/A-3 "Alternative" relationship) while the
-// visible page stays simple and dependency-free (pdf-lib, no headless Chrome).
-// The app's printable HTML templates are deliberately untouched: this PDF is
-// only produced per customer when e-invoice emission is enabled.
-// NOTE: standard (unembedded) fonts are used for zero footprint; strict
-// veraPDF runs may warn about unembedded fonts, ZUGFeRD consumers accept it.
+// visible page stays simple (pdf-lib, no headless Chrome). The app's printable
+// HTML templates are deliberately untouched: this PDF is only produced per
+// customer when e-invoice emission is enabled.
+// The file is PDF/A-3b, which ZUGFeRD and Factur-X require: the font is
+// embedded (a DejaVu Sans subset), an sRGB output intent is set, and the XMP
+// metadata carries the PDF/A identification plus the Factur-X extension schema
+// that tells readers where the XML is. Bold text is the same font drawn with a
+// thin outline, so only one font file ships.
+
+const ASSETS = join(import.meta.dir, "..", "assets", "einvoice");
+let fontBytes: Uint8Array | null = null;
+let iccBytes: Uint8Array | null = null;
+function assets(): { font: Uint8Array; icc: Uint8Array } {
+  fontBytes ??= new Uint8Array(readFileSync(join(ASSETS, "DejaVuSans.ttf")));
+  iccBytes ??= new Uint8Array(readFileSync(join(ASSETS, "sRGB2014.icc")));
+  return { font: fontBytes, icc: iccBytes };
+}
+
+/** File name and conformance level of the embedded XML (Factur-X 1.0 / ZUGFeRD 2.x). */
+export const FACTURX_FILE_NAME = "factur-x.xml";
+const FACTURX_LEVEL = "EN 16931";
 
 const PAGE_W = 595.28; // A4
 const PAGE_H = 841.89;
@@ -23,18 +52,21 @@ const MARGIN = 50;
 const WIDTH = PAGE_W - MARGIN * 2; // 495
 const TABLE_X = MARGIN;
 const TABLE_W = WIDTH;
-const META_X = 430;
+const RIGHT = PAGE_W - MARGIN; // right margin, 545
+const META_LABEL_X = RIGHT - 170;
 
 const INK = rgb(0.1, 0.1, 0.1);
 const MUTED = rgb(0.45, 0.45, 0.45);
 const FAINT = rgb(0.6, 0.6, 0.6);
 
 // Column x-offsets (from TABLE_X): pos, description, quantity, unit price, total
+// (quantity, unit price and total are right edges)
 const COL_POS = 0;
 const COL_DESC = 30;
-const COL_QTY = 345;
-const COL_PRICE = 415;
-const COL_TOTAL = 468;
+const COL_QTY = 315;
+const COL_PRICE = 405;
+const COL_TOTAL = TABLE_W;
+const TOTALS_LABEL = 285;
 
 interface EinvoicePdfInput {
   data: XmlInvoiceData;
@@ -57,20 +89,28 @@ export async function buildEinvoicePdf(input: EinvoicePdfInput): Promise<Einvoic
   const currency = data.currency || "EUR";
   const locale = data.locale && data.locale.startsWith("de") ? "de-DE" : "en-US";
 
-  const pdf = await PDFDocument.create();
-  pdf.setTitle(`${isCredit ? "Gutschrift" : "Rechnung"} ${data.invoice_number}`);
+  // PDF/A compares the Info dictionary with the XMP metadata, so both get the
+  // same values (dates to the second).
+  const created = new Date(Math.floor(Date.now() / 1000) * 1000);
+  const title = `${isCredit ? "Gutschrift" : "Rechnung"} ${data.invoice_number}`;
+  const subject = `${isCredit ? "Credit note" : "Invoice"} ${data.invoice_number}`;
+  const pdf = await PDFDocument.create({ updateMetadata: false });
+  pdf.setTitle(title);
+  pdf.setSubject(subject);
   pdf.setCreator("Inkvoice");
-  pdf.setSubject(`${isCredit ? "Credit note" : "Invoice"} ${data.invoice_number}`);
-  pdf.setCreationDate(new Date());
+  pdf.setProducer("Inkvoice");
+  pdf.setCreationDate(created);
+  pdf.setModificationDate(created);
 
-  const font = await pdf.embedFont(StandardFonts.Helvetica);
-  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  pdf.registerFontkit(fontkit);
+  const { font: ttf, icc } = assets();
+  const font = await pdf.embedFont(ttf, { subset: true });
   const page = pdf.addPage([PAGE_W, PAGE_H]);
 
   let y = PAGE_H - MARGIN;
 
   // ---------- Seller block (left) ----------
-  text(page, String(data.supplier.name || "").toUpperCase(), 13, MARGIN, y, bold, INK);
+  text(page, String(data.supplier.name || "").toUpperCase(), 13, MARGIN, y, font, INK, true);
   y -= 17;
   const sellerAddr = [
     data.supplier.address,
@@ -91,7 +131,7 @@ export async function buildEinvoicePdf(input: EinvoicePdfInput): Promise<Einvoic
   if (taxLines.length) y = lines(page, taxLines.join("\n"), 9, MARGIN, y, font, MUTED, 12);
 
   // ---------- Document meta (right) ----------
-  right(page, isCredit ? "GUTSCHRIFT" : "RECHNUNG", 18, META_X, PAGE_H - MARGIN, bold, INK);
+  right(page, isCredit ? "GUTSCHRIFT" : "RECHNUNG", 18, RIGHT, PAGE_H - MARGIN, font, INK, true);
   const meta: Array<[string, string]> = [
     [isCredit ? "Gutschrift-Nr." : "Rechnungs-Nr.", data.invoice_number],
     ["Datum", fmtDate(data.issue_date)],
@@ -100,8 +140,8 @@ export async function buildEinvoicePdf(input: EinvoicePdfInput): Promise<Einvoic
   ];
   let metaY = PAGE_H - MARGIN - 28;
   for (const [label, value] of meta) {
-    right(page, label, 8, META_X - 30, metaY, font, MUTED);
-    right(page, value, 9, META_X, metaY, font, INK);
+    text(page, label, 8, META_LABEL_X, metaY, font, MUTED);
+    right(page, value, 9, RIGHT, metaY, font, INK);
     metaY -= 15;
   }
 
@@ -112,6 +152,7 @@ export async function buildEinvoicePdf(input: EinvoicePdfInput): Promise<Einvoic
     data.customer.address_line2,
     [data.customer.postal_code, data.customer.city].filter(Boolean).join(" "),
     data.customer.country,
+    data.customer.tax_id && `USt-IdNr.: ${data.customer.tax_id}`,
   ].filter(Boolean);
 
   const buyerTop = Math.min(y, metaY + 15) - 26;
@@ -140,21 +181,21 @@ export async function buildEinvoicePdf(input: EinvoicePdfInput): Promise<Einvoic
 
   for (const it of items) {
     text(page, it.no, 9, MARGIN + COL_POS, tableY, font, INK);
-    const descLines = wrapText(page, it.desc, font, 9, COL_QTY - COL_DESC - 6);
+    const descLines = wrapText(page, it.desc, font, 9, COL_QTY - COL_DESC - 45);
     const descCount = descLines.split("\n").length;
-    const rowBottom = tableY - descCount * 12;
     lines(page, descLines, 9, MARGIN + COL_DESC, tableY, font, INK, 12);
-    right(page, it.qty, 9, MARGIN + COL_QTY, rowBottom, font, INK);
-    right(page, it.price, 9, MARGIN + COL_PRICE, rowBottom, font, INK);
-    right(page, it.total, 9, MARGIN + COL_TOTAL, rowBottom, font, INK);
-    tableY = rowBottom - 8;
+    // Numbers sit on the first line of the description.
+    right(page, it.qty, 9, MARGIN + COL_QTY, tableY, font, INK);
+    right(page, it.price, 9, MARGIN + COL_PRICE, tableY, font, INK);
+    right(page, it.total, 9, MARGIN + COL_TOTAL, tableY, font, INK);
+    tableY -= descCount * 12 + 8;
   }
 
   // ---------- Totals ----------
-  const taxRows: Array<[string, string]> = data.tax_breakdown.map((tax) => [
-    taxLabel(tax),
-    fmtMoney(tax.tax_amount, currency, locale),
-  ]);
+  // A Kleinunternehmer charges no VAT; the § 19 note below says so instead.
+  const taxRows: Array<[string, string]> = data.kleinunternehmer
+    ? []
+    : data.tax_breakdown.map((tax) => [taxLabel(tax), fmtMoney(tax.tax_amount, currency, locale)]);
 
   tableY -= 8;
   tableY = drawTotals(page, font, tableY, [
@@ -166,7 +207,7 @@ export async function buildEinvoicePdf(input: EinvoicePdfInput): Promise<Einvoic
   ]);
   tableY = drawTotal(
     page,
-    bold,
+    font,
     tableY,
     isCredit ? "Gutschrift gesamt" : "Gesamtbetrag",
     fmtMoney(data.total, currency, locale),
@@ -188,7 +229,11 @@ export async function buildEinvoicePdf(input: EinvoicePdfInput): Promise<Einvoic
   }
 
   // ---------- Notes / payment terms ----------
+  const reverseCharge = data.tax_breakdown.some(
+    (t) => (t.category_code || "").toUpperCase() === "AE",
+  );
   const notes = [
+    reverseCharge && "Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge).",
     data.payment_terms && `Zahlungsbedingungen: ${data.payment_terms}`,
     data.notes,
     data.supplier.bank_details,
@@ -220,13 +265,121 @@ export async function buildEinvoicePdf(input: EinvoicePdfInput): Promise<Einvoic
   );
 
   // ---------- Embed Factur-X XML (PDF/A-3 associated file) ----------
-  await pdf.attach(utf8Bytes(facturXml), input.xmlFileName || "factur-x.xml", {
+  const xmlFileName = input.xmlFileName || FACTURX_FILE_NAME;
+  await pdf.attach(utf8Bytes(facturXml), xmlFileName, {
     mimeType: "application/xml",
     description: `Factur-X ${isCredit ? "Gutschrift" : "Rechnung"} ${data.invoice_number}`,
+    creationDate: created,
+    modificationDate: created,
     afRelationship: AFRelationship.Alternative,
   });
 
+  makePdfA3(pdf, { title, subject, created, icc, xmlFileName, fingerprint: facturXml });
+
   return { pdfBytes: await pdf.save(), pdfName: input.pdfName || `${data.invoice_number}.pdf` };
+}
+
+// ---------- PDF/A-3b + Factur-X metadata ----------
+
+function makePdfA3(
+  pdf: PDFDocument,
+  meta: {
+    title: string;
+    subject: string;
+    created: Date;
+    icc: Uint8Array;
+    xmlFileName: string;
+    fingerprint: string;
+  },
+): void {
+  const ctx = pdf.context;
+
+  // Output intent: device RGB colours are interpreted as sRGB.
+  const iccRef = ctx.register(ctx.flateStream(meta.icc, { N: 3 }));
+  const intent = ctx.obj({
+    Type: "OutputIntent",
+    S: "GTS_PDFA1",
+    OutputConditionIdentifier: PDFString.of("sRGB IEC61966-2.1"),
+    Info: PDFString.of("sRGB IEC61966-2.1"),
+    DestOutputProfile: iccRef,
+  });
+  pdf.catalog.set(PDFName.of("OutputIntents"), ctx.obj([ctx.register(intent)]));
+
+  // XMP metadata, uncompressed as PDF/A requires.
+  const xmp = new TextEncoder().encode(buildXmp(meta));
+  const metadata = ctx.stream(xmp, { Type: "Metadata", Subtype: "XML", Length: xmp.length });
+  pdf.catalog.set(PDFName.of("Metadata"), ctx.register(metadata));
+
+  // PDF/A needs a file identifier in the trailer.
+  const id = createHash("sha256").update(meta.fingerprint).digest("hex").slice(0, 32);
+  ctx.trailerInfo.ID = ctx.obj([PDFHexString.of(id), PDFHexString.of(id)]);
+}
+
+function xmlText(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function buildXmp(meta: {
+  title: string;
+  subject: string;
+  created: Date;
+  xmlFileName: string;
+}): string {
+  const date = meta.created.toISOString().replace(/\.\d{3}Z$/, "Z");
+  const fxProperty = (name: string, description: string) => `
+              <rdf:li rdf:parseType="Resource">
+                <pdfaProperty:name>${name}</pdfaProperty:name>
+                <pdfaProperty:valueType>Text</pdfaProperty:valueType>
+                <pdfaProperty:category>external</pdfaProperty:category>
+                <pdfaProperty:description>${description}</pdfaProperty:description>
+              </rdf:li>`;
+  return `<?xpacket begin="\uFEFF" id="W5M0MpCehiHzreSzNTczkc9d"?>
+<x:xmpmeta xmlns:x="adobe:ns:meta/">
+  <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+    <rdf:Description rdf:about="" xmlns:pdfaid="http://www.aiim.org/pdfa/ns/id/">
+      <pdfaid:part>3</pdfaid:part>
+      <pdfaid:conformance>B</pdfaid:conformance>
+    </rdf:Description>
+    <rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/">
+      <dc:title><rdf:Alt><rdf:li xml:lang="x-default">${xmlText(meta.title)}</rdf:li></rdf:Alt></dc:title>
+      <dc:description><rdf:Alt><rdf:li xml:lang="x-default">${xmlText(meta.subject)}</rdf:li></rdf:Alt></dc:description>
+    </rdf:Description>
+    <rdf:Description rdf:about="" xmlns:xmp="http://ns.adobe.com/xap/1.0/">
+      <xmp:CreatorTool>Inkvoice</xmp:CreatorTool>
+      <xmp:CreateDate>${date}</xmp:CreateDate>
+      <xmp:ModifyDate>${date}</xmp:ModifyDate>
+      <xmp:MetadataDate>${date}</xmp:MetadataDate>
+    </rdf:Description>
+    <rdf:Description rdf:about="" xmlns:pdf="http://ns.adobe.com/pdf/1.3/">
+      <pdf:Producer>Inkvoice</pdf:Producer>
+    </rdf:Description>
+    <rdf:Description rdf:about="" xmlns:fx="urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#">
+      <fx:DocumentType>INVOICE</fx:DocumentType>
+      <fx:DocumentFileName>${xmlText(meta.xmlFileName)}</fx:DocumentFileName>
+      <fx:Version>1.0</fx:Version>
+      <fx:ConformanceLevel>${FACTURX_LEVEL}</fx:ConformanceLevel>
+    </rdf:Description>
+    <rdf:Description rdf:about=""
+        xmlns:pdfaExtension="http://www.aiim.org/pdfa/ns/extension/"
+        xmlns:pdfaSchema="http://www.aiim.org/pdfa/ns/schema#"
+        xmlns:pdfaProperty="http://www.aiim.org/pdfa/ns/property#">
+      <pdfaExtension:schemas>
+        <rdf:Bag>
+          <rdf:li rdf:parseType="Resource">
+            <pdfaSchema:schema>Factur-X PDFA Extension Schema</pdfaSchema:schema>
+            <pdfaSchema:namespaceURI>urn:factur-x:pdfa:CrossIndustryDocument:invoice:1p0#</pdfaSchema:namespaceURI>
+            <pdfaSchema:prefix>fx</pdfaSchema:prefix>
+            <pdfaSchema:property>
+              <rdf:Seq>${fxProperty("DocumentFileName", "The name of the embedded XML document")}${fxProperty("DocumentType", "The type of the hybrid document in capital letters, e.g. INVOICE or ORDER")}${fxProperty("Version", "The actual version of the standard applying to the embedded XML document")}${fxProperty("ConformanceLevel", "The conformance level of the embedded XML document")}
+              </rdf:Seq>
+            </pdfaSchema:property>
+          </rdf:li>
+        </rdf:Bag>
+      </pdfaExtension:schemas>
+    </rdf:Description>
+  </rdf:RDF>
+</x:xmpmeta>
+<?xpacket end="w"?>`;
 }
 
 // ---------- drawing helpers ----------
@@ -239,8 +392,21 @@ function text(
   y: number,
   font: PDFFont,
   color = INK,
+  strong = false,
 ): void {
+  if (!strong) {
+    page.drawText(txt, { x, y, size, font, color });
+    return;
+  }
+  // Bold: fill plus a thin outline in the text colour.
+  page.pushOperators(
+    pushGraphicsState(),
+    setTextRenderingMode(TextRenderingMode.FillAndOutline),
+    setLineWidth(size * 0.035),
+    setStrokingColor(color as Color),
+  );
   page.drawText(txt, { x, y, size, font, color });
+  page.pushOperators(popGraphicsState());
 }
 
 function right(
@@ -251,8 +417,9 @@ function right(
   y: number,
   font: PDFFont,
   color = INK,
+  strong = false,
 ): void {
-  page.drawText(txt, { x: rightX - font.widthOfTextAtSize(txt, size), y, size, font, color });
+  text(page, txt, size, rightX - font.widthOfTextAtSize(txt, size), y, font, color, strong);
 }
 
 function lines(
@@ -325,7 +492,7 @@ function drawTotals(
   rows: Array<[string, string]>,
 ): number {
   for (const [label, value] of rows) {
-    text(page, label, 9, MARGIN + COL_QTY - 20, y, font, INK);
+    text(page, label, 9, MARGIN + TOTALS_LABEL, y, font, INK);
     right(page, value, 9, MARGIN + COL_TOTAL, y, font, INK);
     y -= 13;
   }
@@ -340,17 +507,26 @@ function drawTotal(
   value: string,
   size: number,
 ): number {
-  text(page, label, size, MARGIN + COL_QTY - 20, y, bold, INK);
-  right(page, value, size, MARGIN + COL_TOTAL, y, bold, INK);
+  text(page, label, size, MARGIN + TOTALS_LABEL, y, bold, INK, true);
+  right(page, value, size, MARGIN + COL_TOTAL, y, bold, INK, true);
   return y - size - 4;
 }
 
 // ---------- formatting helpers ----------
 
 function taxLabel(tax: XmlInvoiceData["tax_breakdown"][number]): string {
-  if (tax.tax_rate === 0) return `${tax.tax_name || "MwSt."} (${tax.category_code || "Z"})`;
+  if (tax.tax_rate === 0) {
+    const zero: Record<string, string> = {
+      E: "Steuerbefreit",
+      AE: "Reverse Charge",
+      K: "Steuerfreie innergem. Lieferung",
+      G: "Steuerfreie Ausfuhr",
+      O: "Nicht steuerbar",
+    };
+    return zero[(tax.category_code || "").toUpperCase()] || "Umsatzsteuer 0 %";
+  }
   const rate = tax.tax_rate % 1 === 0 ? tax.tax_rate.toFixed(0) : tax.tax_rate.toFixed(2);
-  return `${tax.tax_name || "Umsatzsteuer"} ${rate}%`;
+  return `Umsatzsteuer ${rate} %`;
 }
 
 function fmtDate(iso: string): string {

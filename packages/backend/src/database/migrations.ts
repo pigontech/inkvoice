@@ -1154,6 +1154,16 @@ const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    version: 34,
+    name: "vat_category_reduced_rate",
+    up: (db) => {
+      // The German 7 % preset was seeded with VAT category "AA", which is not
+      // in the EN 16931 code list, so e-invoices with it failed validation
+      // (BR-CL-17/18). A reduced rate is standard rated ("S") at 7 %.
+      db.run("UPDATE tax_definitions SET category_code = 'S' WHERE category_code = 'AA'");
+    },
+  },
 ];
 
 export const LATEST_MIGRATION_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

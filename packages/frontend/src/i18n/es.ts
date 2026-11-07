@@ -511,6 +511,9 @@ const es: TranslationKeys = {
     emit_success: "E-invoice emitted ({{format}})",
     emit_with_issues:
       "E-invoice emitted with {{count}} validation error(s). Review company settings.",
+    issues_title: "Revise antes de enviar esta factura electrónica:",
+    draft_hint:
+      "Primero marque la factura como enviada (o envíela): la factura electrónica necesita su número definitivo.",
     loading: "Loading…",
     no_records: "No e-invoices emitted for this invoice yet.",
     format: "Format",
@@ -909,6 +912,31 @@ const es: TranslationKeys = {
     einvoice_enabled_hint:
       "Muestra el panel E-Rechnung en las facturas, la bandeja de entrada de facturas electrónicas en la barra lateral y los campos de factura electrónica del cliente. Solo es necesario para la facturación electrónica alemana (ZUGFeRD/XRechnung/PEPPOL).",
     einvoice_enabled_checkbox: "Activar módulo de factura electrónica",
+    einvoice_details_hint:
+      "Las facturas electrónicas necesitan su dirección en campos separados y un registro fiscal. Rellénelos una vez; se usan en cada factura electrónica.",
+    einvoice_street: "Calle y número",
+    einvoice_postal_code: "Código postal",
+    einvoice_city: "Ciudad",
+    einvoice_country: "País",
+    einvoice_select_country: "Seleccionar país",
+    einvoice_tax_number: "Número fiscal (Steuernummer)",
+    einvoice_tax_number_hint: "De su oficina tributaria. Necesario si no tiene NIF-IVA (USt-IdNr).",
+    einvoice_format_label: "Formato predeterminado",
+    einvoice_format_hint:
+      "Los clientes con Leitweg-ID siempre reciben XRechnung. Puede cambiar el formato por cliente.",
+    einvoice_format_zugferd: "ZUGFeRD (PDF con XML incrustado)",
+    einvoice_format_xrechnung: "XRechnung (XML)",
+    einvoice_kleinunternehmer_label: "Pequeña empresa (§ 19 UStG)",
+    einvoice_kleinunternehmer_checkbox: "Soy Kleinunternehmer y no cobro IVA",
+    tax_category: "Categoría de IVA (factura electrónica)",
+    tax_category_hint: "Obligatoria en facturas electrónicas. Use S para el 19 % y el 7 %.",
+    tax_category_s: "Tipo general o reducido (S)",
+    tax_category_z: "Tipo cero (Z)",
+    tax_category_e: "Exento de IVA (E)",
+    tax_category_ae: "Inversión del sujeto pasivo (AE)",
+    tax_category_k: "Entrega intracomunitaria (K)",
+    tax_category_g: "Exportación fuera de la UE (G)",
+    tax_category_o: "No sujeto a IVA (O)",
 
     backup_description:
       "Descargue una copia de seguridad completa de sus datos. JSON es legible y fácil de inspeccionar; SQLite es una instantánea byte a byte que puede restaurar reemplazando el archivo de base de datos activo.",

@@ -21,6 +21,7 @@ import { getTagsForItem, setItemTags } from "../services/tag.service";
 import type { Invoice } from "../types/invoice";
 import { buildCsv, type CsvColumn, csvHeaders } from "../utils/csv";
 import { todayIso } from "../utils/date";
+import { isDraftNumber } from "../utils/invoice-number";
 import { buildXmlInvoiceData } from "../xml/build-data";
 import { getProfile, listProfiles } from "../xml/profile-registry";
 
@@ -585,9 +586,19 @@ invoices.get("/:id/comments", requirePermission("invoices", "read"), (c) => {
 invoices.post("/:id/einvoice/emit", requirePermission("invoices", "publish"), async (c) => {
   const id = c.req.param("id");
   const exists = getDb()
-    .query("SELECT id FROM invoices WHERE id = ? AND deleted_at IS NULL")
-    .get(id);
+    .query("SELECT id, invoice_number FROM invoices WHERE id = ? AND deleted_at IS NULL")
+    .get(id) as { id: string; invoice_number: string } | null;
   if (!exists) return c.json({ success: false, error: "Invoice not found" }, 404);
+  // A draft still has a placeholder number; the e-invoice needs the real one.
+  if (isDraftNumber(exists.invoice_number)) {
+    return c.json(
+      {
+        success: false,
+        error: "Mark the invoice as sent (or send it) first, so it has its final number.",
+      },
+      400,
+    );
+  }
 
   try {
     const result = await emitEinvoice(id);

@@ -21,6 +21,8 @@ import { formatDate } from "@/lib/utils";
 
 interface Props {
   invoiceId: string;
+  /** A draft has a placeholder number, so the e-invoice waits until it is sent. */
+  draft?: boolean;
 }
 
 interface EinvoiceRecord {
@@ -33,19 +35,21 @@ interface EinvoiceRecord {
 }
 
 const FORMAT_LABELS: Record<string, string> = {
-  zugferd: "ZUGFeRD 2.2",
+  zugferd: "ZUGFeRD (EN 16931)",
   "xrechnung-ubl": "XRechnung 3.0",
   "xrechnung-cii": "XRechnung CII",
   peppol: "PEPPOL BIS 3.0",
 };
 
-function EinvoicePanel({ invoiceId }: Props) {
+function EinvoicePanel({ invoiceId, draft = false }: Props) {
   const { t } = useTranslation();
   const can = useCan();
   const [records, setRecords] = useState<EinvoiceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [emitting, setEmitting] = useState(false);
   const [deleting, setDeleting] = useState<EinvoiceRecord | null>(null);
+  // Issues from the last emit, so the user sees what to fix.
+  const [issues, setIssues] = useState<{ severity: string; code: string; message: string }[]>([]);
 
   const load = useCallback(() => {
     api.listEinvoiceRecords(invoiceId).then((r) => {
@@ -63,8 +67,9 @@ function EinvoicePanel({ invoiceId }: Props) {
     try {
       const r = await api.emitEinvoice(invoiceId);
       if (!r.success) throw new Error("emit failed");
-      const issues: { severity: string; message: string }[] = r.data?.issues || [];
-      const errors = issues.filter((i) => i.severity === "error");
+      const found: { severity: string; code: string; message: string }[] = r.data?.issues || [];
+      setIssues(found);
+      const errors = found.filter((i) => i.severity === "error");
       if (errors.length) {
         toast.warning(t("einvoice.emit_with_issues", { count: String(errors.length) }));
       }
@@ -101,7 +106,7 @@ function EinvoicePanel({ invoiceId }: Props) {
             <RefreshCw className="h-3.5 w-3.5" />
           </Button>
           {can("invoices", "publish") && (
-            <Button size="sm" onClick={emit} disabled={emitting}>
+            <Button size="sm" onClick={emit} disabled={emitting || draft}>
               {emitting ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
@@ -113,6 +118,26 @@ function EinvoicePanel({ invoiceId }: Props) {
         </div>
       </CardHeader>
       <CardContent>
+        {draft && <p className="mb-3 text-sm text-muted-foreground">{t("einvoice.draft_hint")}</p>}
+        {issues.length > 0 && (
+          <div className="mb-4 rounded-md border p-3 text-sm">
+            <p className="font-medium mb-1">{t("einvoice.issues_title")}</p>
+            <ul className="space-y-1">
+              {issues.map((issue) => (
+                <li
+                  key={issue.code}
+                  className={
+                    issue.severity === "error"
+                      ? "text-destructive"
+                      : "text-amber-600 dark:text-amber-400"
+                  }
+                >
+                  {issue.message}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {loading ? (
           <p className="text-sm text-muted-foreground">{t("einvoice.loading")}</p>
         ) : records.length === 0 ? (

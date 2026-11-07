@@ -1,3 +1,4 @@
+import { prepareEn16931 } from "../xml/en16931";
 import type { XmlInvoiceData } from "../xml/types";
 
 export type EinvoiceSeverity = "error" | "warning";
@@ -12,9 +13,10 @@ export interface EinvoiceIssue {
  * Business-rule validation of invoice data before it is emitted as an
  * e-invoice (XRechnung / ZUGFeRD). Structural EN 16931 checks (invoice number,
  * monetary sums, VAT categories); German specifics (USt-IdNr format,
- * Steuernummer, reverse charge) surface as errors/warnings.
+ * Steuernummer, reverse charge) surface as errors/warnings. With `format`
+ * "xrechnung-ubl" the XRechnung (BR-DE) requirements are checked too.
  */
-export function validateEinvoice(data: XmlInvoiceData): EinvoiceIssue[] {
+export function validateEinvoice(data: XmlInvoiceData, format?: string): EinvoiceIssue[] {
   const issues: EinvoiceIssue[] = [];
   const cur = data.currency || "";
 
@@ -187,6 +189,107 @@ export function validateEinvoice(data: XmlInvoiceData): EinvoiceIssue[] {
     issues.push(error("currency", "Invoice currency is required."));
   }
 
+  issues.push(...en16931Checks(data));
+  if (format === "xrechnung-ubl") issues.push(...xrechnungChecks(data));
+
+  return issues;
+}
+
+/** EN 16931 rules every format must meet (XRechnung, ZUGFeRD, PEPPOL). */
+function en16931Checks(data: XmlInvoiceData): EinvoiceIssue[] {
+  const issues: EinvoiceIssue[] = [];
+  const s = data.supplier;
+  const c = data.customer;
+  if (!s.country) {
+    issues.push(
+      error("seller_country", "Your country is required (Settings → E-invoicing). [BR-9]"),
+    );
+  }
+  if (!c.country) {
+    issues.push(error("buyer_country", "The customer's country is required. [BR-11]"));
+  }
+  if (!s.tax_id && !s.tax_number) {
+    issues.push(
+      error(
+        "seller_tax_registration",
+        "Add your USt-IdNr or your Steuernummer (Settings). [BR-S-02, BR-E-02, BR-CO-26]",
+      ),
+    );
+  }
+  if (data.type !== "credit_note" && data.total > 0.004 && !data.due_date && !data.payment_terms) {
+    issues.push(
+      warning("payment_due", "Set a due date or payment terms on the invoice. [BR-CO-25]"),
+    );
+  }
+  if (!s.iban) {
+    issues.push(
+      warning(
+        "payment_iban",
+        "No IBAN in Settings, so the e-invoice carries no bank details for the transfer.",
+      ),
+    );
+  }
+  if (data.items.length > 0) {
+    const doc = prepareEn16931(data);
+    if (doc.groups.some((g) => g.category === "AE") && (!s.tax_id || !c.tax_id)) {
+      issues.push(
+        error(
+          "reverse_charge_vat_ids",
+          "Reverse charge needs your USt-IdNr and the customer's VAT ID. [BR-AE-02]",
+        ),
+      );
+    }
+    if (Math.abs(doc.grandTotal - Math.abs(data.total)) > 0.01) {
+      issues.push(
+        error(
+          "en16931_totals",
+          "The stored totals do not add up as EN 16931 requires (VAT on a discount). Open the invoice and save it again to recalculate.",
+        ),
+      );
+    }
+  }
+  return issues;
+}
+
+/** XRechnung 3.0 (CIUS) requirements on top of EN 16931. */
+function xrechnungChecks(data: XmlInvoiceData): EinvoiceIssue[] {
+  const issues: EinvoiceIssue[] = [];
+  const s = data.supplier;
+  const c = data.customer;
+  if (!s.city || !s.postal_code) {
+    issues.push(
+      error(
+        "xr_seller_city_postcode",
+        "XRechnung needs your postcode and city (Settings → E-invoicing). [BR-DE-3, BR-DE-4]",
+      ),
+    );
+  }
+  if (!s.phone) {
+    issues.push(
+      error("xr_seller_phone", "XRechnung needs your phone number (Settings). [BR-DE-6]"),
+    );
+  }
+  if (!s.email) {
+    issues.push(
+      error("xr_seller_email", "XRechnung needs your email address (Settings). [BR-DE-7]"),
+    );
+  }
+  if (!c.city || !c.postal_code) {
+    issues.push(
+      error(
+        "xr_buyer_city_postcode",
+        "XRechnung needs the customer's postcode and city. [BR-DE-8, BR-DE-9]",
+      ),
+    );
+  }
+  if (!c.leitweg_id && !c.einvoice_receiver_id && !c.email) {
+    issues.push(
+      error(
+        "xr_buyer_address",
+        "XRechnung needs the customer's Leitweg-ID or email address. [PEPPOL-EN16931-R010]",
+      ),
+    );
+  }
   return issues;
 }
 

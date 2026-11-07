@@ -513,6 +513,9 @@ const fr: TranslationKeys = {
     emit_success: "E-invoice emitted ({{format}})",
     emit_with_issues:
       "E-invoice emitted with {{count}} validation error(s). Review company settings.",
+    issues_title: "À vérifier avant d’envoyer cette facture électronique :",
+    draft_hint:
+      "Marquez d’abord la facture comme envoyée (ou envoyez-la) : la facture électronique a besoin de son numéro définitif.",
     loading: "Loading…",
     no_records: "No e-invoices emitted for this invoice yet.",
     format: "Format",
@@ -912,6 +915,32 @@ const fr: TranslationKeys = {
     einvoice_enabled_hint:
       "Affiche le panneau E-Rechnung sur les factures, la boîte de réception des factures électroniques dans la barre latérale et les champs de facture électronique du client. Requis uniquement pour la facturation électronique allemande (ZUGFeRD/XRechnung/PEPPOL).",
     einvoice_enabled_checkbox: "Activer le module facture électronique",
+    einvoice_details_hint:
+      "Les factures électroniques exigent votre adresse en champs séparés et un identifiant fiscal. Renseignez-les une fois ; ils servent pour chaque facture électronique.",
+    einvoice_street: "Rue et numéro",
+    einvoice_postal_code: "Code postal",
+    einvoice_city: "Ville",
+    einvoice_country: "Pays",
+    einvoice_select_country: "Choisir un pays",
+    einvoice_tax_number: "Numéro fiscal (Steuernummer)",
+    einvoice_tax_number_hint:
+      "Fourni par votre centre des impôts. Nécessaire sans numéro de TVA (USt-IdNr).",
+    einvoice_format_label: "Format par défaut",
+    einvoice_format_hint:
+      "Les clients avec un Leitweg-ID reçoivent toujours une XRechnung. Le format peut être changé par client.",
+    einvoice_format_zugferd: "ZUGFeRD (PDF avec XML intégré)",
+    einvoice_format_xrechnung: "XRechnung (XML)",
+    einvoice_kleinunternehmer_label: "Petite entreprise (§ 19 UStG)",
+    einvoice_kleinunternehmer_checkbox: "Je suis Kleinunternehmer et ne facture pas de TVA",
+    tax_category: "Catégorie de TVA (facture électronique)",
+    tax_category_hint: "Obligatoire dans les factures électroniques. Utilisez S pour 19 % et 7 %.",
+    tax_category_s: "Taux normal ou réduit (S)",
+    tax_category_z: "Taux zéro (Z)",
+    tax_category_e: "Exonéré de TVA (E)",
+    tax_category_ae: "Autoliquidation (AE)",
+    tax_category_k: "Livraison intracommunautaire (K)",
+    tax_category_g: "Exportation hors UE (G)",
+    tax_category_o: "Non soumis à la TVA (O)",
 
     backup_description:
       "Téléchargez une sauvegarde complète de vos données. Le JSON est lisible et facile à inspecter ; le SQLite est un instantané octet par octet restaurable en remplaçant le fichier de base de données actif.",

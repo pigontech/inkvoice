@@ -56,7 +56,6 @@ export async function emitEinvoice(
   opts: { forceFormat?: EinvoiceFormat } = {},
 ): Promise<EinvoiceEmitResult> {
   const data = buildXmlInvoiceData(invoiceId);
-  const issues = validateEinvoice(data);
   const settings = getAllSettings();
 
   const format =
@@ -66,6 +65,7 @@ export async function emitEinvoice(
       settingFormat: settings.einvoice_format,
       leitwegId: data.customer.leitweg_id,
     });
+  const issues = validateEinvoice(data, format);
 
   const profile = getProfile(formatToProfileId(format));
   if (!profile) {

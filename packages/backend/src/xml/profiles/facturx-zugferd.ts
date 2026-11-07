@@ -1,21 +1,17 @@
 import type { XmlProfile } from "../base-profile";
-import type { XmlInvoiceData, XmlTaxBreakdown } from "../types";
+import { amt, cleanIban, decimal, esc, percent, prepareEn16931 } from "../en16931";
+import type { XmlInvoiceData } from "../types";
 
-// Factur-X / ZUGFeRD 2.2 — UN/CEFACT Cross Industry Invoice (CII), EN 16931
-// profile. This doubles as the embedded XML part of a ZUGFeRD PDF/A-3 hybrid
-// and as a standalone CII e-invoice.
+// Factur-X 1.0 / ZUGFeRD 2.x, profile EN 16931 (COMFORT): UN/CEFACT Cross
+// Industry Invoice D16B. Used as the XML embedded in the ZUGFeRD PDF/A-3
+// hybrid and as a standalone CII e-invoice. Element order follows the CII
+// schema; the EN 16931 rules are checked by the KoSIT validator.
 
-function esc(s: string | null | undefined): string {
-  if (!s) return "";
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+/** Guideline ID (BT-24) of the EN 16931 profile. */
+export const FACTURX_EN16931_ID = "urn:cen.eu:en16931:2017";
 
-function amt(n: number): string {
-  return n.toFixed(2);
+function date102(iso: string): string {
+  return iso.slice(0, 10).replace(/-/g, "");
 }
 
 export class FacturxZugferdProfile implements XmlProfile {
@@ -23,260 +19,275 @@ export class FacturxZugferdProfile implements XmlProfile {
     return "facturx-zugferd";
   }
   getProfileName(): string {
-    return "Factur-X / ZUGFeRD 2.2 (EN 16931)";
+    return "Factur-X / ZUGFeRD (EN 16931)";
   }
   getMimeType(): string {
     return "application/xml";
   }
 
   generateXml(data: XmlInvoiceData): string {
-    const isCredit = data.type === "credit_note";
-    const typeCode = isCredit ? "381" : "380";
-    const franchise = data.franchise_fr === true;
-    const exemptionReason = "TVA non applicable, art. 293 B du CGI";
+    const doc = prepareEn16931(data);
+    const s = data.supplier;
+    const c = data.customer;
+    const cur = esc(data.currency);
+    const L: string[] = [];
 
-    const lines: string[] = [];
-    lines.push(`<?xml version="1.0" encoding="UTF-8"?>`);
-    lines.push(`<rsm:CrossIndustryInvoice`);
-    lines.push(`  xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"`);
-    lines.push(
+    L.push(`<?xml version="1.0" encoding="UTF-8"?>`);
+    L.push(`<rsm:CrossIndustryInvoice`);
+    L.push(`  xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"`);
+    L.push(
       `  xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"`,
     );
-    lines.push(`  xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100"`);
-    lines.push(`  xmlns:qdt="urn:un:unece:uncefact:data:standard:QualifiedDataType:100">`);
+    L.push(`  xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100"`);
+    L.push(`  xmlns:qdt="urn:un:unece:uncefact:data:standard:QualifiedDataType:100">`);
 
-    // ExchangedDocumentContext — EN 16931 profile (works for ZUGFeRD 2.1+/Factur-X)
-    lines.push(`  <rsm:ExchangedDocumentContext>`);
-    lines.push(`    <ram:GuidelineSpecifiedDocumentContextParameter>`);
-    lines.push(`      <ram:ID>urn:cen.eu:en16931:2017</ram:ID>`);
-    lines.push(`    </ram:GuidelineSpecifiedDocumentContextParameter>`);
-    lines.push(`  </rsm:ExchangedDocumentContext>`);
+    L.push(`  <rsm:ExchangedDocumentContext>`);
+    L.push(`    <ram:GuidelineSpecifiedDocumentContextParameter>`);
+    L.push(`      <ram:ID>${FACTURX_EN16931_ID}</ram:ID>`);
+    L.push(`    </ram:GuidelineSpecifiedDocumentContextParameter>`);
+    L.push(`  </rsm:ExchangedDocumentContext>`);
 
-    // ExchangedDocument
-    lines.push(`  <rsm:ExchangedDocument>`);
-    lines.push(`    <ram:ID>${esc(data.invoice_number)}</ram:ID>`);
-    lines.push(`    <ram:TypeCode>${typeCode}</ram:TypeCode>`);
-    lines.push(
-      `    <ram:IssueDateTime><udt:DateTimeString format="102">${data.issue_date.replace(/-/g, "")}</udt:DateTimeString></ram:IssueDateTime>`,
+    L.push(`  <rsm:ExchangedDocument>`);
+    L.push(`    <ram:ID>${esc(data.invoice_number)}</ram:ID>`);
+    L.push(`    <ram:TypeCode>${doc.credit ? "381" : "380"}</ram:TypeCode>`);
+    L.push(
+      `    <ram:IssueDateTime><udt:DateTimeString format="102">${date102(data.issue_date)}</udt:DateTimeString></ram:IssueDateTime>`,
     );
-    if (data.notes) {
-      lines.push(
-        `    <ram:IncludedNote><ram:Content>${esc(data.notes)}</ram:Content></ram:IncludedNote>`,
-      );
+    for (const note of doc.notes) {
+      L.push(`    <ram:IncludedNote><ram:Content>${esc(note)}</ram:Content></ram:IncludedNote>`);
     }
-    if (data.kleinunternehmer) {
-      lines.push(
-        `    <ram:IncludedNote><ram:Content>Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.</ram:Content></ram:IncludedNote>`,
-      );
-    }
-    if (data.document_category_code === "AE" || data.document_category_code === "K") {
-      lines.push(
-        `    <ram:IncludedNote><ram:Content>Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge).</ram:Content></ram:IncludedNote>`,
-      );
-    }
-    lines.push(`  </rsm:ExchangedDocument>`);
+    L.push(`  </rsm:ExchangedDocument>`);
 
-    // SupplyChainTradeTransaction
-    lines.push(`  <rsm:SupplyChainTradeTransaction>`);
+    L.push(`  <rsm:SupplyChainTradeTransaction>`);
 
-    // Line items
-    for (let i = 0; i < data.items.length; i++) {
-      const item = data.items[i];
-      lines.push(`    <ram:IncludedSupplyChainTradeLineItem>`);
-      lines.push(
-        `      <ram:AssociatedDocumentLineDocument><ram:LineID>${i + 1}</ram:LineID></ram:AssociatedDocumentLineDocument>`,
+    // --- Lines (BG-25) ---
+    for (const line of doc.lines) {
+      L.push(`    <ram:IncludedSupplyChainTradeLineItem>`);
+      L.push(
+        `      <ram:AssociatedDocumentLineDocument><ram:LineID>${line.index}</ram:LineID></ram:AssociatedDocumentLineDocument>`,
       );
-      lines.push(
-        `      <ram:SpecifiedTradeProduct><ram:Name>${esc(item.description)}</ram:Name></ram:SpecifiedTradeProduct>`,
+      L.push(
+        `      <ram:SpecifiedTradeProduct><ram:Name>${esc(line.name)}</ram:Name></ram:SpecifiedTradeProduct>`,
       );
-      lines.push(`      <ram:SpecifiedLineTradeAgreement>`);
-      lines.push(
-        `        <ram:NetPriceProductTradePrice><ram:ChargeAmount>${amt(item.unit_price)}</ram:ChargeAmount></ram:NetPriceProductTradePrice>`,
+      L.push(`      <ram:SpecifiedLineTradeAgreement>`);
+      L.push(
+        `        <ram:NetPriceProductTradePrice><ram:ChargeAmount>${decimal(line.price, 2)}</ram:ChargeAmount></ram:NetPriceProductTradePrice>`,
       );
-      lines.push(`      </ram:SpecifiedLineTradeAgreement>`);
-      lines.push(
-        `      <ram:SpecifiedLineTradeDelivery><ram:BilledQuantity unitCode="${mapUnitCode(item.unit)}">${item.quantity}</ram:BilledQuantity></ram:SpecifiedLineTradeDelivery>`,
+      L.push(`      </ram:SpecifiedLineTradeAgreement>`);
+      L.push(
+        `      <ram:SpecifiedLineTradeDelivery><ram:BilledQuantity unitCode="${mapUnitCode(line.unit)}">${decimal(line.quantity)}</ram:BilledQuantity></ram:SpecifiedLineTradeDelivery>`,
       );
-      lines.push(`      <ram:SpecifiedLineTradeSettlement>`);
-      lines.push(`        <ram:ApplicableTradeTax>`);
-      lines.push(`          <ram:TypeCode>VAT</ram:TypeCode>`);
-      lines.push(
-        `          <ram:CategoryCode>${franchise && item.tax_rate === 0 ? "E" : lineCategory(item.tax_category_code)}</ram:CategoryCode>`,
-      );
-      if (franchise && item.tax_rate === 0) {
-        lines.push(`          <ram:ExemptionReason>${exemptionReason}</ram:ExemptionReason>`);
-      }
-      if (item.tax_rate > 0 || (item.tax_category_code && item.tax_category_code !== "Z")) {
-        lines.push(
-          `          <ram:RateApplicablePercent>${item.tax_rate}</ram:RateApplicablePercent>`,
+      L.push(`      <ram:SpecifiedLineTradeSettlement>`);
+      L.push(`        <ram:ApplicableTradeTax>`);
+      L.push(`          <ram:TypeCode>VAT</ram:TypeCode>`);
+      L.push(`          <ram:CategoryCode>${line.category}</ram:CategoryCode>`);
+      if (line.category !== "O") {
+        L.push(
+          `          <ram:RateApplicablePercent>${percent(line.rate)}</ram:RateApplicablePercent>`,
         );
       }
-      lines.push(`        </ram:ApplicableTradeTax>`);
-      lines.push(`        <ram:SpecifiedTradeSettlementLineMonetarySummation>`);
-      lines.push(`          <ram:LineTotalAmount>${amt(item.line_total)}</ram:LineTotalAmount>`);
-      lines.push(`        </ram:SpecifiedTradeSettlementLineMonetarySummation>`);
-      lines.push(`      </ram:SpecifiedLineTradeSettlement>`);
-      lines.push(`    </ram:IncludedSupplyChainTradeLineItem>`);
+      L.push(`        </ram:ApplicableTradeTax>`);
+      L.push(`        <ram:SpecifiedTradeSettlementLineMonetarySummation>`);
+      L.push(`          <ram:LineTotalAmount>${amt(line.net)}</ram:LineTotalAmount>`);
+      L.push(`        </ram:SpecifiedTradeSettlementLineMonetarySummation>`);
+      L.push(`      </ram:SpecifiedLineTradeSettlement>`);
+      L.push(`    </ram:IncludedSupplyChainTradeLineItem>`);
     }
 
-    // ApplicableHeaderTradeAgreement (Seller + Buyer)
-    lines.push(`    <ram:ApplicableHeaderTradeAgreement>`);
-    lines.push(`      <ram:SellerTradeParty>`);
-    lines.push(`        <ram:Name>${esc(data.supplier.name)}</ram:Name>`);
-    if (
-      data.supplier.country ||
-      data.supplier.address ||
-      data.supplier.street ||
-      data.supplier.city
-    ) {
-      lines.push(`        <ram:PostalTradeAddress>`);
-      const street = data.supplier.street || data.supplier.address;
-      if (street) lines.push(`          <ram:LineOne>${esc(street)}</ram:LineOne>`);
-      if (data.supplier.city)
-        lines.push(`          <ram:CityName>${esc(data.supplier.city)}</ram:CityName>`);
-      if (data.supplier.postal_code)
-        lines.push(
-          `          <ram:PostcodeCode>${esc(data.supplier.postal_code)}</ram:PostcodeCode>`,
-        );
-      if (data.supplier.country)
-        lines.push(`          <ram:CountryID>${esc(data.supplier.country)}</ram:CountryID>`);
-      lines.push(`        </ram:PostalTradeAddress>`);
-    }
-    if (data.supplier.tax_id) {
-      lines.push(
-        `        <ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${esc(data.supplier.tax_id)}</ram:ID></ram:SpecifiedTaxRegistration>`,
-      );
-    }
-    if (data.supplier.tax_number) {
-      lines.push(
-        `        <ram:SpecifiedTaxRegistration><ram:ID schemeID="DE-TAX">${esc(data.supplier.tax_number)}</ram:ID></ram:SpecifiedTaxRegistration>`,
-      );
-    }
-    if (data.supplier.peppol_endpoint_id) {
-      lines.push(
-        `        <ram:SpecifiedTaxRegistration><ram:ID schemeID="SEID">${esc(data.supplier.peppol_endpoint_id)}</ram:ID></ram:SpecifiedTaxRegistration>`,
-      );
-    }
-    lines.push(`      </ram:SellerTradeParty>`);
-    lines.push(`      <ram:BuyerTradeParty>`);
-    lines.push(`        <ram:Name>${esc(data.customer.name)}</ram:Name>`);
-    const buyerStreet = data.customer.address_line1;
-    if (
-      buyerStreet ||
-      data.customer.address_line2 ||
-      data.customer.city ||
-      data.customer.postal_code ||
-      data.customer.country
-    ) {
-      lines.push(`        <ram:PostalTradeAddress>`);
-      if (buyerStreet) lines.push(`          <ram:LineOne>${esc(buyerStreet)}</ram:LineOne>`);
-      if (data.customer.address_line2)
-        lines.push(`          <ram:LineTwo>${esc(data.customer.address_line2)}</ram:LineTwo>`);
-      if (data.customer.city)
-        lines.push(`          <ram:CityName>${esc(data.customer.city)}</ram:CityName>`);
-      if (data.customer.postal_code)
-        lines.push(
-          `          <ram:PostcodeCode>${esc(data.customer.postal_code)}</ram:PostcodeCode>`,
-        );
-      if (data.customer.state)
-        lines.push(
-          `          <ram:CountrySubDivisionName>${esc(data.customer.state)}</ram:CountrySubDivisionName>`,
-        );
-      if (data.customer.country)
-        lines.push(`          <ram:CountryID>${esc(data.customer.country)}</ram:CountryID>`);
-      lines.push(`        </ram:PostalTradeAddress>`);
-    }
-    if (data.customer.leitweg_id) {
-      lines.push(`        <ram:ID schemeID="0204">${esc(data.customer.leitweg_id)}</ram:ID>`);
-    } else if (data.customer.siren) {
-      lines.push(`        <ram:ID schemeID="0009">${esc(data.customer.siren)}</ram:ID>`);
-    } else if (data.customer.siret) {
-      lines.push(`        <ram:ID schemeID="0002">${esc(data.customer.siret)}</ram:ID>`);
-    } else if (data.customer.einvoice_receiver_id) {
-      lines.push(
-        `        <ram:ID schemeID="${esc(data.customer.einvoice_receiver_scheme || "0088")}">${esc(data.customer.einvoice_receiver_id)}</ram:ID>`,
-      );
-    }
-    if (data.customer.tax_id) {
-      lines.push(
-        `        <ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${esc(data.customer.tax_id)}</ram:ID></ram:SpecifiedTaxRegistration>`,
-      );
-    }
-    if (data.customer.tax_number) {
-      lines.push(
-        `        <ram:SpecifiedTaxRegistration><ram:ID schemeID="DE-TAX">${esc(data.customer.tax_number)}</ram:ID></ram:SpecifiedTaxRegistration>`,
-      );
-    }
-    lines.push(`      </ram:BuyerTradeParty>`);
-    lines.push(`    </ram:ApplicableHeaderTradeAgreement>`);
-
-    // Payment terms (ReceiveRe p.), empty delivery node
-    lines.push(`    <ram:ApplicableHeaderTradeDelivery />`);
-    lines.push(`    <ram:ApplicableHeaderTradeSettlement>`);
-    lines.push(`      <ram:PaymentReference>${esc(data.invoice_number)}</ram:PaymentReference>`);
-    lines.push(`      <ram:InvoiceCurrencyCode>${esc(data.currency)}</ram:InvoiceCurrencyCode>`);
-    if (data.payment_terms) {
-      lines.push(
-        `      <ram:SpecifiedTradePaymentTerms><ram:Description>${esc(data.payment_terms)}</ram:Description></ram:SpecifiedTradePaymentTerms>`,
-      );
-    }
-
-    // Tax breakdown
-    for (const tax of data.tax_breakdown) {
-      lines.push(`      <ram:ApplicableTradeTax>`);
-      lines.push(`        <ram:CalculatedAmount>${amt(tax.tax_amount)}</ram:CalculatedAmount>`);
-      lines.push(`        <ram:TypeCode>VAT</ram:TypeCode>`);
-      lines.push(`        <ram:BasisAmount>${amt(tax.taxable_amount)}</ram:BasisAmount>`);
-      lines.push(
-        `        <ram:CategoryCode>${franchise && tax.tax_rate === 0 ? "E" : taxCategory(tax)}</ram:CategoryCode>`,
-      );
-      if (franchise && tax.tax_rate === 0) {
-        lines.push(`        <ram:ExemptionReason>${exemptionReason}</ram:ExemptionReason>`);
-      }
-      if (tax.tax_rate > 0 || tax.category_code !== "Z") {
-        lines.push(
-          `        <ram:RateApplicablePercent>${tax.tax_rate}</ram:RateApplicablePercent>`,
+    // --- Seller and buyer (BG-4, BG-7) ---
+    L.push(`    <ram:ApplicableHeaderTradeAgreement>`);
+    if (c.leitweg_id) L.push(`      <ram:BuyerReference>${esc(c.leitweg_id)}</ram:BuyerReference>`);
+    L.push(`      <ram:SellerTradeParty>`);
+    // BR-CO-26: without a VAT ID the tax number identifies the seller (BT-29).
+    if (!s.tax_id && s.tax_number) L.push(`        <ram:ID>${esc(s.tax_number)}</ram:ID>`);
+    L.push(`        <ram:Name>${esc(s.name)}</ram:Name>`);
+    if (s.phone || s.email) {
+      L.push(`        <ram:DefinedTradeContact>`);
+      L.push(`          <ram:PersonName>${esc(s.name)}</ram:PersonName>`);
+      if (s.phone) {
+        L.push(
+          `          <ram:TelephoneUniversalCommunication><ram:CompleteNumber>${esc(s.phone)}</ram:CompleteNumber></ram:TelephoneUniversalCommunication>`,
         );
       }
-      lines.push(`      </ram:ApplicableTradeTax>`);
+      if (s.email) {
+        L.push(
+          `          <ram:EmailURIUniversalCommunication><ram:URIID>${esc(s.email)}</ram:URIID></ram:EmailURIUniversalCommunication>`,
+        );
+      }
+      L.push(`        </ram:DefinedTradeContact>`);
     }
-
-    // Monetary summation
-    lines.push(`      <ram:SpecifiedTradeSettlementHeaderMonetarySummation>`);
-    lines.push(`        <ram:LineTotalAmount>${amt(data.subtotal)}</ram:LineTotalAmount>`);
-    if (data.discount_amount > 0) {
-      lines.push(
-        `        <ram:AllowanceTotalAmount>${amt(data.discount_amount)}</ram:AllowanceTotalAmount>`,
+    L.push(`        <ram:PostalTradeAddress>`);
+    if (s.postal_code)
+      L.push(`          <ram:PostcodeCode>${esc(s.postal_code)}</ram:PostcodeCode>`);
+    if (s.street || s.address)
+      L.push(`          <ram:LineOne>${esc(s.street || s.address)}</ram:LineOne>`);
+    if (s.city) L.push(`          <ram:CityName>${esc(s.city)}</ram:CityName>`);
+    L.push(`          <ram:CountryID>${esc(s.country)}</ram:CountryID>`);
+    L.push(`        </ram:PostalTradeAddress>`);
+    if (s.peppol_endpoint_id) {
+      L.push(
+        `        <ram:URIUniversalCommunication><ram:URIID schemeID="${esc(s.peppol_scheme_id || "0208")}">${esc(s.peppol_endpoint_id)}</ram:URIID></ram:URIUniversalCommunication>`,
+      );
+    } else if (s.email) {
+      L.push(
+        `        <ram:URIUniversalCommunication><ram:URIID schemeID="EM">${esc(s.email)}</ram:URIID></ram:URIUniversalCommunication>`,
       );
     }
-    lines.push(
-      `        <ram:TaxBasisTotalAmount>${amt(data.subtotal - data.discount_amount)}</ram:TaxBasisTotalAmount>`,
+    if (s.tax_id) {
+      L.push(
+        `        <ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${esc(s.tax_id)}</ram:ID></ram:SpecifiedTaxRegistration>`,
+      );
+    }
+    if (s.tax_number) {
+      L.push(
+        `        <ram:SpecifiedTaxRegistration><ram:ID schemeID="FC">${esc(s.tax_number)}</ram:ID></ram:SpecifiedTaxRegistration>`,
+      );
+    }
+    L.push(`      </ram:SellerTradeParty>`);
+
+    L.push(`      <ram:BuyerTradeParty>`);
+    if (c.siren) {
+      L.push(`        <ram:ID schemeID="0009">${esc(c.siren)}</ram:ID>`);
+    } else if (c.siret) {
+      L.push(`        <ram:ID schemeID="0002">${esc(c.siret)}</ram:ID>`);
+    }
+    L.push(`        <ram:Name>${esc(c.name)}</ram:Name>`);
+    L.push(`        <ram:PostalTradeAddress>`);
+    if (c.postal_code)
+      L.push(`          <ram:PostcodeCode>${esc(c.postal_code)}</ram:PostcodeCode>`);
+    if (c.address_line1) L.push(`          <ram:LineOne>${esc(c.address_line1)}</ram:LineOne>`);
+    if (c.address_line2) L.push(`          <ram:LineTwo>${esc(c.address_line2)}</ram:LineTwo>`);
+    if (c.city) L.push(`          <ram:CityName>${esc(c.city)}</ram:CityName>`);
+    L.push(`          <ram:CountryID>${esc((c.country || "").toUpperCase())}</ram:CountryID>`);
+    if (c.state) {
+      L.push(`          <ram:CountrySubDivisionName>${esc(c.state)}</ram:CountrySubDivisionName>`);
+    }
+    L.push(`        </ram:PostalTradeAddress>`);
+    if (c.leitweg_id) {
+      L.push(
+        `        <ram:URIUniversalCommunication><ram:URIID schemeID="0204">${esc(c.leitweg_id)}</ram:URIID></ram:URIUniversalCommunication>`,
+      );
+    } else if (c.einvoice_receiver_id) {
+      L.push(
+        `        <ram:URIUniversalCommunication><ram:URIID schemeID="${esc(c.einvoice_receiver_scheme || "0088")}">${esc(c.einvoice_receiver_id)}</ram:URIID></ram:URIUniversalCommunication>`,
+      );
+    } else if (c.email) {
+      L.push(
+        `        <ram:URIUniversalCommunication><ram:URIID schemeID="EM">${esc(c.email)}</ram:URIID></ram:URIUniversalCommunication>`,
+      );
+    }
+    if (c.tax_id) {
+      L.push(
+        `        <ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${esc(c.tax_id)}</ram:ID></ram:SpecifiedTaxRegistration>`,
+      );
+    }
+    L.push(`      </ram:BuyerTradeParty>`);
+    L.push(`    </ram:ApplicableHeaderTradeAgreement>`);
+
+    L.push(`    <ram:ApplicableHeaderTradeDelivery />`);
+
+    // --- Settlement: payment, VAT breakdown, allowances, terms, totals ---
+    L.push(`    <ram:ApplicableHeaderTradeSettlement>`);
+    L.push(`      <ram:PaymentReference>${esc(data.invoice_number)}</ram:PaymentReference>`);
+    L.push(`      <ram:InvoiceCurrencyCode>${cur}</ram:InvoiceCurrencyCode>`);
+    const iban = cleanIban(s.iban);
+    if (iban) {
+      L.push(`      <ram:SpecifiedTradeSettlementPaymentMeans>`);
+      L.push(`        <ram:TypeCode>58</ram:TypeCode>`);
+      L.push(`        <ram:PayeePartyCreditorFinancialAccount>`);
+      L.push(`          <ram:IBANID>${esc(iban)}</ram:IBANID>`);
+      L.push(`          <ram:AccountName>${esc(s.account_holder || s.name)}</ram:AccountName>`);
+      L.push(`        </ram:PayeePartyCreditorFinancialAccount>`);
+      if (s.bic) {
+        L.push(
+          `        <ram:PayeeSpecifiedCreditorFinancialInstitution><ram:BICID>${esc(s.bic.replace(/\s+/g, ""))}</ram:BICID></ram:PayeeSpecifiedCreditorFinancialInstitution>`,
+        );
+      }
+      L.push(`      </ram:SpecifiedTradeSettlementPaymentMeans>`);
+    }
+    for (const g of doc.groups) {
+      L.push(`      <ram:ApplicableTradeTax>`);
+      L.push(`        <ram:CalculatedAmount>${amt(g.tax)}</ram:CalculatedAmount>`);
+      L.push(`        <ram:TypeCode>VAT</ram:TypeCode>`);
+      if (g.exemptionReason) {
+        L.push(`        <ram:ExemptionReason>${esc(g.exemptionReason)}</ram:ExemptionReason>`);
+      }
+      L.push(`        <ram:BasisAmount>${amt(g.taxable)}</ram:BasisAmount>`);
+      L.push(`        <ram:CategoryCode>${g.category}</ram:CategoryCode>`);
+      if (g.exemptionCode) {
+        L.push(`        <ram:ExemptionReasonCode>${g.exemptionCode}</ram:ExemptionReasonCode>`);
+      }
+      if (g.category !== "O") {
+        L.push(`        <ram:RateApplicablePercent>${percent(g.rate)}</ram:RateApplicablePercent>`);
+      }
+      L.push(`      </ram:ApplicableTradeTax>`);
+    }
+    for (const g of doc.groups) {
+      if (!g.allowance) continue;
+      const charge = g.allowance < 0;
+      L.push(`      <ram:SpecifiedTradeAllowanceCharge>`);
+      L.push(
+        `        <ram:ChargeIndicator><udt:Indicator>${charge ? "true" : "false"}</udt:Indicator></ram:ChargeIndicator>`,
+      );
+      L.push(`        <ram:ActualAmount>${amt(Math.abs(g.allowance))}</ram:ActualAmount>`);
+      L.push(`        <ram:Reason>${charge ? "Zuschlag" : "Rabatt"}</ram:Reason>`);
+      L.push(`        <ram:CategoryTradeTax>`);
+      L.push(`          <ram:TypeCode>VAT</ram:TypeCode>`);
+      L.push(`          <ram:CategoryCode>${g.category}</ram:CategoryCode>`);
+      if (g.category !== "O") {
+        L.push(
+          `          <ram:RateApplicablePercent>${percent(g.rate)}</ram:RateApplicablePercent>`,
+        );
+      }
+      L.push(`        </ram:CategoryTradeTax>`);
+      L.push(`      </ram:SpecifiedTradeAllowanceCharge>`);
+    }
+    if (data.payment_terms || data.due_date) {
+      L.push(`      <ram:SpecifiedTradePaymentTerms>`);
+      if (data.payment_terms) {
+        L.push(`        <ram:Description>${esc(data.payment_terms)}</ram:Description>`);
+      }
+      if (data.due_date) {
+        L.push(
+          `        <ram:DueDateDateTime><udt:DateTimeString format="102">${date102(data.due_date)}</udt:DateTimeString></ram:DueDateDateTime>`,
+        );
+      }
+      L.push(`      </ram:SpecifiedTradePaymentTerms>`);
+    }
+    L.push(`      <ram:SpecifiedTradeSettlementHeaderMonetarySummation>`);
+    L.push(`        <ram:LineTotalAmount>${amt(doc.lineTotal)}</ram:LineTotalAmount>`);
+    if (doc.chargeTotal)
+      L.push(`        <ram:ChargeTotalAmount>${amt(doc.chargeTotal)}</ram:ChargeTotalAmount>`);
+    if (doc.allowanceTotal) {
+      L.push(
+        `        <ram:AllowanceTotalAmount>${amt(doc.allowanceTotal)}</ram:AllowanceTotalAmount>`,
+      );
+    }
+    L.push(`        <ram:TaxBasisTotalAmount>${amt(doc.taxBasis)}</ram:TaxBasisTotalAmount>`);
+    L.push(
+      `        <ram:TaxTotalAmount currencyID="${cur}">${amt(doc.taxTotal)}</ram:TaxTotalAmount>`,
     );
-    lines.push(
-      `        <ram:TaxTotalAmount currencyID="${esc(data.currency)}">${amt(data.tax_total)}</ram:TaxTotalAmount>`,
-    );
-    lines.push(`        <ram:GrandTotalAmount>${amt(data.total)}</ram:GrandTotalAmount>`);
-    lines.push(`        <ram:TotalPrepaidAmount>0.00</ram:TotalPrepaidAmount>`);
-    lines.push(`        <ram:DuePayableAmount>${amt(data.total)}</ram:DuePayableAmount>`);
-    lines.push(`      </ram:SpecifiedTradeSettlementHeaderMonetarySummation>`);
-    lines.push(`    </ram:ApplicableHeaderTradeSettlement>`);
-    lines.push(`  </rsm:SupplyChainTradeTransaction>`);
-    lines.push(`</rsm:CrossIndustryInvoice>`);
+    L.push(`        <ram:GrandTotalAmount>${amt(doc.grandTotal)}</ram:GrandTotalAmount>`);
+    L.push(`        <ram:DuePayableAmount>${amt(doc.grandTotal)}</ram:DuePayableAmount>`);
+    L.push(`      </ram:SpecifiedTradeSettlementHeaderMonetarySummation>`);
+    if (data.preceding_invoice) {
+      L.push(`      <ram:InvoiceReferencedDocument>`);
+      L.push(
+        `        <ram:IssuerAssignedID>${esc(data.preceding_invoice.number)}</ram:IssuerAssignedID>`,
+      );
+      if (data.preceding_invoice.issue_date) {
+        L.push(
+          `        <ram:FormattedIssueDateTime><qdt:DateTimeString format="102">${date102(data.preceding_invoice.issue_date)}</qdt:DateTimeString></ram:FormattedIssueDateTime>`,
+        );
+      }
+      L.push(`      </ram:InvoiceReferencedDocument>`);
+    }
+    L.push(`    </ram:ApplicableHeaderTradeSettlement>`);
+    L.push(`  </rsm:SupplyChainTradeTransaction>`);
+    L.push(`</rsm:CrossIndustryInvoice>`);
 
-    return lines.join("\n");
+    return L.join("\n");
   }
-}
-
-function lineCategory(code: string | undefined): string {
-  const c = (code || "S").toUpperCase();
-  if (["S", "AA", "Z", "E", "AE", "K", "G", "O", "L", "M"].includes(c)) return c;
-  return "S";
-}
-
-function taxCategory(tax: XmlTaxBreakdown): string {
-  const c = (tax.category_code || "S").toUpperCase();
-  if (["S", "AA", "Z", "E", "AE", "K", "G", "O", "L", "M"].includes(c)) return c;
-  return tax.tax_rate === 0 ? "Z" : "S";
 }
 
 function mapUnitCode(unit: string): string {

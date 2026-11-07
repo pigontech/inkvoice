@@ -17,3 +17,9 @@ data/
 internal/
 .cursor/
 .worktrees/
+
+# E-invoice conformance check (scripts/einvoice-samples.ts, einvoice-conformance.yml)
+/.validators/
+/samples/
+/reports/
+/einvoice-samples/

@@ -1,23 +1,25 @@
 import type { XmlProfile } from "../base-profile";
-import type { XmlInvoiceData, XmlLineItem, XmlTaxBreakdown } from "../types";
+import {
+  amt,
+  cleanIban,
+  decimal,
+  type En16931VatGroup,
+  esc,
+  percent,
+  prepareEn16931,
+} from "../en16931";
+import type { XmlInvoiceData } from "../types";
 
-// XRechnung 3.0 (UBL 2.1) — German e-invoicing standard (EN 16931 based).
-// CustomizationID urn reflects the current KoSIT XRechnung 3.0 configuration.
+// XRechnung 3.0 (UBL 2.1), the German CIUS of EN 16931. Element order follows
+// the UBL 2.1 schema; the business rules (BR-DE-*) are checked by the KoSIT
+// validator with the XRechnung configuration.
 
-function esc(s: string | null | undefined): string {
-  if (!s) return "";
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
+/** CustomizationID (BT-24) of XRechnung 3.0. */
+export const XRECHNUNG_3_0_ID =
+  "urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0";
 
-function amt(n: number): string {
-  return n.toFixed(2);
-}
-
-const XRECHNUNG_NS = "urn:oasis:names:specification:ubl:schema:xsd:Invoice-2";
+const CAC = "urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2";
+const CBC = "urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2";
 
 export class XRechnungProfile implements XmlProfile {
   getProfileId(): string {
@@ -31,286 +33,256 @@ export class XRechnungProfile implements XmlProfile {
   }
 
   generateXml(data: XmlInvoiceData): string {
-    const isCredit = data.type === "credit_note";
-    const rootTag = isCredit ? "CreditNote" : "Invoice";
-    const nsAttr = isCredit
-      ? 'xmlns="urn:oasis:names:specification:ubl:schema:xsd:CreditNote-2"'
-      : `xmlns="${XRECHNUNG_NS}"`;
-    const hasDiscount = data.discount_amount > 0;
+    const doc = prepareEn16931(data);
+    const credit = doc.credit;
+    const root = credit ? "CreditNote" : "Invoice";
+    const cur = esc(data.currency);
+    const money = (tag: string, n: number) =>
+      `<cbc:${tag} currencyID="${cur}">${amt(n)}</cbc:${tag}>`;
+    const s = data.supplier;
+    const c = data.customer;
+    const L: string[] = [];
 
-    const lines: string[] = [];
-    lines.push(`<?xml version="1.0" encoding="UTF-8"?>`);
-    lines.push(`<${rootTag} ${nsAttr}`);
-    lines.push(
-      `  xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"`,
+    L.push(`<?xml version="1.0" encoding="UTF-8"?>`);
+    L.push(`<${root} xmlns="urn:oasis:names:specification:ubl:schema:xsd:${root}-2"`);
+    L.push(`  xmlns:cac="${CAC}"`);
+    L.push(`  xmlns:cbc="${CBC}">`);
+    L.push(`  <cbc:CustomizationID>${XRECHNUNG_3_0_ID}</cbc:CustomizationID>`);
+    L.push(`  <cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>`);
+    L.push(`  <cbc:ID>${esc(data.invoice_number)}</cbc:ID>`);
+    L.push(`  <cbc:IssueDate>${esc(data.issue_date)}</cbc:IssueDate>`);
+    // UBL 2.1 CreditNote has no DueDate; its due date goes in PaymentMeans.
+    if (!credit && data.due_date) L.push(`  <cbc:DueDate>${esc(data.due_date)}</cbc:DueDate>`);
+    L.push(
+      credit
+        ? `  <cbc:CreditNoteTypeCode>381</cbc:CreditNoteTypeCode>`
+        : `  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>`,
     );
-    lines.push(
-      `  xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">`,
+    for (const note of doc.notes) L.push(`  <cbc:Note>${esc(note)}</cbc:Note>`);
+    L.push(`  <cbc:DocumentCurrencyCode>${cur}</cbc:DocumentCurrencyCode>`);
+    // BT-10 is mandatory in XRechnung (BR-DE-15). Public buyers give their
+    // Leitweg-ID; without one the invoice number is the reference.
+    L.push(
+      `  <cbc:BuyerReference>${esc(c.leitweg_id || data.invoice_number)}</cbc:BuyerReference>`,
     );
-
-    lines.push(
-      `  <cbc:CustomizationID>urn:cen.eu:en16931:2017:xeinkauf.de:kosit:xrechnung_3.0</cbc:CustomizationID>`,
-    );
-    lines.push(`  <cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>`);
-    lines.push(`  <cbc:ID>${esc(data.invoice_number)}</cbc:ID>`);
-    lines.push(`  <cbc:IssueDate>${data.issue_date}</cbc:IssueDate>`);
-    if (data.due_date) {
-      lines.push(`  <cbc:DueDate>${data.due_date}</cbc:DueDate>`);
-    }
-    lines.push(
-      `  <cbc:${isCredit ? "CreditNoteTypeCode" : "InvoiceTypeCode"}>${isCredit ? "381" : "380"}</cbc:${isCredit ? "CreditNoteTypeCode" : "InvoiceTypeCode"}>`,
-    );
-    if (data.notes) {
-      lines.push(`  <cbc:Note>${esc(data.notes)}</cbc:Note>`);
-    }
-
-    // Required German tax notes ([§19 UStG] Kleinunternehmer, reverse charge).
-    if (data.kleinunternehmer) {
-      lines.push(`  <cbc:Note>Gemäß § 19 UStG wird keine Umsatzsteuer berechnet.</cbc:Note>`);
-    }
-    if (data.document_category_code === "AE" || data.document_category_code === "K") {
-      lines.push(
-        `  <cbc:Note>Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge).</cbc:Note>`,
-      );
-    }
-
-    lines.push(`  <cbc:DocumentCurrencyCode>${esc(data.currency)}</cbc:DocumentCurrencyCode>`);
-    if (data.customer.leitweg_id) {
-      lines.push(`  <cbc:BuyerReference>${esc(data.customer.leitweg_id)}</cbc:BuyerReference>`);
-    }
-
-    // --- Seller ---
-    lines.push(`  <cac:AccountingSupplierParty>`);
-    lines.push(`    <cac:Party>`);
-    if (data.supplier.peppol_endpoint_id) {
-      lines.push(
-        `      <cbc:EndpointID schemeID="${esc(data.supplier.peppol_scheme_id || "0208")}">${esc(data.supplier.peppol_endpoint_id)}</cbc:EndpointID>`,
-      );
-    }
-    const sellerAddress: string[] = [];
-    if (data.supplier.street)
-      sellerAddress.push(`      <cbc:StreetName>${esc(data.supplier.street)}</cbc:StreetName>`);
-    else if (data.supplier.address)
-      sellerAddress.push(`      <cbc:StreetName>${esc(data.supplier.address)}</cbc:StreetName>`);
-    if (data.supplier.postal_code)
-      sellerAddress.push(
-        `      <cbc:PostalZone>${esc(data.supplier.postal_code)}</cbc:PostalZone>`,
-      );
-    if (data.supplier.city)
-      sellerAddress.push(`      <cbc:CityName>${esc(data.supplier.city)}</cbc:CityName>`);
-    if (data.supplier.country)
-      sellerAddress.push(
-        `      <cac:Country><cbc:IdentificationCode>${esc(data.supplier.country)}</cbc:IdentificationCode></cac:Country>`,
-      );
-    if (sellerAddress.length > 0) {
-      lines.push(`      <cac:PostalAddress>`);
-      lines.push(...sellerAddress);
-      lines.push(`      </cac:PostalAddress>`);
-    }
-    if (data.supplier.tax_id || data.supplier.tax_number) {
-      lines.push(
-        `      <cac:PartyName><cbc:Name>${esc(data.supplier.name)}</cbc:Name></cac:PartyName>`,
-      );
-      if (data.supplier.tax_id) {
-        lines.push(`      <cac:PartyTaxScheme>`);
-        lines.push(`        <cbc:CompanyID>${esc(data.supplier.tax_id)}</cbc:CompanyID>`);
-        lines.push(`        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>`);
-        lines.push(`      </cac:PartyTaxScheme>`);
+    if (data.preceding_invoice) {
+      L.push(`  <cac:BillingReference>`);
+      L.push(`    <cac:InvoiceDocumentReference>`);
+      L.push(`      <cbc:ID>${esc(data.preceding_invoice.number)}</cbc:ID>`);
+      if (data.preceding_invoice.issue_date) {
+        L.push(`      <cbc:IssueDate>${esc(data.preceding_invoice.issue_date)}</cbc:IssueDate>`);
       }
-      if (data.supplier.tax_number) {
-        lines.push(`      <cac:PartyTaxScheme>`);
-        lines.push(`        <cbc:CompanyID>${esc(data.supplier.tax_number)}</cbc:CompanyID>`);
-        lines.push(`        <cac:TaxScheme><cbc:ID>DE-TAX</cbc:ID></cac:TaxScheme>`);
-        lines.push(`      </cac:PartyTaxScheme>`);
-      }
-    } else {
-      lines.push(
-        `      <cac:PartyName><cbc:Name>${esc(data.supplier.name)}</cbc:Name></cac:PartyName>`,
-      );
+      L.push(`    </cac:InvoiceDocumentReference>`);
+      L.push(`  </cac:BillingReference>`);
     }
-    lines.push(
-      `      <cac:PartyLegalEntity><cbc:RegistrationName>${esc(data.supplier.name)}</cbc:RegistrationName></cac:PartyLegalEntity>`,
-    );
-    if (data.supplier.email) {
-      lines.push(
-        `      <cac:Contact><cbc:ElectronicMail>${esc(data.supplier.email)}</cbc:ElectronicMail></cac:Contact>`,
-      );
-    }
-    lines.push(`    </cac:Party>`);
-    lines.push(`  </cac:AccountingSupplierParty>`);
 
-    // Buyer
-    lines.push(`  <cac:AccountingCustomerParty>`);
-    lines.push(`    <cac:Party>`);
-    const buyerIds: string[] = [];
-    if (data.customer.leitweg_id)
-      buyerIds.push(
-        `      <cbc:EndpointID schemeID="0204">${esc(data.customer.leitweg_id)}</cbc:EndpointID>`,
+    // --- Seller (BG-4) ---
+    L.push(`  <cac:AccountingSupplierParty>`);
+    L.push(`    <cac:Party>`);
+    if (s.peppol_endpoint_id) {
+      L.push(
+        `      <cbc:EndpointID schemeID="${esc(s.peppol_scheme_id || "0208")}">${esc(s.peppol_endpoint_id)}</cbc:EndpointID>`,
       );
-    else if (data.customer.einvoice_receiver_id)
-      buyerIds.push(
-        `      <cbc:EndpointID schemeID="${esc(data.customer.einvoice_receiver_scheme || "0088")}">${esc(data.customer.einvoice_receiver_id)}</cbc:EndpointID>`,
+    } else if (s.email) {
+      L.push(`      <cbc:EndpointID schemeID="EM">${esc(s.email)}</cbc:EndpointID>`);
+    }
+    // BR-CO-26: without a VAT ID the tax number identifies the seller (BT-29).
+    if (!s.tax_id && s.tax_number) {
+      L.push(
+        `      <cac:PartyIdentification><cbc:ID>${esc(s.tax_number)}</cbc:ID></cac:PartyIdentification>`,
       );
-    if (buyerIds.length > 0) lines.push(...buyerIds);
-    lines.push(
-      `      <cac:PartyName><cbc:Name>${esc(data.customer.name)}</cbc:Name></cac:PartyName>`,
+    }
+    L.push(`      <cac:PartyName><cbc:Name>${esc(s.name)}</cbc:Name></cac:PartyName>`);
+    L.push(`      <cac:PostalAddress>`);
+    if (s.street || s.address) {
+      L.push(`        <cbc:StreetName>${esc(s.street || s.address)}</cbc:StreetName>`);
+    }
+    if (s.city) L.push(`        <cbc:CityName>${esc(s.city)}</cbc:CityName>`);
+    if (s.postal_code) L.push(`        <cbc:PostalZone>${esc(s.postal_code)}</cbc:PostalZone>`);
+    L.push(
+      `        <cac:Country><cbc:IdentificationCode>${esc(s.country)}</cbc:IdentificationCode></cac:Country>`,
     );
-    const buyerAddress: string[] = [];
-    if (data.customer.address_line1)
-      buyerAddress.push(
-        `      <cbc:StreetName>${esc(data.customer.address_line1)}</cbc:StreetName>`,
-      );
-    if (data.customer.city)
-      buyerAddress.push(`      <cbc:CityName>${esc(data.customer.city)}</cbc:CityName>`);
-    if (data.customer.postal_code)
-      buyerAddress.push(`      <cbc:PostalZone>${esc(data.customer.postal_code)}</cbc:PostalZone>`);
-    if (data.customer.state)
-      buyerAddress.push(
-        `      <cbc:CountrySubentity>${esc(data.customer.state)}</cbc:CountrySubentity>`,
-      );
-    if (data.customer.country)
-      buyerAddress.push(
-        `      <cac:Country><cbc:IdentificationCode>${esc(data.customer.country)}</cbc:IdentificationCode></cac:Country>`,
-      );
-    if (buyerAddress.length > 0) {
-      lines.push(`      <cac:PostalAddress>`);
-      lines.push(...buyerAddress);
-      lines.push(`      </cac:PostalAddress>`);
-    }
-    if (data.customer.tax_id || data.customer.tax_number) {
-      if (data.customer.tax_id) {
-        lines.push(`      <cac:PartyTaxScheme>`);
-        lines.push(`        <cbc:CompanyID>${esc(data.customer.tax_id)}</cbc:CompanyID>`);
-        lines.push(`        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>`);
-        lines.push(`      </cac:PartyTaxScheme>`);
-      }
-      if (data.customer.tax_number) {
-        lines.push(`      <cac:PartyTaxScheme>`);
-        lines.push(`        <cbc:CompanyID>${esc(data.customer.tax_number)}</cbc:CompanyID>`);
-        lines.push(`        <cac:TaxScheme><cbc:ID>DE-TAX</cbc:ID></cac:TaxScheme>`);
-        lines.push(`      </cac:PartyTaxScheme>`);
-      }
-    }
-    lines.push(
-      `      <cac:PartyLegalEntity><cbc:RegistrationName>${esc(data.customer.name)}</cbc:RegistrationName></cac:PartyLegalEntity>`,
+    L.push(`      </cac:PostalAddress>`);
+    if (s.tax_id) L.push(...taxScheme(s.tax_id, "VAT", "      "));
+    if (s.tax_number) L.push(...taxScheme(s.tax_number, "FC", "      "));
+    L.push(
+      `      <cac:PartyLegalEntity><cbc:RegistrationName>${esc(s.name)}</cbc:RegistrationName></cac:PartyLegalEntity>`,
     );
-    if (data.customer.email) {
-      lines.push(
-        `      <cac:Contact><cbc:ElectronicMail>${esc(data.customer.email)}</cbc:ElectronicMail></cac:Contact>`,
-      );
-    }
-    lines.push(`    </cac:Party>`);
-    lines.push(`  </cac:AccountingCustomerParty>`);
+    L.push(`      <cac:Contact>`);
+    L.push(`        <cbc:Name>${esc(s.name)}</cbc:Name>`);
+    if (s.phone) L.push(`        <cbc:Telephone>${esc(s.phone)}</cbc:Telephone>`);
+    if (s.email) L.push(`        <cbc:ElectronicMail>${esc(s.email)}</cbc:ElectronicMail>`);
+    L.push(`      </cac:Contact>`);
+    L.push(`    </cac:Party>`);
+    L.push(`  </cac:AccountingSupplierParty>`);
 
-    // Payment terms
+    // --- Buyer (BG-7) ---
+    L.push(`  <cac:AccountingCustomerParty>`);
+    L.push(`    <cac:Party>`);
+    if (c.leitweg_id) {
+      L.push(`      <cbc:EndpointID schemeID="0204">${esc(c.leitweg_id)}</cbc:EndpointID>`);
+    } else if (c.einvoice_receiver_id) {
+      L.push(
+        `      <cbc:EndpointID schemeID="${esc(c.einvoice_receiver_scheme || "0088")}">${esc(c.einvoice_receiver_id)}</cbc:EndpointID>`,
+      );
+    } else if (c.email) {
+      L.push(`      <cbc:EndpointID schemeID="EM">${esc(c.email)}</cbc:EndpointID>`);
+    }
+    L.push(`      <cac:PartyName><cbc:Name>${esc(c.name)}</cbc:Name></cac:PartyName>`);
+    L.push(`      <cac:PostalAddress>`);
+    if (c.address_line1) L.push(`        <cbc:StreetName>${esc(c.address_line1)}</cbc:StreetName>`);
+    if (c.address_line2) {
+      L.push(
+        `        <cbc:AdditionalStreetName>${esc(c.address_line2)}</cbc:AdditionalStreetName>`,
+      );
+    }
+    if (c.city) L.push(`        <cbc:CityName>${esc(c.city)}</cbc:CityName>`);
+    if (c.postal_code) L.push(`        <cbc:PostalZone>${esc(c.postal_code)}</cbc:PostalZone>`);
+    if (c.state) L.push(`        <cbc:CountrySubentity>${esc(c.state)}</cbc:CountrySubentity>`);
+    L.push(
+      `        <cac:Country><cbc:IdentificationCode>${esc((c.country || "").toUpperCase())}</cbc:IdentificationCode></cac:Country>`,
+    );
+    L.push(`      </cac:PostalAddress>`);
+    if (c.tax_id) L.push(...taxScheme(c.tax_id, "VAT", "      "));
+    L.push(
+      `      <cac:PartyLegalEntity><cbc:RegistrationName>${esc(c.name)}</cbc:RegistrationName></cac:PartyLegalEntity>`,
+    );
+    if (c.email || c.phone) {
+      L.push(`      <cac:Contact>`);
+      if (c.phone) L.push(`        <cbc:Telephone>${esc(c.phone)}</cbc:Telephone>`);
+      if (c.email) L.push(`        <cbc:ElectronicMail>${esc(c.email)}</cbc:ElectronicMail>`);
+      L.push(`      </cac:Contact>`);
+    }
+    L.push(`    </cac:Party>`);
+    L.push(`  </cac:AccountingCustomerParty>`);
+
+    // --- Payment instructions (BG-16, mandatory in XRechnung: BR-DE-1) ---
+    const iban = cleanIban(s.iban);
+    L.push(`  <cac:PaymentMeans>`);
+    // 58 = SEPA credit transfer; 1 = not defined (no IBAN in the settings).
+    L.push(`    <cbc:PaymentMeansCode>${iban ? "58" : "1"}</cbc:PaymentMeansCode>`);
+    if (credit && data.due_date) {
+      L.push(`    <cbc:PaymentDueDate>${esc(data.due_date)}</cbc:PaymentDueDate>`);
+    }
+    L.push(`    <cbc:PaymentID>${esc(data.invoice_number)}</cbc:PaymentID>`);
+    if (iban) {
+      L.push(`    <cac:PayeeFinancialAccount>`);
+      L.push(`      <cbc:ID>${esc(iban)}</cbc:ID>`);
+      L.push(`      <cbc:Name>${esc(s.account_holder || s.name)}</cbc:Name>`);
+      if (s.bic) {
+        L.push(
+          `      <cac:FinancialInstitutionBranch><cbc:ID>${esc(s.bic.replace(/\s+/g, ""))}</cbc:ID></cac:FinancialInstitutionBranch>`,
+        );
+      }
+      L.push(`    </cac:PayeeFinancialAccount>`);
+    }
+    L.push(`  </cac:PaymentMeans>`);
     if (data.payment_terms) {
-      lines.push(
+      L.push(
         `  <cac:PaymentTerms><cbc:Note>${esc(data.payment_terms)}</cbc:Note></cac:PaymentTerms>`,
       );
     }
 
-    // Discount as allowance
-    if (hasDiscount) {
-      lines.push(`  <cac:AllowanceCharge>`);
-      lines.push(`    <cbc:ChargeIndicator>false</cbc:ChargeIndicator>`);
-      lines.push(`    <cbc:AllowanceChargeReason>Rabatt</cbc:AllowanceChargeReason>`);
-      lines.push(
-        `    <cbc:Amount currencyID="${esc(data.currency)}">${amt(data.discount_amount)}</cbc:Amount>`,
+    // --- Document level allowances (BG-20), one per VAT group ---
+    for (const g of doc.groups) {
+      if (!g.allowance) continue;
+      const charge = g.allowance < 0;
+      L.push(`  <cac:AllowanceCharge>`);
+      L.push(`    <cbc:ChargeIndicator>${charge ? "true" : "false"}</cbc:ChargeIndicator>`);
+      L.push(
+        `    <cbc:AllowanceChargeReason>${charge ? "Zuschlag" : "Rabatt"}</cbc:AllowanceChargeReason>`,
       );
-      lines.push(`  </cac:AllowanceCharge>`);
+      L.push(`    ${money("Amount", Math.abs(g.allowance))}`);
+      L.push(...taxCategory(g, "TaxCategory", "    ", false));
+      L.push(`  </cac:AllowanceCharge>`);
     }
 
-    // Tax total
-    lines.push(`  <cac:TaxTotal>`);
-    lines.push(
-      `    <cbc:TaxAmount currencyID="${esc(data.currency)}">${amt(data.tax_total)}</cbc:TaxAmount>`,
-    );
-    for (const tax of data.tax_breakdown) {
-      lines.push(`    <cac:TaxSubtotal>`);
-      lines.push(
-        `      <cbc:TaxableAmount currencyID="${esc(data.currency)}">${amt(tax.taxable_amount)}</cbc:TaxableAmount>`,
-      );
-      lines.push(
-        `      <cbc:TaxAmount currencyID="${esc(data.currency)}">${amt(tax.tax_amount)}</cbc:TaxAmount>`,
-      );
-      lines.push(`      <cac:TaxCategory>`);
-      lines.push(`        <cbc:ID>${esc(taxCategory(tax))}</cbc:ID>`);
-      if (tax.tax_rate > 0 || tax.category_code !== "Z") {
-        lines.push(`        <cbc:Percent>${tax.tax_rate}</cbc:Percent>`);
-      }
-      lines.push(`        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>`);
-      lines.push(`      </cac:TaxCategory>`);
-      lines.push(`    </cac:TaxSubtotal>`);
+    // --- VAT breakdown (BG-23) ---
+    L.push(`  <cac:TaxTotal>`);
+    L.push(`    ${money("TaxAmount", doc.taxTotal)}`);
+    for (const g of doc.groups) {
+      L.push(`    <cac:TaxSubtotal>`);
+      L.push(`      ${money("TaxableAmount", g.taxable)}`);
+      L.push(`      ${money("TaxAmount", g.tax)}`);
+      L.push(...taxCategory(g, "TaxCategory", "      ", true));
+      L.push(`    </cac:TaxSubtotal>`);
     }
-    lines.push(`  </cac:TaxTotal>`);
+    L.push(`  </cac:TaxTotal>`);
 
-    // Legal monetary total
-    lines.push(`  <cac:LegalMonetaryTotal>`);
-    lines.push(
-      `    <cbc:LineExtensionAmount currencyID="${esc(data.currency)}">${amt(data.subtotal)}</cbc:LineExtensionAmount>`,
-    );
-    lines.push(
-      `    <cbc:TaxExclusiveAmount currencyID="${esc(data.currency)}">${amt(data.subtotal - data.discount_amount)}</cbc:TaxExclusiveAmount>`,
-    );
-    lines.push(
-      `    <cbc:TaxInclusiveAmount currencyID="${esc(data.currency)}">${amt(data.total)}</cbc:TaxInclusiveAmount>`,
-    );
-    if (hasDiscount) {
-      lines.push(
-        `    <cbc:AllowanceTotalAmount currencyID="${esc(data.currency)}">${amt(data.discount_amount)}</cbc:AllowanceTotalAmount>`,
-      );
-    }
-    lines.push(
-      `    <cbc:PayableAmount currencyID="${esc(data.currency)}">${amt(data.total)}</cbc:PayableAmount>`,
-    );
-    lines.push(`  </cac:LegalMonetaryTotal>`);
+    // --- Document totals (BG-22) ---
+    L.push(`  <cac:LegalMonetaryTotal>`);
+    L.push(`    ${money("LineExtensionAmount", doc.lineTotal)}`);
+    L.push(`    ${money("TaxExclusiveAmount", doc.taxBasis)}`);
+    L.push(`    ${money("TaxInclusiveAmount", doc.grandTotal)}`);
+    if (doc.allowanceTotal) L.push(`    ${money("AllowanceTotalAmount", doc.allowanceTotal)}`);
+    if (doc.chargeTotal) L.push(`    ${money("ChargeTotalAmount", doc.chargeTotal)}`);
+    L.push(`    ${money("PayableAmount", doc.grandTotal)}`);
+    L.push(`  </cac:LegalMonetaryTotal>`);
 
-    // Line items
-    const lineTag = isCredit ? "CreditNoteLine" : "InvoiceLine";
-    const qtyTag = isCredit ? "CreditedQuantity" : "InvoicedQuantity";
-    for (let i = 0; i < data.items.length; i++) {
-      const item = data.items[i];
-      const unitCode = mapUnitCode(item.unit);
-      lines.push(`  <cac:${lineTag}>`);
-      lines.push(`    <cbc:ID>${i + 1}</cbc:ID>`);
-      lines.push(`    <cbc:${qtyTag} unitCode="${unitCode}">${item.quantity}</cbc:${qtyTag}>`);
-      lines.push(
-        `    <cbc:LineExtensionAmount currencyID="${esc(data.currency)}">${amt(item.line_total)}</cbc:LineExtensionAmount>`,
+    // --- Lines (BG-25) ---
+    const lineTag = credit ? "CreditNoteLine" : "InvoiceLine";
+    const qtyTag = credit ? "CreditedQuantity" : "InvoicedQuantity";
+    for (const line of doc.lines) {
+      L.push(`  <cac:${lineTag}>`);
+      L.push(`    <cbc:ID>${line.index}</cbc:ID>`);
+      L.push(
+        `    <cbc:${qtyTag} unitCode="${mapUnitCode(line.unit)}">${decimal(line.quantity)}</cbc:${qtyTag}>`,
       );
-      lines.push(`    <cac:Item>`);
-      lines.push(`      <cbc:Name>${esc(item.description)}</cbc:Name>`);
-      lines.push(`      <cac:ClassifiedTaxCategory>`);
-      lines.push(`        <cbc:ID>${esc(lineCategory(item))}</cbc:ID>`);
-      if (item.tax_rate > 0 || item.tax_category_code !== "Z") {
-        lines.push(`        <cbc:Percent>${item.tax_rate}</cbc:Percent>`);
-      }
-      lines.push(`        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>`);
-      lines.push(`      </cac:ClassifiedTaxCategory>`);
-      lines.push(`    </cac:Item>`);
-      lines.push(`    <cac:Price>`);
-      lines.push(
-        `      <cbc:PriceAmount currencyID="${esc(data.currency)}">${amt(item.unit_price)}</cbc:PriceAmount>`,
+      L.push(`    ${money("LineExtensionAmount", line.net)}`);
+      L.push(`    <cac:Item>`);
+      L.push(`      <cbc:Name>${esc(line.name)}</cbc:Name>`);
+      L.push(`      <cac:ClassifiedTaxCategory>`);
+      L.push(`        <cbc:ID>${line.category}</cbc:ID>`);
+      if (line.category !== "O") L.push(`        <cbc:Percent>${percent(line.rate)}</cbc:Percent>`);
+      L.push(`        <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>`);
+      L.push(`      </cac:ClassifiedTaxCategory>`);
+      L.push(`    </cac:Item>`);
+      L.push(`    <cac:Price>`);
+      L.push(
+        `      <cbc:PriceAmount currencyID="${cur}">${decimal(line.price, 2)}</cbc:PriceAmount>`,
       );
-      lines.push(`    </cac:Price>`);
-      lines.push(`  </cac:${lineTag}>`);
+      L.push(`    </cac:Price>`);
+      L.push(`  </cac:${lineTag}>`);
     }
 
-    lines.push(`</${rootTag}>`);
-    return lines.join("\n");
+    L.push(`</${root}>`);
+    return L.join("\n");
   }
 }
 
-function taxCategory(tax: XmlTaxBreakdown): string {
-  const c = (tax.category_code || "S").toUpperCase();
-  if (["S", "AA", "Z", "E", "AE", "K", "G", "O", "L", "M"].includes(c)) return c;
-  return tax.tax_rate === 0 ? "Z" : "S";
+function taxScheme(companyId: string, scheme: string, indent: string): string[] {
+  return [
+    `${indent}<cac:PartyTaxScheme>`,
+    `${indent}  <cbc:CompanyID>${esc(companyId)}</cbc:CompanyID>`,
+    `${indent}  <cac:TaxScheme><cbc:ID>${scheme}</cbc:ID></cac:TaxScheme>`,
+    `${indent}</cac:PartyTaxScheme>`,
+  ];
 }
 
-/** Keep type-only use of XmlLineItem to avoid narrowing surprises. */
-function lineCategory(item: XmlLineItem): string {
-  const c = (item.tax_category_code || "S").toUpperCase();
-  if (["S", "AA", "Z", "E", "AE", "K", "G", "O", "L", "M"].includes(c)) return c;
-  return item.tax_rate === 0 ? "Z" : "S";
+/** cac:TaxCategory for a VAT group; the breakdown also carries the exemption reason. */
+function taxCategory(
+  g: En16931VatGroup,
+  tag: string,
+  indent: string,
+  withReason: boolean,
+): string[] {
+  const out = [`${indent}<cac:${tag}>`, `${indent}  <cbc:ID>${g.category}</cbc:ID>`];
+  if (g.category !== "O") out.push(`${indent}  <cbc:Percent>${percent(g.rate)}</cbc:Percent>`);
+  if (withReason && g.exemptionCode) {
+    out.push(
+      `${indent}  <cbc:TaxExemptionReasonCode>${g.exemptionCode}</cbc:TaxExemptionReasonCode>`,
+    );
+  }
+  if (withReason && g.exemptionReason) {
+    out.push(
+      `${indent}  <cbc:TaxExemptionReason>${esc(g.exemptionReason)}</cbc:TaxExemptionReason>`,
+    );
+  }
+  out.push(
+    `${indent}  <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>`,
+    `${indent}</cac:${tag}>`,
+  );
+  return out;
 }
 
 function mapUnitCode(unit: string): string {

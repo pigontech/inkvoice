@@ -64,7 +64,7 @@ Inkvoice is a lightweight, **self-hosted** invoicing dashboard for people who'd 
 
 **German e-invoicing (E-Rechnung)**
 - Opt-in module, **off by default** — only German users need it, everyone else never sees it
-- Emit **EN 16931**-compliant e-invoices: **ZUGFeRD 2.2 hybrid PDF**, **XRechnung (UBL)** and **PEPPOL BIS**
+- Emit **XRechnung 3.0 (UBL)** and **ZUGFeRD / Factur-X** hybrid PDFs (EN 16931 profile, PDF/A-3), checked in CI with the official KoSIT validator and Mustang; **PEPPOL BIS** for the PEPPOL transport
 - **E-invoice inbox** — import, parse and process incoming XRechnung / ZUGFeRD files
 - Auto-attach the e-invoice to sent invoice emails (per-invoice or globally)
 

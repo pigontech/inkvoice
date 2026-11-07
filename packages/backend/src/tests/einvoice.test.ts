@@ -118,6 +118,7 @@ describe("E-invoice emission", () => {
       }),
     });
     invoiceId = ((await inv.json()) as any).data.id;
+    await authed(`/api/v1/invoices/${invoiceId}/mark-sent`, { method: "POST" });
 
     const gov = await authed("/api/v1/invoices", {
       method: "POST",
@@ -129,6 +130,7 @@ describe("E-invoice emission", () => {
       }),
     });
     govInvoiceId = ((await gov.json()) as any).data.id;
+    await authed(`/api/v1/invoices/${govInvoiceId}/mark-sent`, { method: "POST" });
   });
 
   test("emit ZUGFeRD hybrid PDF", async () => {
@@ -145,7 +147,13 @@ describe("E-invoice emission", () => {
     const pdfArr = Array.isArray(data.pdf) ? data.pdf : Object.values(data.pdf);
     const pdfText = new TextDecoder().decode(new Uint8Array(pdfArr as number[]));
     expect(pdfText.includes("%PDF-")).toBe(true);
-    expect(data.issues).toEqual([]);
+    expect(data.issues.filter((i: any) => i.severity === "error")).toEqual([]);
+    // EN 16931 profile, CII schema order: postcode first in addresses
+    expect(data.xml).toContain("<ram:ID>urn:cen.eu:en16931:2017</ram:ID>");
+    expect(data.xml.indexOf("<ram:PostcodeCode>10115")).toBeLessThan(
+      data.xml.indexOf("<ram:LineOne>Hauptstraße 1"),
+    );
+    expect(data.xml).toContain(`<ram:ID schemeID="FC">12/345/67890</ram:ID>`);
   });
 
   test("emit XRechnung for Leitweg-ID customer", async () => {
@@ -157,6 +165,20 @@ describe("E-invoice emission", () => {
     expect(data.xml).toContain("urn:oasis:names:specification:ubl");
     expect(data.xml).toContain("04011000-1234512345-06");
     expect(data.pdf).toBeNull();
+    // The XRechnung 3.0 CustomizationID the KoSIT validator matches on
+    expect(data.xml).toContain(
+      "<cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</cbc:CustomizationID>",
+    );
+    expect(data.xml).toContain("<cbc:BuyerReference>04011000-1234512345-06</cbc:BuyerReference>");
+    expect(data.xml).toContain("<cac:PaymentMeans>");
+    // UBL schema order: PartyName before PostalAddress, CityName before PostalZone
+    const seller = data.xml.slice(data.xml.indexOf("<cac:AccountingSupplierParty>"));
+    expect(seller.indexOf("<cac:PartyName>")).toBeLessThan(seller.indexOf("<cac:PostalAddress>"));
+    expect(seller.indexOf("<cbc:CityName>")).toBeLessThan(seller.indexOf("<cbc:PostalZone>"));
+    // XRechnung needs a seller phone and email: missing here, so flagged as errors
+    const codes = data.issues.map((i: any) => i.code);
+    expect(codes).toContain("xr_seller_phone");
+    expect(codes).toContain("xr_seller_email");
   });
 
   test("list + download records", async () => {

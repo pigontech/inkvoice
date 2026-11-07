@@ -702,7 +702,7 @@ export default function InvoiceView({ onBack }: Props) {
       />
 
       {/* E-invoice (XRechnung / ZUGFeRD) */}
-      {einvoiceEnabled && <EinvoicePanel invoiceId={id!} />}
+      {einvoiceEnabled && <EinvoicePanel invoiceId={id!} draft={invoice.status === "draft"} />}
 
       {/* E-invoice transport (send + delivery state) */}
       {(peppolEnabled || franceEnabled) && <TransmissionPanel invoiceId={id!} />}

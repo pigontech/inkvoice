@@ -502,6 +502,9 @@ const en = {
     emit_success: "E-invoice emitted ({{format}})",
     emit_with_issues:
       "E-invoice emitted with {{count}} validation error(s). Review company settings.",
+    issues_title: "Check before sending this e-invoice:",
+    draft_hint:
+      "Mark the invoice as sent (or send it) first: the e-invoice needs its final number.",
     loading: "Loading…",
     no_records: "No e-invoices emitted for this invoice yet.",
     format: "Format",
@@ -899,6 +902,31 @@ const en = {
     einvoice_enabled_hint:
       "Shows the E-Rechnung panel on invoices, the e-invoice inbox in the sidebar, and the customer e-invoice fields. Only required for German e-invoicing (ZUGFeRD/XRechnung/PEPPOL).",
     einvoice_enabled_checkbox: "Enable e-invoice module",
+    einvoice_details_hint:
+      "E-invoices need your address in separate fields and a tax registration. Fill these in once; they are used in every e-invoice.",
+    einvoice_street: "Street and number",
+    einvoice_postal_code: "Postcode",
+    einvoice_city: "City",
+    einvoice_country: "Country",
+    einvoice_select_country: "Select country",
+    einvoice_tax_number: "Tax number (Steuernummer)",
+    einvoice_tax_number_hint: "From your tax office. Needed if you have no VAT ID (USt-IdNr).",
+    einvoice_format_label: "Default format",
+    einvoice_format_hint:
+      "Customers with a Leitweg-ID always get XRechnung. You can change the format per customer.",
+    einvoice_format_zugferd: "ZUGFeRD (PDF with embedded XML)",
+    einvoice_format_xrechnung: "XRechnung (XML)",
+    einvoice_kleinunternehmer_label: "Small business (§ 19 UStG)",
+    einvoice_kleinunternehmer_checkbox: "I am a Kleinunternehmer and charge no VAT",
+    tax_category: "VAT category (e-invoice)",
+    tax_category_hint: "Required in e-invoices. Use S for 19 % and 7 %.",
+    tax_category_s: "Standard or reduced rate (S)",
+    tax_category_z: "Zero rated (Z)",
+    tax_category_e: "Exempt from VAT (E)",
+    tax_category_ae: "Reverse charge (AE)",
+    tax_category_k: "Intra-EU supply of goods (K)",
+    tax_category_g: "Export outside the EU (G)",
+    tax_category_o: "Not subject to VAT (O)",
 
     backup_description:
       "Download a full backup of your data. JSON is human-readable and easy to inspect; SQLite is a byte-for-byte snapshot you can restore by replacing the live database file.",

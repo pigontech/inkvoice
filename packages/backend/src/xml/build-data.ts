@@ -1,5 +1,6 @@
 import { getDb } from "../database/connection";
 import { getAllSettings } from "../services/settings.service";
+import { taxByRate } from "../utils/tax-calculator";
 import type { XmlInvoiceData, XmlLineItem, XmlTaxBreakdown } from "./types";
 
 export function buildXmlInvoiceData(invoiceId: string): XmlInvoiceData {
@@ -43,6 +44,7 @@ export function buildXmlInvoiceData(invoiceId: string): XmlInvoiceData {
     tax_rate: it.tax_rate || 0,
     tax_amount: it.tax_amount || 0,
     tax_category_code: it.category_code || defaultCategoryForRate(it.tax_rate || 0),
+    tax_name: it.tax_name || null,
   }));
 
   // Build tax breakdown from invoice_taxes if available, otherwise aggregate from items.
@@ -60,25 +62,18 @@ export function buildXmlInvoiceData(invoiceId: string): XmlInvoiceData {
       tax_amount: t.tax_amount,
     }));
   } else {
-    // Fallback: aggregate from items by rate
-    const byRate = new Map<number, { taxable: number; tax: number; code: string; name: string }>();
+    // Fallback: aggregate from items by rate, with the document discount taken
+    // off each rate's taxable amount and VAT (as the calculator does).
+    const codeByRate = new Map<number, string>();
     for (const item of items) {
-      const existing = byRate.get(item.tax_rate) || {
-        taxable: 0,
-        tax: 0,
-        code: item.tax_category_code,
-        name: `Tax ${item.tax_rate}%`,
-      };
-      existing.taxable += item.line_total;
-      existing.tax += item.tax_amount;
-      byRate.set(item.tax_rate, existing);
+      if (!codeByRate.has(item.tax_rate)) codeByRate.set(item.tax_rate, item.tax_category_code);
     }
-    tax_breakdown = Array.from(byRate.entries()).map(([rate, data]) => ({
-      tax_name: data.name,
-      tax_rate: rate,
-      category_code: data.code,
-      taxable_amount: data.taxable,
-      tax_amount: data.tax,
+    tax_breakdown = taxByRate(items, Number(invoice.discount_amount) || 0).map((r) => ({
+      tax_name: `Tax ${r.rate}%`,
+      tax_rate: r.rate,
+      category_code: codeByRate.get(r.rate) || defaultCategoryForRate(r.rate),
+      taxable_amount: Math.round((r.net - r.discount) * 100) / 100,
+      tax_amount: r.tax,
     }));
   }
 
@@ -117,6 +112,9 @@ export function buildXmlInvoiceData(invoiceId: string): XmlInvoiceData {
       tax_id: settings.company_tax_id || null,
       tax_number: settings.company_tax_number || null,
       bank_details: settings.company_bank_details || null,
+      iban: settings.company_iban || null,
+      bic: settings.company_bic || null,
+      account_holder: settings.company_account_holder || null,
       peppol_endpoint_id: settings.company_peppol_id || null,
       peppol_scheme_id: settings.company_peppol_scheme || null,
     },
@@ -139,14 +137,23 @@ export function buildXmlInvoiceData(invoiceId: string): XmlInvoiceData {
       siren: (invoice.customer_siren as string) || null,
       siret: (invoice.customer_siret as string) || null,
     },
+    preceding_invoice: precedingInvoice(invoice.reference_invoice_id as string | null),
     items,
     tax_breakdown,
   };
 }
 
-/** EN 16931 VAT category by rate for German-style invoices. */
+/** The invoice a credit note refers to (BT-25/BT-26). */
+function precedingInvoice(id: string | null): XmlInvoiceData["preceding_invoice"] {
+  if (!id) return null;
+  const row = getDb()
+    .query("SELECT invoice_number, issue_date FROM invoices WHERE id = ?")
+    .get(id) as { invoice_number: string; issue_date: string | null } | null;
+  return row ? { number: row.invoice_number, issue_date: row.issue_date } : null;
+}
+
+/** EN 16931 VAT category by rate (German 7 % is standard rated, "S"). */
 function defaultCategoryForRate(rate: number): string {
   if (rate === 0) return "Z";
-  if (rate === 7) return "AA";
   return "S";
 }

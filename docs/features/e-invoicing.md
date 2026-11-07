@@ -1,7 +1,8 @@
 # E-Invoicing (E-Rechnung)
 
-German e-invoicing support: emit EN 16931-compliant e-invoices, deliver them by email, and
-receive incoming e-invoices from suppliers. In Germany, receiving e-invoices has been mandatory
+German e-invoicing support: emit XRechnung and ZUGFeRD e-invoices, deliver them by email, and
+receive incoming e-invoices from suppliers. The output is checked in CI with the official KoSIT
+validator and Mustang (see [Conformance](#conformance)). In Germany, receiving e-invoices has been mandatory
 for all businesses since **1 January 2025**; sending becomes mandatory in **2027** (businesses
 above €800k) and **2028** (all businesses).
 
@@ -20,25 +21,36 @@ never see the E-Rechnung UI. Enable it under **Settings → E-Rechnung (e-invoic
 
 | Format | When it is used | Output |
 |---|---|---|
-| **ZUGFeRD 2.2** (Factur-X) | Default (`zugferd`) | CII XML embedded in a **PDF/A-3 hybrid PDF** |
+| **ZUGFeRD / Factur-X**, profile **EN 16931** | Default (`zugferd`) | CII XML (`factur-x.xml`) embedded in a **PDF/A-3b hybrid PDF** |
 | **XRechnung 3.0** (UBL) | Customer has a **Leitweg-ID**, or format set to `xrechnung` | UBL 2.1 XML (no hybrid PDF) |
-| **PEPPOL BIS 3.0** | Customer or business format set to `peppol` | UBL XML |
+| **PEPPOL BIS 3.0** | Customer or business format set to `peppol` | UBL XML (not covered by the conformance check) |
 
 Resolution order per invoice: **customer format → business setting → ZUGFeRD**; a customer
 Leitweg-ID always forces XRechnung.
 
 ## Company requirements
 
-For a valid e-invoice your **Settings** must contain:
+With the module on, **Settings → General → E-Rechnung** asks for what e-invoices need on top of
+your business profile:
 
-- Company name and address
-- Either a **VAT ID** (`DE` + 9 digits) or a **Steuernummer** in German format
-  (e.g. `12/345/67890`), plus the country set to `DE`
-- Optional: `E-Rechnung` default format and the **Kleinunternehmer (§19 UStG)** toggle,
-  which emits reverse-charge-style zero-VAT documents
+- **Street, postcode, city and country** as separate fields (the free-text address is only used
+  on printed invoices)
+- **Steuernummer**, needed if you have no **USt-IdNr.** (`DE` + 9 digits, under Settings →
+  Business)
+- **Default format** (ZUGFeRD or XRechnung) and the **Kleinunternehmer (§ 19 UStG)** switch:
+  a Kleinunternehmer's 0 % lines are emitted as VAT category `E` with the exemption reason
+  "Kleinunternehmer gemäß § 19 UStG" and the § 19 note
 
-Missing or malformed fields do not block emission but are reported as validation
-errors/warnings in the emit response and shown in the panel.
+From **Settings → Business**: company name, email, phone and **IBAN/BIC** (payment
+instructions in the e-invoice). XRechnung also requires a phone number and an email address.
+
+**VAT categories.** With the module on, the tax rate dialog (Settings → Tax) has an EN 16931
+VAT category: `S` for 19 % and 7 %, `Z` zero rated, `E` exempt, `AE` reverse charge (§ 13b
+UStG), `K` intra-EU supply, `G` export, `O` not subject to VAT. Exempt and reverse-charge
+breakdowns carry the exemption reason the standard requires.
+
+Missing or malformed fields do not block emission (sending over PEPPOL does block on errors);
+they are listed as errors and warnings in the e-invoice panel after **Create**.
 
 ## Customer e-invoice fields
 
@@ -47,16 +59,30 @@ In the customer form (visible when the module is enabled):
 | Field | Purpose |
 |---|---|
 | **E-invoice format** | Overrides the business default for this customer |
-| **Tax number (Steuernummer)** | The customer's German tax number, used as buyer tax number |
+| **Tax number (Steuernummer)** | Kept for your records; EN 16931 has no field for the buyer's tax number. The e-invoice carries the customer's **USt-IdNr.** |
 | **Leitweg-ID** | Official ID for public-sector (B2G) customers — forces XRechnung |
 | **Receiver ID / scheme** | Identifier for XRechnung/PEPPOL delivery, e.g. `DE:VAT`, `0204` |
 
 ## Emitting an e-invoice
 
-1. Open the invoice → **E-invoices (E-Rechnung)** panel → **Emit**.
-2. The invoice is validated against EN 16931 business rules; the XML (and hybrid PDF for
-   ZUGFeRD) is generated and stored as an immutable revision.
-3. Download the XML or hybrid PDF from the panel.
+1. Mark the invoice as sent (or send it): a draft has a placeholder number, so the panel waits
+   until the invoice has its final number.
+2. Open the invoice → **E-invoices (E-Rechnung)** panel → **Create**.
+3. The invoice is checked against the EN 16931 rules (and the XRechnung rules for XRechnung);
+   the XML (and hybrid PDF for ZUGFeRD) is generated and stored as an immutable revision.
+4. Download the XML or hybrid PDF from the panel.
+
+What the output contains:
+
+- **Credit notes** (type 381) carry positive amounts and refer to the corrected invoice
+  (BT-25).
+- A **document discount** is split per VAT rate and lowers each rate's taxable amount.
+- **Buyer reference** (BT-10, mandatory in XRechnung): the customer's Leitweg-ID, otherwise the
+  invoice number.
+- **Electronic addresses** (BT-34/BT-49): your PEPPOL ID or email, the customer's Leitweg-ID,
+  receiver ID or email.
+- There is no service-date field yet, so no delivery date (BT-72) is sent. Put the service
+  date or period in the invoice notes if it differs from the invoice date.
 
 ### Via API
 
@@ -95,6 +121,24 @@ GET    /api/v1/einvoices/inbox/:id/raw
 POST   /api/v1/einvoices/inbox/:id/link        ({ customer_id })
 POST   /api/v1/einvoices/inbox/:id/status      ({ status: inbox|processed|archived })
 DELETE /api/v1/einvoices/inbox/:id
+```
+
+## Conformance
+
+`.github/workflows/einvoice-conformance.yml` generates a set of German sample invoices with
+`scripts/einvoice-samples.ts` (19 %, 19 % + 7 %, discount, reverse charge, credit note,
+Kleinunternehmer, Leitweg-ID) and checks them with:
+
+- the **KoSIT validator** with the **XRechnung 3.0.2 configuration**: XRechnung (UBL) and the
+  ZUGFeRD XML (EN 16931, CII);
+- **Mustang**: the ZUGFeRD hybrid PDF (PDF/A-3 via veraPDF, embedded XML, profile).
+
+To run the same check locally (Java 11+), download the versions pinned in the workflow, then:
+
+```bash
+bun run scripts/einvoice-samples.ts samples
+java -jar validator-standalone.jar -s xrechnung/scenarios.xml -r xrechnung -o reports samples/*.xml
+java -jar Mustang-CLI.jar --action validate --source samples/01-zugferd-19.pdf
 ```
 
 ## Storage & retention

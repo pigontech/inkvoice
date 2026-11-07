@@ -107,6 +107,7 @@ describe("Factur-X French buyer ID", () => {
       }),
     });
     invoiceId = ((await inv.json()) as any).data.id;
+    await authed(`/api/v1/invoices/${invoiceId}/mark-sent`, { method: "POST" });
 
     const inv2 = await authed("/api/v1/invoices", {
       method: "POST",
@@ -118,6 +119,7 @@ describe("Factur-X French buyer ID", () => {
       }),
     });
     siretInvoiceId = ((await inv2.json()) as any).data.id;
+    await authed(`/api/v1/invoices/${siretInvoiceId}/mark-sent`, { method: "POST" });
   });
 
   test("emits buyer SIREN with schemeID 0009", async () => {
@@ -167,6 +169,7 @@ describe("Factur-X French buyer ID", () => {
         }),
       });
       invoiceId = ((await inv.json()) as any).data.id;
+      await authed(`/api/v1/invoices/${invoiceId}/mark-sent`, { method: "POST" });
     });
 
     test("franchise on → category E + exemption reason; off → category Z", async () => {

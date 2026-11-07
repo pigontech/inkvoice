@@ -503,6 +503,9 @@ const tr: TranslationKeys = {
     emit_success: "E-invoice emitted ({{format}})",
     emit_with_issues:
       "E-invoice emitted with {{count}} validation error(s). Review company settings.",
+    issues_title: "Bu e-faturayı göndermeden önce kontrol edin:",
+    draft_hint:
+      "Önce faturayı gönderildi olarak işaretleyin (veya gönderin): e-fatura kesin numarasına ihtiyaç duyar.",
     loading: "Loading…",
     no_records: "No e-invoices emitted for this invoice yet.",
     format: "Format",
@@ -899,6 +902,31 @@ const tr: TranslationKeys = {
     einvoice_enabled_hint:
       "Faturalarda E-fatura panelini, kenar çubuğunda e-fatura gelen kutusunu ve müşteri e-fatura alanlarını gösterir. Yalnızca Almanya e-fatura düzenlemeleri (ZUGFeRD/XRechnung/PEPPOL) için gereklidir.",
     einvoice_enabled_checkbox: "E-fatura modülünü etkinleştir",
+    einvoice_details_hint:
+      "E-faturalar adresinizi ayrı alanlarda ve bir vergi kaydı ister. Bir kez doldurun; her e-faturada kullanılır.",
+    einvoice_street: "Sokak ve numara",
+    einvoice_postal_code: "Posta kodu",
+    einvoice_city: "Şehir",
+    einvoice_country: "Ülke",
+    einvoice_select_country: "Ülke seçin",
+    einvoice_tax_number: "Vergi numarası (Steuernummer)",
+    einvoice_tax_number_hint: "Vergi dairenizden. KDV numaranız (USt-IdNr) yoksa gereklidir.",
+    einvoice_format_label: "Varsayılan biçim",
+    einvoice_format_hint:
+      "Leitweg-ID'si olan müşteriler her zaman XRechnung alır. Biçimi müşteri bazında değiştirebilirsiniz.",
+    einvoice_format_zugferd: "ZUGFeRD (XML gömülü PDF)",
+    einvoice_format_xrechnung: "XRechnung (XML)",
+    einvoice_kleinunternehmer_label: "Küçük işletme (§ 19 UStG)",
+    einvoice_kleinunternehmer_checkbox: "Kleinunternehmer'im ve KDV uygulamıyorum",
+    tax_category: "KDV kategorisi (e-fatura)",
+    tax_category_hint: "E-faturalarda zorunludur. %19 ve %7 için S kullanın.",
+    tax_category_s: "Standart veya indirimli oran (S)",
+    tax_category_z: "Sıfır oran (Z)",
+    tax_category_e: "KDV'den muaf (E)",
+    tax_category_ae: "Tersine vergilendirme (AE)",
+    tax_category_k: "AB içi mal teslimi (K)",
+    tax_category_g: "AB dışına ihracat (G)",
+    tax_category_o: "KDV'ye tabi değil (O)",
 
     backup_description:
       "Verilerinizin tam yedeğini indirin. JSON insan okunabilir ve incelemesi kolay; SQLite ise canlı veritabanı dosyasını değiştirerek geri yükleyebileceğiniz bayt bayt anlık görüntüdür.",

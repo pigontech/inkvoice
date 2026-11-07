@@ -300,8 +300,21 @@ describe("schema migration runner", () => {
     ).toThrow();
   });
 
-  test("migrations reach version 33", () => {
-    expect(LATEST_MIGRATION_VERSION).toBe(33);
+  test("migrations reach version 34", () => {
+    expect(LATEST_MIGRATION_VERSION).toBe(34);
+  });
+
+  test("the reduced-rate VAT category AA becomes S (EN 16931)", () => {
+    runWith(db, () => runMigrations());
+    db.exec("DELETE FROM schema_migrations WHERE version = 34");
+    db.run(
+      "INSERT INTO tax_definitions (id, name, rate, category_code) VALUES ('t7', 'USt 7 %', 7, 'AA')",
+    );
+    runWith(db, () => runMigrations());
+    const row = db.query("SELECT category_code FROM tax_definitions WHERE id = 't7'").get() as {
+      category_code: string;
+    };
+    expect(row.category_code).toBe("S");
   });
 
   test("customer_payment_methods has the expected shape", () => {

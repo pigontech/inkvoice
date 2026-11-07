@@ -242,7 +242,7 @@ export async function seed(): Promise<void> {
     if (german) {
       const presets: [string, number, string, string, number][] = [
         ["Umsatzsteuer 19% (Standard)", 19, "S", "Umsatzsteuer regelsatz", 1],
-        ["Umsatzsteuer 7 % (ermäßigt)", 7, "AA", "Ermäßigter Steuersatz (z. B. Lebensmittel)", 0],
+        ["Umsatzsteuer 7 % (ermäßigt)", 7, "S", "Ermäßigter Steuersatz (z. B. Lebensmittel)", 0],
         ["Umsatzsteuer 0 %", 0, "Z", "Steuerfreie Lieferungen (z. B. innergemeinschaftlich)", 0],
         ["Steuerbefreit (§ 4 UStG)", 0, "E", "Steuerbefreite Leistungen", 0],
       ];
