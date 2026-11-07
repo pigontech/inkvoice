@@ -218,7 +218,12 @@ export async function buildEinvoicePdf(input: EinvoicePdfInput): Promise<Einvoic
   tableY = drawTotals(page, font, tableY, [
     ["Zwischensumme", money(data.subtotal)],
     ...(data.discount_amount
-      ? [["Rabatt", `- ${money(data.discount_amount)}`] as [string, string]]
+      ? [
+          [
+            "Rabatt",
+            discountText(data.discount_amount, currency, localeOverride, numberFormat),
+          ] as [string, string],
+        ]
       : []),
     ...taxRows,
   ]);
@@ -558,6 +563,22 @@ function normalizeEinvoiceLocale(locale: string | null | undefined): string | un
 function fmtQty(n: number): string {
   if (Number.isInteger(n)) return String(n);
   return n.toFixed(3).replace(/\.?0+$/, "");
+}
+
+/**
+ * The discount row of the totals. An invoice's discount is positive and is
+ * shown as "- 100,00". A credit note's is negative like its other amounts, so
+ * it is shown as "+ 100,00" and the column still adds up (-1.000 + 100 - 180).
+ */
+export function discountText(
+  amount: number,
+  currency: string,
+  localeOverride?: string,
+  numberFormat?: string,
+): string {
+  return amount < 0
+    ? `+ ${formatCurrency(-amount, currency, numberFormat, localeOverride)}`
+    : `- ${formatCurrency(amount, currency, numberFormat, localeOverride)}`;
 }
 
 function utf8Bytes(s: string): Uint8Array {

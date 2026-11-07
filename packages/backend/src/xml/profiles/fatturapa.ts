@@ -101,7 +101,8 @@ export class FatturaPaProfile implements XmlProfile {
     lines.push(`        <Divisa>${esc(data.currency)}</Divisa>`);
     lines.push(`        <Data>${data.issue_date}</Data>`);
     lines.push(`        <Numero>${esc(data.invoice_number)}</Numero>`);
-    if (data.discount_amount > 0) {
+    // Negative on a credit note, like the lines and the total.
+    if (data.discount_amount !== 0) {
       lines.push(`        <ScontoMaggiorazione>`);
       lines.push(`          <Tipo>SC</Tipo>`);
       lines.push(`          <Importo>${amt(data.discount_amount)}</Importo>`);
