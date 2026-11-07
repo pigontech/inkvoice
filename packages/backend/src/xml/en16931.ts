@@ -51,6 +51,9 @@ export interface En16931Doc {
   taxBasis: number;
   taxTotal: number;
   grandTotal: number;
+  /** VAT IDs to send; none on an invoice not subject to VAT (BR-O-02). */
+  sellerVatId: string | null;
+  buyerVatId: string | null;
 }
 
 function round2(n: number): number {
@@ -198,6 +201,10 @@ export function prepareEn16931(data: XmlInvoiceData): En16931Doc {
     notes.push("Steuerschuldnerschaft des Leistungsempfängers (Reverse Charge).");
   }
 
+  // An invoice with lines not subject to VAT (category O) carries no VAT
+  // identifiers (BR-O-02); the tax number identifies the seller instead.
+  const notSubject = groups.some((g) => g.category === "O");
+
   return {
     credit,
     lines,
@@ -209,6 +216,8 @@ export function prepareEn16931(data: XmlInvoiceData): En16931Doc {
     taxBasis,
     taxTotal,
     grandTotal,
+    sellerVatId: notSubject ? null : data.supplier.tax_id || null,
+    buyerVatId: notSubject ? null : data.customer.tax_id || null,
   };
 }
 

@@ -191,6 +191,28 @@ describe("XML", () => {
       xml.indexOf("<ram:SpecifiedTradePaymentTerms>"),
     );
   });
+  test("not subject to VAT: no VAT IDs, the Steuernummer identifies the seller", () => {
+    const data = invoice({
+      tax_total: 0,
+      total: 100,
+      items: [line({ tax_rate: 0, tax_amount: 0, tax_category_code: "O" })],
+    });
+    data.customer.country = "CH";
+    const ubl = new XRechnungProfile().generateXml(data);
+    expect(ubl).not.toContain("DE123456789");
+    expect(ubl).not.toContain("DE987654321");
+    expect(ubl).toContain(
+      "<cac:PartyIdentification><cbc:ID>12/345/67890</cbc:ID></cac:PartyIdentification>",
+    );
+    // XRechnung wants a 0 rate in the breakdown (BR-DE-14), the line has none (BR-O-05).
+    expect(ubl).toMatch(
+      /<cac:TaxSubtotal>[\s\S]*<cbc:ID>O<\/cbc:ID>\s*<cbc:Percent>0<\/cbc:Percent>/,
+    );
+    expect(ubl).not.toMatch(/<cac:ClassifiedTaxCategory>\s*<cbc:ID>O<\/cbc:ID>\s*<cbc:Percent>/);
+    const cii = new FacturxZugferdProfile().generateXml(data);
+    expect(cii).not.toContain('schemeID="VA"');
+    expect(cii).toContain('<ram:ID schemeID="FC">12/345/67890</ram:ID>');
+  });
 });
 
 describe("validator", () => {
@@ -219,6 +241,27 @@ describe("validator", () => {
     data.supplier.tax_id = null;
     data.supplier.tax_number = null;
     expect(validateEinvoice(data).map((i) => i.code)).toContain("seller_tax_registration");
+  });
+  test("category O stands alone and needs a Steuernummer", () => {
+    const data = invoice({
+      subtotal: 200,
+      tax_total: 19,
+      total: 219,
+      items: [line({}), line({ id: "o", tax_rate: 0, tax_amount: 0, tax_category_code: "O" })],
+    });
+    data.supplier.tax_number = null;
+    const codes = validateEinvoice(data).map((i) => i.code);
+    expect(codes).toContain("not_subject_mixed");
+    expect(codes).toContain("not_subject_tax_number");
+  });
+
+  test("intra-community supplies are flagged while no delivery date can be recorded", () => {
+    const data = invoice({
+      tax_total: 0,
+      total: 100,
+      items: [line({ tax_rate: 0, tax_amount: 0, tax_category_code: "K" })],
+    });
+    expect(validateEinvoice(data).map((i) => i.code)).toContain("intra_community_delivery");
   });
 });
 

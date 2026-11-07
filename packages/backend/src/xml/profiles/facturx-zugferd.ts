@@ -99,7 +99,7 @@ export class FacturxZugferdProfile implements XmlProfile {
     if (c.leitweg_id) L.push(`      <ram:BuyerReference>${esc(c.leitweg_id)}</ram:BuyerReference>`);
     L.push(`      <ram:SellerTradeParty>`);
     // BR-CO-26: without a VAT ID the tax number identifies the seller (BT-29).
-    if (!s.tax_id && s.tax_number) L.push(`        <ram:ID>${esc(s.tax_number)}</ram:ID>`);
+    if (!doc.sellerVatId && s.tax_number) L.push(`        <ram:ID>${esc(s.tax_number)}</ram:ID>`);
     L.push(`        <ram:Name>${esc(s.name)}</ram:Name>`);
     if (s.phone || s.email) {
       L.push(`        <ram:DefinedTradeContact>`);
@@ -133,9 +133,9 @@ export class FacturxZugferdProfile implements XmlProfile {
         `        <ram:URIUniversalCommunication><ram:URIID schemeID="EM">${esc(s.email)}</ram:URIID></ram:URIUniversalCommunication>`,
       );
     }
-    if (s.tax_id) {
+    if (doc.sellerVatId) {
       L.push(
-        `        <ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${esc(s.tax_id)}</ram:ID></ram:SpecifiedTaxRegistration>`,
+        `        <ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${esc(doc.sellerVatId)}</ram:ID></ram:SpecifiedTaxRegistration>`,
       );
     }
     if (s.tax_number) {
@@ -176,9 +176,9 @@ export class FacturxZugferdProfile implements XmlProfile {
         `        <ram:URIUniversalCommunication><ram:URIID schemeID="EM">${esc(c.email)}</ram:URIID></ram:URIUniversalCommunication>`,
       );
     }
-    if (c.tax_id) {
+    if (doc.buyerVatId) {
       L.push(
-        `        <ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${esc(c.tax_id)}</ram:ID></ram:SpecifiedTaxRegistration>`,
+        `        <ram:SpecifiedTaxRegistration><ram:ID schemeID="VA">${esc(doc.buyerVatId)}</ram:ID></ram:SpecifiedTaxRegistration>`,
       );
     }
     L.push(`      </ram:BuyerTradeParty>`);

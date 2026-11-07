@@ -87,7 +87,7 @@ export class XRechnungProfile implements XmlProfile {
       L.push(`      <cbc:EndpointID schemeID="EM">${esc(s.email)}</cbc:EndpointID>`);
     }
     // BR-CO-26: without a VAT ID the tax number identifies the seller (BT-29).
-    if (!s.tax_id && s.tax_number) {
+    if (!doc.sellerVatId && s.tax_number) {
       L.push(
         `      <cac:PartyIdentification><cbc:ID>${esc(s.tax_number)}</cbc:ID></cac:PartyIdentification>`,
       );
@@ -103,7 +103,7 @@ export class XRechnungProfile implements XmlProfile {
       `        <cac:Country><cbc:IdentificationCode>${esc(s.country)}</cbc:IdentificationCode></cac:Country>`,
     );
     L.push(`      </cac:PostalAddress>`);
-    if (s.tax_id) L.push(...taxScheme(s.tax_id, "VAT", "      "));
+    if (doc.sellerVatId) L.push(...taxScheme(doc.sellerVatId, "VAT", "      "));
     if (s.tax_number) L.push(...taxScheme(s.tax_number, "FC", "      "));
     L.push(
       `      <cac:PartyLegalEntity><cbc:RegistrationName>${esc(s.name)}</cbc:RegistrationName></cac:PartyLegalEntity>`,
@@ -143,7 +143,7 @@ export class XRechnungProfile implements XmlProfile {
       `        <cac:Country><cbc:IdentificationCode>${esc((c.country || "").toUpperCase())}</cbc:IdentificationCode></cac:Country>`,
     );
     L.push(`      </cac:PostalAddress>`);
-    if (c.tax_id) L.push(...taxScheme(c.tax_id, "VAT", "      "));
+    if (doc.buyerVatId) L.push(...taxScheme(doc.buyerVatId, "VAT", "      "));
     L.push(
       `      <cac:PartyLegalEntity><cbc:RegistrationName>${esc(c.name)}</cbc:RegistrationName></cac:PartyLegalEntity>`,
     );
@@ -267,7 +267,11 @@ function taxCategory(
   withReason: boolean,
 ): string[] {
   const out = [`${indent}<cac:${tag}>`, `${indent}  <cbc:ID>${g.category}</cbc:ID>`];
-  if (g.category !== "O") out.push(`${indent}  <cbc:Percent>${percent(g.rate)}</cbc:Percent>`);
+  // XRechnung wants the rate in the VAT breakdown even for category O
+  // (BR-DE-14), while O allowances and charges carry none (BR-O-06, BR-O-07).
+  if (g.category !== "O" || withReason) {
+    out.push(`${indent}  <cbc:Percent>${percent(g.rate)}</cbc:Percent>`);
+  }
   if (withReason && g.exemptionCode) {
     out.push(
       `${indent}  <cbc:TaxExemptionReasonCode>${g.exemptionCode}</cbc:TaxExemptionReasonCode>`,

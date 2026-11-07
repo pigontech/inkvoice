@@ -239,6 +239,31 @@ function en16931Checks(data: XmlInvoiceData): EinvoiceIssue[] {
         ),
       );
     }
+    const notSubject = doc.groups.some((g) => g.category === "O");
+    if (notSubject && doc.groups.some((g) => g.category !== "O")) {
+      issues.push(
+        error(
+          "not_subject_mixed",
+          "Lines not subject to VAT (category O) can't share an invoice with other VAT categories. Bill them on a separate invoice. [BR-O-11]",
+        ),
+      );
+    }
+    if (notSubject && s.tax_id && !s.tax_number) {
+      issues.push(
+        error(
+          "not_subject_tax_number",
+          "An invoice not subject to VAT (category O) can't carry your USt-IdNr, so it needs your Steuernummer (Settings). [BR-O-02, BR-CO-26]",
+        ),
+      );
+    }
+    if (doc.groups.some((g) => g.category === "K")) {
+      issues.push(
+        error(
+          "intra_community_delivery",
+          "An intra-community supply (category K) needs a delivery date and a delivery country, which Inkvoice can't record yet, so this e-invoice won't pass validation. [BR-IC-11, BR-IC-12]",
+        ),
+      );
+    }
     if (Math.abs(doc.grandTotal - Math.abs(data.total)) > 0.01) {
       issues.push(
         error(

@@ -206,6 +206,49 @@ await api("PUT", `/api/v1/customers/${xrechnung}`, { ...buyer, einvoice_format: 
 await emit("11-zugferd-credit-note", creditNote);
 await api("PUT", `/api/v1/customers/${xrechnung}`, { ...buyer, einvoice_format: "xrechnung" });
 
+// The other VAT categories a German freelancer meets: zero rated (next to
+// 19 %), exempt, export outside the EU and not subject to VAT. Intra-community
+// supplies (K) need a delivery date, which Inkvoice can't record yet.
+const category = async (name: string, code: string) =>
+  (await json("POST", "/api/v1/tax-definitions", { name, rate: 0, category_code: code }))
+    .id as string;
+const TZ = await category("Nullsatz (§ 12 Abs. 3 UStG)", "Z");
+const TEX = await category("Steuerfrei nach § 4 Nr. 21 UStG", "E");
+const TG = await category("Ausfuhrlieferung (§ 4 Nr. 1a UStG)", "G");
+const TO = await category("Nicht im Inland steuerbare Leistung", "O");
+const nonEuBuyer = {
+  name: "Kunde Zürich AG",
+  email: "kreditoren@example.ch",
+  country: "CH",
+  tax_id: "CHE-123.456.789 MWST",
+  address_line1: "Bahnhofstrasse 1",
+  city: "Zürich",
+  postal_code: "8001",
+};
+const nonEuZugferd = await customer({ ...nonEuBuyer, einvoice_format: "zugferd" });
+const nonEuXrechnung = await customer({ ...nonEuBuyer, einvoice_format: "xrechnung" });
+const zeroRated = [
+  ...standard,
+  { description: "Photovoltaikanlage 10 kWp inkl. Montage", quantity: 1, unit_price: 9800, unit: "piece", tax_id: TZ, tax_rate: 0 },
+];
+const exempt = [
+  { description: "Sprachkurs Deutsch B1", quantity: 10, unit_price: 60, unit: "hour", tax_id: TEX, tax_rate: 0 },
+];
+const exportGoods = [
+  { description: "Kunstdrucke, Ausfuhr", quantity: 10, unit_price: 100, unit: "piece", tax_id: TG, tax_rate: 0 },
+];
+const notSubject = [
+  { description: "Beratung (Leistungsort Schweiz)", quantity: 10, unit_price: 95, unit: "hour", tax_id: TO, tax_rate: 0 },
+];
+await emit("14-zugferd-zero-rated", await invoice(zugferd, zeroRated));
+await emit("15-xrechnung-zero-rated", await invoice(xrechnung, zeroRated));
+await emit("16-zugferd-exempt", await invoice(zugferd, exempt));
+await emit("17-xrechnung-exempt", await invoice(xrechnung, exempt));
+await emit("18-zugferd-export", await invoice(nonEuZugferd, exportGoods));
+await emit("19-xrechnung-export", await invoice(nonEuXrechnung, exportGoods));
+await emit("20-zugferd-not-subject", await invoice(nonEuZugferd, notSubject));
+await emit("21-xrechnung-not-subject", await invoice(nonEuXrechnung, notSubject));
+
 // Kleinunternehmer (§ 19 UStG): no USt-IdNr, no VAT.
 await api("PUT", "/api/v1/settings", { einvoice_kleinunternehmer: "true", company_tax_id: "" });
 await emit("12-zugferd-kleinunternehmer", await invoice(zugferd, smallBusiness));
