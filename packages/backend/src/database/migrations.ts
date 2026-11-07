@@ -1164,6 +1164,17 @@ const MIGRATIONS: Migration[] = [
       db.run("UPDATE tax_definitions SET category_code = 'S' WHERE category_code = 'AA'");
     },
   },
+  {
+    version: 35,
+    name: "invoice_service_date",
+    up: (db) => {
+      // The date of supply (Leistungsdatum, § 14 Abs. 4 Nr. 6 UStG), as ISO
+      // dates: one date (EN 16931 BT-72) or a period (BG-14, BT-73/BT-74).
+      addColumnIfMissing(db, "invoices", "service_date", "TEXT");
+      addColumnIfMissing(db, "invoices", "service_period_start", "TEXT");
+      addColumnIfMissing(db, "invoices", "service_period_end", "TEXT");
+    },
+  },
 ];
 
 export const LATEST_MIGRATION_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

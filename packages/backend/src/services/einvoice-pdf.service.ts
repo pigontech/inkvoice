@@ -136,11 +136,21 @@ export async function buildEinvoicePdf(input: EinvoicePdfInput): Promise<Einvoic
     [isCredit ? "Gutschrift-Nr." : "Rechnungs-Nr.", data.invoice_number],
     ["Datum", fmtDate(data.issue_date)],
     ...(data.due_date ? [["Fällig am", fmtDate(data.due_date)] as [string, string]] : []),
+    ...(data.service_date
+      ? [["Leistungsdatum", fmtDate(data.service_date)] as [string, string]]
+      : []),
+    // The period takes two rows: both dates on one row would run into the label.
+    ...(data.service_period
+      ? ([
+          ["Leistungszeitraum", fmtDate(data.service_period.start)],
+          ["", `bis ${fmtDate(data.service_period.end)}`],
+        ] as Array<[string, string]>)
+      : []),
     ["Währung", currency.toUpperCase()],
   ];
   let metaY = PAGE_H - MARGIN - 28;
   for (const [label, value] of meta) {
-    text(page, label, 8, META_LABEL_X, metaY, font, MUTED);
+    if (label) text(page, label, 8, META_LABEL_X, metaY, font, MUTED);
     right(page, value, 9, RIGHT, metaY, font, INK);
     metaY -= 15;
   }

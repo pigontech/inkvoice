@@ -3,6 +3,10 @@ export interface XmlInvoiceData {
   invoice_number: string;
   issue_date: string;
   due_date: string | null;
+  /** Actual delivery date (BT-72), the date of supply; ISO date. */
+  service_date?: string | null;
+  /** Invoicing period (BG-14: BT-73 start, BT-74 end); ISO dates. */
+  service_period?: { start: string; end: string } | null;
   currency: string;
   locale: string | null;
   type: "invoice" | "credit_note";

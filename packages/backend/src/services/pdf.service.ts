@@ -182,6 +182,17 @@ export function buildInvoiceContext(invoiceId: string) {
     invoice_number: invoice.invoice_number,
     issue_date: formatDateStr(invoice.issue_date, dateFormat, localeOverride),
     due_date: invoice.due_date ? formatDateStr(invoice.due_date, dateFormat, localeOverride) : null,
+    // Date of supply (Leistungsdatum): a single date and/or a period.
+    service_date: invoice.service_date
+      ? formatDateStr(invoice.service_date, dateFormat, localeOverride)
+      : null,
+    service_period:
+      invoice.service_period_start && invoice.service_period_end
+        ? {
+            start: formatDateStr(invoice.service_period_start, dateFormat, localeOverride),
+            end: formatDateStr(invoice.service_period_end, dateFormat, localeOverride),
+          }
+        : null,
     status: invoice.status,
     company: {
       name: settings.company_name || "",

@@ -592,6 +592,23 @@ export default function InvoiceView({ onBack }: Props) {
                 <span>{formatDate(invoice.due_date)}</span>
               </div>
             )}
+            {invoice.service_date && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t("invoices.service_date")}</span>
+                <span>{formatDate(invoice.service_date)}</span>
+              </div>
+            )}
+            {invoice.service_period_start && invoice.service_period_end && (
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">{t("invoices.service_period")}</span>
+                <span className="text-right">
+                  {t("invoices.service_period_range", {
+                    start: formatDate(invoice.service_period_start),
+                    end: formatDate(invoice.service_period_end),
+                  })}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t("invoices.currency")}</span>
               <span>{invoice.currency}</span>

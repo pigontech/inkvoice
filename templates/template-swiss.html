@@ -305,6 +305,18 @@
         <span class="date-value">{{due_date}}</span>
       </div>
       {{/due_date}}
+      {{#service_date}}
+      <div class="date-item">
+        <span class="date-label">Service date</span>
+        <span class="date-value">{{service_date}}</span>
+      </div>
+      {{/service_date}}
+      {{#service_period}}
+      <div class="date-item">
+        <span class="date-label">Service period</span>
+        <span class="date-value">{{service_period.start}} to {{service_period.end}}</span>
+      </div>
+      {{/service_period}}
     </div>
   </div>
 

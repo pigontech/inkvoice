@@ -4,6 +4,7 @@ import { buildEinvoicePdf } from "../services/einvoice-pdf.service";
 import { validateEinvoice } from "../services/einvoice-validator.service";
 import { en16931Category, prepareEn16931 } from "../xml/en16931";
 import { FacturxZugferdProfile } from "../xml/profiles/facturx-zugferd";
+import { UblPeppolProfile } from "../xml/profiles/ubl-peppol";
 import { XRechnungProfile } from "../xml/profiles/xrechnung";
 import type { XmlInvoiceData, XmlLineItem } from "../xml/types";
 
@@ -212,6 +213,96 @@ describe("XML", () => {
     const cii = new FacturxZugferdProfile().generateXml(data);
     expect(cii).not.toContain('schemeID="VA"');
     expect(cii).toContain('<ram:ID schemeID="FC">12/345/67890</ram:ID>');
+  });
+
+  const period = { start: "2026-10-01", end: "2026-10-31" };
+
+  test("XRechnung: service date as Delivery (BT-72), period as InvoicePeriod (BG-14)", () => {
+    const xml = new XRechnungProfile().generateXml(
+      invoice({ service_date: "2026-10-31", service_period: period }),
+    );
+    expect(xml).toContain(
+      "<cac:Delivery>\n    <cbc:ActualDeliveryDate>2026-10-31</cbc:ActualDeliveryDate>\n  </cac:Delivery>",
+    );
+    expect(xml).toContain(
+      "<cac:InvoicePeriod>\n    <cbc:StartDate>2026-10-01</cbc:StartDate>\n    <cbc:EndDate>2026-10-31</cbc:EndDate>\n  </cac:InvoicePeriod>",
+    );
+    // UBL 2.1 element order.
+    const at = (tag: string) => xml.indexOf(tag);
+    expect(at("<cbc:BuyerReference>")).toBeLessThan(at("<cac:InvoicePeriod>"));
+    expect(at("<cac:InvoicePeriod>")).toBeLessThan(at("<cac:AccountingSupplierParty>"));
+    expect(at("</cac:AccountingCustomerParty>")).toBeLessThan(at("<cac:Delivery>"));
+    expect(at("<cac:Delivery>")).toBeLessThan(at("<cac:PaymentMeans>"));
+  });
+
+  test("XRechnung credit note: the period comes before the invoice reference", () => {
+    const xml = new XRechnungProfile().generateXml(
+      invoice({
+        type: "credit_note",
+        service_period: period,
+        preceding_invoice: { number: "RE-0", issue_date: "2026-10-31" },
+      }),
+    );
+    expect(xml.indexOf("<cac:InvoicePeriod>")).toBeLessThan(xml.indexOf("<cac:BillingReference>"));
+    expect(xml).not.toContain("<cac:Delivery>");
+  });
+
+  test("ZUGFeRD: service date as delivery event, period after the VAT breakdown", () => {
+    const xml = new FacturxZugferdProfile().generateXml(
+      invoice({
+        service_date: "2026-10-31",
+        service_period: period,
+        payment_terms: "14 Tage netto",
+        discount_amount: 10,
+        tax_total: 17.1,
+        total: 107.1,
+      }),
+    );
+    expect(xml).toContain(
+      `<ram:ActualDeliverySupplyChainEvent>\n        <ram:OccurrenceDateTime><udt:DateTimeString format="102">20261031</udt:DateTimeString></ram:OccurrenceDateTime>`,
+    );
+    expect(xml).toContain(
+      `<ram:StartDateTime><udt:DateTimeString format="102">20261001</udt:DateTimeString></ram:StartDateTime>`,
+    );
+    expect(xml).toContain(
+      `<ram:EndDateTime><udt:DateTimeString format="102">20261031</udt:DateTimeString></ram:EndDateTime>`,
+    );
+    expect(xml).not.toContain("<ram:ApplicableHeaderTradeDelivery />");
+    // CII D16B element order.
+    const at = (tag: string) => xml.indexOf(tag);
+    expect(at("</ram:ApplicableHeaderTradeAgreement>")).toBeLessThan(
+      at("<ram:ApplicableHeaderTradeDelivery>"),
+    );
+    expect(at("</ram:ApplicableHeaderTradeDelivery>")).toBeLessThan(
+      at("<ram:ApplicableHeaderTradeSettlement>"),
+    );
+    expect(xml.lastIndexOf("</ram:ApplicableTradeTax>")).toBeLessThan(
+      at("<ram:BillingSpecifiedPeriod>"),
+    );
+    expect(at("<ram:BillingSpecifiedPeriod>")).toBeLessThan(
+      at("<ram:SpecifiedTradeAllowanceCharge>"),
+    );
+    expect(at("<ram:SpecifiedTradeAllowanceCharge>")).toBeLessThan(
+      at("<ram:SpecifiedTradePaymentTerms>"),
+    );
+  });
+
+  test("ZUGFeRD without a service date keeps the empty delivery element", () => {
+    const xml = new FacturxZugferdProfile().generateXml(invoice());
+    expect(xml).toContain("<ram:ApplicableHeaderTradeDelivery />");
+    expect(xml).not.toContain("<ram:BillingSpecifiedPeriod>");
+  });
+
+  test("PEPPOL BIS: the same UBL elements, in schema order", () => {
+    const xml = new UblPeppolProfile().generateXml(
+      invoice({ service_date: "2026-10-31", service_period: period }),
+    );
+    const at = (tag: string) => xml.indexOf(tag);
+    expect(at("<cbc:DocumentCurrencyCode>")).toBeLessThan(at("<cac:InvoicePeriod>"));
+    expect(at("<cac:InvoicePeriod>")).toBeLessThan(at("<cac:AccountingSupplierParty>"));
+    expect(at("</cac:AccountingCustomerParty>")).toBeLessThan(at("<cac:Delivery>"));
+    expect(at("<cac:Delivery>")).toBeLessThan(at("<cac:TaxTotal>"));
+    expect(xml).toContain("<cbc:ActualDeliveryDate>2026-10-31</cbc:ActualDeliveryDate>");
   });
 });
 

@@ -133,6 +133,19 @@
         color: #555;
       }
 
+      /* A date range may not fit next to its label: keep a gap and wrap it. */
+      .info-block .info-row.range {
+        gap: 2mm;
+      }
+
+      .info-block .info-row.range span:last-child {
+        text-align: right;
+      }
+
+      .info-block .info-row.range .nowrap {
+        white-space: nowrap;
+      }
+
       /* ---------- Body content, starts below the address window ---------- */
       .currency-note {
         font-size: 8.5pt;
@@ -378,6 +391,18 @@
                     <span>{{due_date}}</span>
                 </div>
                 {{/due_date}}
+                {{#service_date}}
+                <div class="info-row">
+                    <span class="label">Leistungsdatum</span>
+                    <span>{{service_date}}</span>
+                </div>
+                {{/service_date}}
+                {{#service_period}}
+                <div class="info-row range">
+                    <span class="label">Leistungszeitraum</span>
+                    <span><span class="nowrap">{{service_period.start}}</span> <span class="nowrap">bis {{service_period.end}}</span></span>
+                </div>
+                {{/service_period}}
                 {{#customer.tax_id}}
                 <div class="info-row">
                     <span class="label">USt-IdNr. des Kunden</span>

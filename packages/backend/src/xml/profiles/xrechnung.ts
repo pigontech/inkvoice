@@ -65,6 +65,13 @@ export class XRechnungProfile implements XmlProfile {
     L.push(
       `  <cbc:BuyerReference>${esc(c.leitweg_id || data.invoice_number)}</cbc:BuyerReference>`,
     );
+    // Service period (BG-14).
+    if (data.service_period) {
+      L.push(`  <cac:InvoicePeriod>`);
+      L.push(`    <cbc:StartDate>${esc(data.service_period.start)}</cbc:StartDate>`);
+      L.push(`    <cbc:EndDate>${esc(data.service_period.end)}</cbc:EndDate>`);
+      L.push(`  </cac:InvoicePeriod>`);
+    }
     if (data.preceding_invoice) {
       L.push(`  <cac:BillingReference>`);
       L.push(`    <cac:InvoiceDocumentReference>`);
@@ -155,6 +162,13 @@ export class XRechnungProfile implements XmlProfile {
     }
     L.push(`    </cac:Party>`);
     L.push(`  </cac:AccountingCustomerParty>`);
+
+    // --- Delivery (BG-13): the date of supply (BT-72) ---
+    if (data.service_date) {
+      L.push(`  <cac:Delivery>`);
+      L.push(`    <cbc:ActualDeliveryDate>${esc(data.service_date)}</cbc:ActualDeliveryDate>`);
+      L.push(`  </cac:Delivery>`);
+    }
 
     // --- Payment instructions (BG-16, mandatory in XRechnung: BR-DE-1) ---
     const iban = cleanIban(s.iban);

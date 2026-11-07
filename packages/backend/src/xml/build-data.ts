@@ -89,6 +89,14 @@ export function buildXmlInvoiceData(invoiceId: string): XmlInvoiceData {
     invoice_number: String(invoice.invoice_number),
     issue_date: String(invoice.issue_date),
     due_date: invoice.due_date ? String(invoice.due_date) : null,
+    service_date: invoice.service_date ? String(invoice.service_date) : null,
+    service_period:
+      invoice.service_period_start && invoice.service_period_end
+        ? {
+            start: String(invoice.service_period_start),
+            end: String(invoice.service_period_end),
+          }
+        : null,
     currency: (invoice.currency as string) || "EUR",
     locale: invoice.locale as string | null,
     type: (invoice.type as "invoice" | "credit_note") || "invoice",

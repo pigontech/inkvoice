@@ -60,6 +60,14 @@ export class UblPeppolProfile implements XmlProfile {
     }
     lines.push(`  <cbc:DocumentCurrencyCode>${esc(data.currency)}</cbc:DocumentCurrencyCode>`);
 
+    // Service period (BG-14)
+    if (data.service_period) {
+      lines.push(`  <cac:InvoicePeriod>`);
+      lines.push(`    <cbc:StartDate>${esc(data.service_period.start)}</cbc:StartDate>`);
+      lines.push(`    <cbc:EndDate>${esc(data.service_period.end)}</cbc:EndDate>`);
+      lines.push(`  </cac:InvoicePeriod>`);
+    }
+
     // Supplier
     lines.push(`  <cac:AccountingSupplierParty>`);
     lines.push(`    <cac:Party>`);
@@ -141,6 +149,13 @@ export class UblPeppolProfile implements XmlProfile {
     }
     lines.push(`    </cac:Party>`);
     lines.push(`  </cac:AccountingCustomerParty>`);
+
+    // Date of supply (BT-72)
+    if (data.service_date) {
+      lines.push(`  <cac:Delivery>`);
+      lines.push(`    <cbc:ActualDeliveryDate>${esc(data.service_date)}</cbc:ActualDeliveryDate>`);
+      lines.push(`  </cac:Delivery>`);
+    }
 
     // Payment terms
     if (data.payment_terms) {

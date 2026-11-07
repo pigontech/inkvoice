@@ -184,7 +184,18 @@ export class FacturxZugferdProfile implements XmlProfile {
     L.push(`      </ram:BuyerTradeParty>`);
     L.push(`    </ram:ApplicableHeaderTradeAgreement>`);
 
-    L.push(`    <ram:ApplicableHeaderTradeDelivery />`);
+    // --- Delivery: the date of supply (BT-72) ---
+    if (data.service_date) {
+      L.push(`    <ram:ApplicableHeaderTradeDelivery>`);
+      L.push(`      <ram:ActualDeliverySupplyChainEvent>`);
+      L.push(
+        `        <ram:OccurrenceDateTime><udt:DateTimeString format="102">${date102(data.service_date)}</udt:DateTimeString></ram:OccurrenceDateTime>`,
+      );
+      L.push(`      </ram:ActualDeliverySupplyChainEvent>`);
+      L.push(`    </ram:ApplicableHeaderTradeDelivery>`);
+    } else {
+      L.push(`    <ram:ApplicableHeaderTradeDelivery />`);
+    }
 
     // --- Settlement: payment, VAT breakdown, allowances, terms, totals ---
     L.push(`    <ram:ApplicableHeaderTradeSettlement>`);
@@ -221,6 +232,17 @@ export class FacturxZugferdProfile implements XmlProfile {
         L.push(`        <ram:RateApplicablePercent>${percent(g.rate)}</ram:RateApplicablePercent>`);
       }
       L.push(`      </ram:ApplicableTradeTax>`);
+    }
+    // Service period (BG-14).
+    if (data.service_period) {
+      L.push(`      <ram:BillingSpecifiedPeriod>`);
+      L.push(
+        `        <ram:StartDateTime><udt:DateTimeString format="102">${date102(data.service_period.start)}</udt:DateTimeString></ram:StartDateTime>`,
+      );
+      L.push(
+        `        <ram:EndDateTime><udt:DateTimeString format="102">${date102(data.service_period.end)}</udt:DateTimeString></ram:EndDateTime>`,
+      );
+      L.push(`      </ram:BillingSpecifiedPeriod>`);
     }
     for (const g of doc.groups) {
       if (!g.allowance) continue;

@@ -49,8 +49,8 @@ VAT category: `S` for 19 % and 7 %, `Z` zero rated, `E` exempt, `AE` reverse cha
 UStG), `K` intra-EU supply, `G` export, `O` not subject to VAT. Exempt and reverse-charge
 breakdowns carry the exemption reason the standard requires. An invoice with `O` lines leaves
 out the VAT IDs (the Steuernummer identifies the seller) and can't mix `O` with other categories.
-`K` is not supported yet: EN 16931 needs a delivery date and a delivery country for it, which
-Inkvoice can't record, so the panel flags such an invoice.
+`K` is not supported yet: besides the service date, EN 16931 needs a delivery country for it,
+which Inkvoice can't record, so the panel flags such an invoice.
 
 Missing or malformed fields do not block emission (sending over PEPPOL does block on errors);
 they are listed as errors and warnings in the e-invoice panel after **Create**. The send dialog
@@ -87,8 +87,9 @@ What the output contains:
   invoice number.
 - **Electronic addresses** (BT-34/BT-49): your PEPPOL ID or email, the customer's Leitweg-ID,
   receiver ID or email.
-- There is no service-date field yet, so no delivery date (BT-72) is sent. Put the service
-  date or period in the invoice notes if it differs from the invoice date.
+- **Service date** (Leistungsdatum, § 14 Abs. 4 Nr. 6 UStG), set on the invoice form as one
+  date or a period: a date is sent as the actual delivery date (BT-72), a period as the
+  invoicing period (BG-14). The hybrid PDF prints it too.
 
 ### Via API
 
@@ -142,8 +143,8 @@ DELETE /api/v1/einvoices/inbox/:id
 
 `.github/workflows/einvoice-conformance.yml` generates a set of German sample invoices with
 `scripts/einvoice-samples.ts` (19 %, 19 % + 7 %, discount, reverse charge, credit note,
-Kleinunternehmer, Leitweg-ID, zero rated, exempt, export, not subject to VAT) and checks them
-with:
+Kleinunternehmer, Leitweg-ID, zero rated, exempt, export, not subject to VAT, service date,
+service period) and checks them with:
 
 - the **KoSIT validator** with the **XRechnung 3.0.2 configuration**: XRechnung (UBL) and the
   ZUGFeRD XML (EN 16931, CII);

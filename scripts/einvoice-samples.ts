@@ -208,7 +208,7 @@ await api("PUT", `/api/v1/customers/${xrechnung}`, { ...buyer, einvoice_format: 
 
 // The other VAT categories a German freelancer meets: zero rated (next to
 // 19 %), exempt, export outside the EU and not subject to VAT. Intra-community
-// supplies (K) need a delivery date, which Inkvoice can't record yet.
+// supplies (K) also need a delivery country, which Inkvoice can't record yet.
 const category = async (name: string, code: string) =>
   (await json("POST", "/api/v1/tax-definitions", { name, rate: 0, category_code: code }))
     .id as string;
@@ -248,6 +248,15 @@ await emit("18-zugferd-export", await invoice(nonEuZugferd, exportGoods));
 await emit("19-xrechnung-export", await invoice(nonEuXrechnung, exportGoods));
 await emit("20-zugferd-not-subject", await invoice(nonEuZugferd, notSubject));
 await emit("21-xrechnung-not-subject", await invoice(nonEuXrechnung, notSubject));
+
+// The date of supply (Leistungsdatum, § 14 Abs. 4 Nr. 6 UStG): one date
+// (BT-72) or a service period (BG-14).
+const serviceDate = { service_date: "2026-10-30" };
+const servicePeriod = { service_period_start: "2026-10-01", service_period_end: "2026-10-31" };
+await emit("22-zugferd-service-date", await invoice(zugferd, standard, serviceDate));
+await emit("23-xrechnung-service-date", await invoice(xrechnung, standard, serviceDate));
+await emit("24-zugferd-service-period", await invoice(zugferd, standard, servicePeriod));
+await emit("25-xrechnung-service-period", await invoice(xrechnung, standard, servicePeriod));
 
 // Kleinunternehmer (§ 19 UStG): no USt-IdNr, no VAT.
 await api("PUT", "/api/v1/settings", { einvoice_kleinunternehmer: "true", company_tax_id: "" });

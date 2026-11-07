@@ -27,6 +27,8 @@ Templates receive the full invoice data as Mustache variables:
 | `invoice_number` | Invoice number |
 | `issue_date` | Issue date |
 | `due_date` | Due date |
+| `service_date` | Date of supply (Leistungsdatum), when set |
+| `service_period.start`, `service_period.end` | Service period, when set (use `{{#service_period}}…{{/service_period}}`) |
 | `status` | Invoice status |
 | `subtotal` | Subtotal before tax and discount |
 | `tax_total` | Total tax amount |

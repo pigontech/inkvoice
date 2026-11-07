@@ -31,6 +31,8 @@ POST /api/v1/invoices
   "customer_id": "customer-uuid",
   "issue_date": "2026-01-15",
   "due_date": "2026-02-15",
+  "service_period_start": "2026-01-01",
+  "service_period_end": "2026-01-31",
   "currency": "USD",
   "notes": "Thank you for your business",
   "payment_terms": "Net 30",
@@ -72,6 +74,12 @@ Same body as create. Only draft invoices can be edited.
 The cash-discount fields (`cash_discount_type`, `cash_discount_value`,
 `cash_discount_days`) are optional on update: a field left out of the body
 keeps its stored value, and `null` clears it.
+
+The service date (date of supply) is `service_date`, or a period from
+`service_period_start` to `service_period_end` (ISO dates; a period needs both
+and may not end before it starts). On update the three are replaced together:
+a body without any of them keeps the stored values, and a body with any of them
+sets all three, so a missing one becomes `null`.
 
 ## Delete Invoice
 

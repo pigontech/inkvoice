@@ -9,6 +9,11 @@ export interface Invoice {
   reference_invoice_id: string | null;
   issue_date: string;
   due_date: string | null;
+  /** Date of supply (Leistungsdatum, EN 16931 BT-72), ISO date. */
+  service_date: string | null;
+  /** Service period (EN 16931 BG-14), ISO dates; both set or both null. */
+  service_period_start: string | null;
+  service_period_end: string | null;
   subtotal: number;
   tax_total: number;
   discount_type: string | null;
