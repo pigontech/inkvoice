@@ -66,8 +66,34 @@ describe("calculateInvoiceTotals", () => {
     const result = calculateInvoiceTotals(items, "percentage", 10);
     expect(result.subtotal).toBe(100);
     expect(result.discount_amount).toBe(10);
-    expect(result.tax_total).toBe(10);
-    expect(result.total).toBe(100); // 100 - 10 + 10
+    // VAT is charged on the discounted amount: 10 % of 90
+    expect(result.tax_total).toBe(9);
+    expect(result.total).toBe(99); // 100 - 10 + 9
+  });
+
+  test("discount lowers the VAT base per rate", () => {
+    // 1,960 at 19 %, 10 % discount: VAT on 1,764
+    const items = [
+      { quantity: 8, unit_price: 95, tax_rate: 19 },
+      { quantity: 1, unit_price: 1200, tax_rate: 19 },
+    ];
+    const result = calculateInvoiceTotals(items, "percentage", 10);
+    expect(result.discount_amount).toBe(196);
+    expect(result.tax_total).toBe(335.16);
+    expect(result.total).toBe(2099.16);
+  });
+
+  test("discount split across 19 % and 7 %", () => {
+    // 420 at 19 % and 300 at 7 %, 50 off: 29.17 and 20.83 of the discount
+    const items = [
+      { quantity: 6, unit_price: 70, tax_rate: 19 },
+      { quantity: 1, unit_price: 300, tax_rate: 7 },
+    ];
+    const result = calculateInvoiceTotals(items, "amount", 50);
+    expect(result.discount_amount).toBe(50);
+    // 19 % of (420 - 29.17) + 7 % of (300 - 20.83) = 74.26 + 19.54
+    expect(result.tax_total).toBe(93.8);
+    expect(result.total).toBe(763.8);
   });
 
   test("fixed discount", () => {
@@ -153,14 +179,14 @@ describe("calculateInvoiceTotals (inclusive mode + rounding modes)", () => {
   });
 
   test("inclusive mode + percentage discount", () => {
-    // 110 gross at 10% inclusive → net 100, tax 10. 10% discount on 100 = 10.
-    // Total = 100 - 10 + 10 = 100.
+    // 110 gross at 10% inclusive → net 100, tax 10. 10% discount on 100 = 10,
+    // so VAT is due on 90: tax 9. Total = 100 - 10 + 9 = 99.
     const items = [{ quantity: 1, unit_price: 110, tax_rate: 10 }];
     const result = calculateInvoiceTotals(items, "percentage", 10, { pricesIncludeTax: true });
     expect(result.subtotal).toBe(100);
     expect(result.discount_amount).toBe(10);
-    expect(result.tax_total).toBe(10);
-    expect(result.total).toBe(100);
+    expect(result.tax_total).toBe(9);
+    expect(result.total).toBe(99);
   });
 });
 

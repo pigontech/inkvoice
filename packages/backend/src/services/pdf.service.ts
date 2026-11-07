@@ -6,11 +6,28 @@ import { formatCurrency } from "../utils/currency";
 import { buildEpcPayload } from "../utils/epc-qr";
 import { escapeMultiline, inlineAddress } from "../utils/html";
 import { qrToDataUri } from "../utils/qr-code";
+import { type StoredTaxLine, taxByRate } from "../utils/tax-calculator";
 import { getInvoice } from "./invoice.service";
 import { listPayments } from "./payment.service";
 import { getQuote } from "./quote.service";
 import { getAllSettings } from "./settings.service";
 import { getDefaultTemplate, getTemplate } from "./template.service";
+
+/**
+ * The line tax amounts are before the document discount; the discount lowers
+ * each rate's VAT, so the summary shows the VAT actually charged.
+ */
+function applyDiscountToTaxSummary(
+  taxMap: Map<string, { amount: number }>,
+  items: StoredTaxLine[],
+  discountAmount: number | null | undefined,
+): void {
+  if (!discountAmount) return;
+  for (const { rate, tax } of taxByRate(items, discountAmount)) {
+    const entry = taxMap.get(`${rate}`);
+    if (entry) entry.amount = tax;
+  }
+}
 
 function formatDateStr(dateStr: string, dateFormat?: string, localeOverride?: string): string {
   const d = new Date(dateStr);
@@ -149,6 +166,7 @@ export function buildInvoiceContext(invoiceId: string) {
       }
     }
   }
+  applyDiscountToTaxSummary(taxMap, invoice.items, invoice.discount_amount);
 
   const currency = invoice.currency || settings.currency || "USD";
   const dateFormat = settings.date_format || undefined;
@@ -371,6 +389,7 @@ export function buildQuoteContext(quoteId: string) {
         });
     }
   }
+  applyDiscountToTaxSummary(taxMap, quote.items, quote.discount_amount);
 
   const currency = quote.currency || settings.currency || "USD";
   const dateFormat = settings.date_format || undefined;

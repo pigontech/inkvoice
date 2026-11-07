@@ -78,10 +78,15 @@ export function calculateInvoiceTotals(
 
   let subtotal = 0;
   let taxTotal = 0;
+  // Net amount per VAT rate, in first-seen order, so a document discount can
+  // be taken off each rate's taxable amount.
+  const netByRate = new Map<number, number>();
 
   for (const item of items) {
+    let lineNet: number;
     if (pricesIncludeTax) {
       const calc = calculateLineItemTaxInclusive(item);
+      lineNet = calc.line_total;
       subtotal += calc.line_total;
       if (roundingMode === "line") {
         taxTotal += calc.tax_amount;
@@ -94,6 +99,7 @@ export function calculateInvoiceTotals(
       }
     } else {
       const calc = calculateLineItem(item);
+      lineNet = calc.line_total;
       subtotal += calc.line_total;
       if (roundingMode === "line") {
         taxTotal += calc.tax_amount;
@@ -103,10 +109,10 @@ export function calculateInvoiceTotals(
         taxTotal += lineTotal * (item.tax_rate / 100);
       }
     }
+    netByRate.set(item.tax_rate, (netByRate.get(item.tax_rate) ?? 0) + lineNet);
   }
 
   subtotal = round2(subtotal);
-  taxTotal = round2(taxTotal);
 
   let discountAmount = 0;
   if (discountType === "percentage" && discountValue) {
@@ -115,9 +121,84 @@ export function calculateInvoiceTotals(
     discountAmount = round2(Math.min(discountValue, subtotal));
   }
 
+  // A document discount lowers the taxable amount, so the VAT on each rate's
+  // share of the discount comes off the tax total (EN 16931 BR-S-08/BR-CO-17).
+  if (discountAmount !== 0) {
+    const rates = Array.from(netByRate.keys());
+    const shares = allocateProportionally(
+      discountAmount,
+      rates.map((r) => round2(netByRate.get(r) ?? 0)),
+    );
+    rates.forEach((rate, i) => {
+      const discountTax = shares[i] * (rate / 100);
+      taxTotal -= roundingMode === "line" ? round2(discountTax) : discountTax;
+    });
+  }
+  taxTotal = round2(taxTotal);
+
   const total = round2(subtotal - discountAmount + taxTotal);
 
   return { subtotal, tax_total: taxTotal, discount_amount: discountAmount, total };
+}
+
+export interface StoredTaxLine {
+  line_total: number;
+  tax_amount: number;
+  tax_rate: number;
+}
+
+export interface RateTax {
+  rate: number;
+  /** Sum of line net amounts at this rate. */
+  net: number;
+  /** This rate's share of the document discount. */
+  discount: number;
+  /** VAT at this rate after the discount. */
+  tax: number;
+}
+
+/**
+ * VAT per rate for stored line items, with the document discount taken off
+ * each rate's base the same way calculateInvoiceTotals does it. Rates come out
+ * in first-seen order.
+ */
+export function taxByRate(lines: StoredTaxLine[], discountAmount: number): RateTax[] {
+  const byRate = new Map<number, { net: number; tax: number }>();
+  for (const line of lines) {
+    const entry = byRate.get(line.tax_rate) ?? { net: 0, tax: 0 };
+    entry.net += line.line_total;
+    entry.tax += line.tax_amount;
+    byRate.set(line.tax_rate, entry);
+  }
+  const rates = Array.from(byRate.keys());
+  const nets = rates.map((r) => round2(byRate.get(r)?.net ?? 0));
+  const shares = allocateProportionally(discountAmount, nets);
+  return rates.map((rate, i) => ({
+    rate,
+    net: nets[i],
+    discount: shares[i],
+    tax: round2((byRate.get(rate)?.tax ?? 0) - round2(shares[i] * (rate / 100))),
+  }));
+}
+
+/**
+ * Splits `amount` across `bases` in proportion, rounded to cents, so the
+ * shares add up to `amount` exactly (the rounding residue goes to the largest
+ * base). Used for document discounts per VAT rate.
+ */
+export function allocateProportionally(amount: number, bases: number[]): number[] {
+  const total = bases.reduce((sum, b) => sum + b, 0);
+  if (!amount || !total || bases.length === 0) return bases.map(() => 0);
+  const shares = bases.map((b) => round2((amount * b) / total));
+  const residue = round2(amount - shares.reduce((sum, s) => sum + s, 0));
+  if (residue !== 0) {
+    let largest = 0;
+    for (let i = 1; i < bases.length; i++) {
+      if (Math.abs(bases[i]) > Math.abs(bases[largest])) largest = i;
+    }
+    shares[largest] = round2(shares[largest] + residue);
+  }
+  return shares;
 }
 
 export function calculateInvoiceTotalsMultiTax(

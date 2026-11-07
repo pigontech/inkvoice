@@ -604,6 +604,15 @@ export default function InvoiceForm({ onSave }: Props) {
   let discountAmount = 0;
   if (form.discount_type === "percentage") discountAmount = subtotal * (form.discount_value / 100);
   else if (form.discount_type === "amount") discountAmount = form.discount_value;
+  // The discount lowers the VAT base, so each rate's share of it loses its VAT
+  // (same rule as the backend calculator).
+  if (discountAmount && subtotal) {
+    for (const item of items) {
+      const gross = item.quantity * item.unit_price;
+      const net = form.prices_include_tax ? gross / (1 + item.tax_rate / 100) : gross;
+      taxTotal -= ((discountAmount * net) / subtotal) * (item.tax_rate / 100);
+    }
+  }
   const total = subtotal - discountAmount + taxTotal;
 
   // Currency change resets the rate to 1 for the base currency, and (when
