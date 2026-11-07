@@ -22,6 +22,7 @@ import { getBaseCurrency } from "./exchange-rate.service";
 import { applyLateFees } from "./late-fee.service";
 import { recordPayment as recordPaymentService } from "./payment.service";
 import { getTagsForItem, getTagsForItems, removeItemTags, setItemTags } from "./tag.service";
+import { lineTaxRate } from "./tax.service";
 
 /**
  * Rate to store on an invoice: forced to 1 when it's already in the base
@@ -305,11 +306,12 @@ export function createInvoice(data: CreateInvoiceData): InvoiceWithItems {
     // Use provided number, or generate a draft placeholder for new drafts
     const invoiceNumber = data.invoice_number || generateDraftNumber();
 
-    // Calculate totals
-    const itemInputs = data.items.map((item) => ({
+    // Totals use the same rate each line is stored with.
+    const rates = data.items.map((item) => lineTaxRate(item, "definition"));
+    const itemInputs = data.items.map((item, i) => ({
       quantity: item.quantity,
       unit_price: item.unit_price,
-      tax_rate: item.tax_rate ?? 0,
+      tax_rate: rates[i],
     }));
     const totals = calculateInvoiceTotals(itemInputs, data.discount_type, data.discount_value);
 
@@ -352,16 +354,9 @@ export function createInvoice(data: CreateInvoiceData): InvoiceWithItems {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
 
-    for (const item of data.items) {
+    for (const [i, item] of data.items.entries()) {
       const itemId = crypto.randomBytes(16).toString("hex");
-      // Resolve tax rate from definition if tax_id is provided
-      let taxRate = item.tax_rate ?? 0;
-      if (item.tax_id) {
-        const taxDef = db
-          .query("SELECT rate FROM tax_definitions WHERE id = ?")
-          .get(item.tax_id) as { rate: number } | null;
-        if (taxDef) taxRate = taxDef.rate;
-      }
+      const taxRate = rates[i];
       const calc = calculateLineItem({
         quantity: item.quantity,
         unit_price: item.unit_price,
@@ -424,10 +419,12 @@ export function updateInvoice(id: string, data: CreateInvoiceData): InvoiceWithI
 
   // Wrap in transaction for atomicity
   db.transaction(() => {
-    const itemInputs = data.items.map((item) => ({
+    // Totals use the same rate each line is stored with.
+    const rates = data.items.map((item) => lineTaxRate(item, "line"));
+    const itemInputs = data.items.map((item, i) => ({
       quantity: item.quantity,
       unit_price: item.unit_price,
-      tax_rate: item.tax_rate ?? 0,
+      tax_rate: rates[i],
     }));
     const totals = calculateInvoiceTotals(itemInputs, data.discount_type, data.discount_value);
 
@@ -468,12 +465,12 @@ export function updateInvoice(id: string, data: CreateInvoiceData): InvoiceWithI
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
 
-    for (const item of data.items) {
+    for (const [i, item] of data.items.entries()) {
       const itemId = crypto.randomBytes(16).toString("hex");
       const calc = calculateLineItem({
         quantity: item.quantity,
         unit_price: item.unit_price,
-        tax_rate: item.tax_rate ?? 0,
+        tax_rate: rates[i],
       });
       itemStmt.run(
         itemId,
@@ -484,7 +481,7 @@ export function updateInvoice(id: string, data: CreateInvoiceData): InvoiceWithI
         item.unit_price,
         item.unit || "piece",
         item.tax_id || null,
-        item.tax_rate ?? 0,
+        rates[i],
         calc.tax_amount,
         calc.line_total,
         item.sort_order ?? 0,
