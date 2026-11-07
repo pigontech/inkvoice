@@ -121,17 +121,40 @@ switch is the module toggle itself.
 
 The **E-Rechnungen** page (`/einvoices`) is a mailbox for incoming e-invoices:
 
-- **Import** — upload XRechnung (UBL) or ZUGFeRD (CII) XML files; duplicates (sha256) are rejected
-- **Parse** — supplier, document number, issue date and total are extracted automatically
-- **Link** — optionally link a document to a customer in your address book
-- **Status** — move documents through *inbox → processed → archived*
-- **Raw download** — keep the original file for tax archives (8 years, §147 AO)
+- **Import**: upload XRechnung (UBL) or ZUGFeRD (CII) XML files, or ZUGFeRD / Factur-X hybrid
+  PDFs; duplicates (sha256) are rejected
+- **Parse**: supplier, document number, issue date and total are extracted automatically
+- **Link**: optionally link a document to a customer in your address book
+- **Status**: move documents through *inbox → processed → archived*
+- **Raw download**: keep the original file for tax archives (8 years, §147 AO)
+
+### Hybrid PDFs
+
+For a ZUGFeRD 2.x or Factur-X PDF, the inbox reads the XML embedded in it (`factur-x.xml`,
+`zugferd-invoice.xml` or `xrechnung.xml`, found through the PDF's `EmbeddedFiles` name tree or
+its `AF` array) and extracts the same fields as from an XML upload. The PDF itself is stored
+unchanged. A PDF without such an XML, such as a scan, is archived as before, with a note in the
+parse column.
+
+Received files are untrusted, so the PDF is read in a separate, short-lived process, within
+these limits:
+
+| Limit | Value |
+|---|---|
+| PDF size | 20 MB (the upload limit) |
+| Embedded XML, decompressed | 10 MB |
+| Object streams, decompressed | 8 MB in total |
+| Parsed PDF objects | 200,000 (an invoice has a few hundred) |
+| Time | 10 seconds, at most two PDFs at once |
+
+A PDF that exceeds a limit, is encrypted or cannot be parsed is still stored as it is, with the
+reason in the parse column.
 
 ### Via API
 
 ```http
 GET    /api/v1/einvoices/inbox
-POST   /api/v1/einvoices/inbox/import          (multipart, max 20 MB)
+POST   /api/v1/einvoices/inbox/import          (multipart XML or PDF, max 20 MB)
 GET    /api/v1/einvoices/inbox/:id
 GET    /api/v1/einvoices/inbox/:id/raw
 POST   /api/v1/einvoices/inbox/:id/link        ({ customer_id })

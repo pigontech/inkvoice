@@ -603,7 +603,7 @@ const fr: TranslationKeys = {
     tab_inbox: "Inbox",
     tab_processed: "Processed",
     tab_archived: "Archived",
-    inbox_empty: "No documents in the inbox. Import XRechnung or ZUGFeRD XML files here.",
+    inbox_empty: "No documents in the inbox. Import XRechnung or ZUGFeRD files (XML or PDF) here.",
     inbox_imported: "E-invoice imported and parsed",
     inbox_duplicate: "File already exists in the inbox (duplicate)",
     document_number: "Document no.",

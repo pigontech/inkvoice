@@ -612,7 +612,7 @@ const de: TranslationKeys = {
     tab_processed: "Verarbeitet",
     tab_archived: "Archiviert",
     inbox_empty:
-      "Keine Dokumente im Posteingang. XRechnung- oder ZUGFeRD-XML-Dateien hier importieren.",
+      "Keine Dokumente im Posteingang. XRechnung- oder ZUGFeRD-Dateien (XML oder PDF) hier importieren.",
     inbox_imported: "E-Rechnung importiert und geparst",
     inbox_duplicate: "Datei ist bereits im Posteingang (Duplikat)",
     document_number: "Rechnungs-Nr.",

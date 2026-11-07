@@ -1,12 +1,16 @@
 import { createHash } from "node:crypto";
+import { join } from "node:path";
 import { getDb } from "../database/connection";
+import { EXIT, MAX_PDF_BYTES, MAX_XML_BYTES } from "./einvoice-pdf-reader";
 
 // E-invoice inbox (receiving side, Germany). Incoming XRechnung/ZUGFeRD XML
 // documents are stored as-is (hash for dedupe) and parsed with a targeted,
 // dependency-free extractor for the CII (Factur-X) and UBL (XRechnung) shapes
-// this app emits and that are common in the German market. Full EN 16931
-// validation of received documents is out of scope for now; parse errors are
-// surfaced per document so the user can still archive the raw file.
+// this app emits and that are common in the German market. A ZUGFeRD/Factur-X
+// hybrid PDF is stored as-is too, and the XML embedded in it goes through the
+// same extractor. Full EN 16931 validation of received documents is out of
+// scope for now; parse errors are surfaced per document so the user can still
+// archive the raw file.
 
 export type InboxStatus = "inbox" | "processed" | "archived";
 export type ParseStatus = "pending" | "ok" | "error";
@@ -44,7 +48,7 @@ export interface ParsedEinvoice {
   currency: string | null;
 }
 
-export function importEinvoiceFile(opts: {
+export async function importEinvoiceFile(opts: {
   fileName: string;
   contentType: string;
   bytes: Uint8Array;
@@ -54,20 +58,36 @@ export function importEinvoiceFile(opts: {
   providerMessageId?: string;
   senderScheme?: string;
   senderId?: string;
-}): { id: string; duplicate: boolean } {
+}): Promise<{ id: string; duplicate: boolean }> {
   const db = getDb();
   const raw = Buffer.from(opts.bytes);
   const hash = createHash("sha256").update(raw).digest("hex");
+  const findDuplicate = () =>
+    db.query("SELECT id FROM einvoice_inbox WHERE raw_hash = ?").get(hash) as {
+      id: string;
+    } | null;
 
-  const existing = getDb().query("SELECT id FROM einvoice_inbox WHERE raw_hash = ?").get(hash) as {
-    id: string;
-  } | null;
+  let existing = findDuplicate();
   if (existing) return { id: existing.id, duplicate: true };
 
-  const text =
-    opts.contentType.includes("xml") || /\.xml$/i.test(opts.fileName)
-      ? raw.toString("utf-8")
-      : null;
+  const isXml = opts.contentType.includes("xml") || /\.xml$/i.test(opts.fileName);
+  // Content decides first: a PDF starts with %PDF- (readers allow 1 KB of junk before it).
+  const isPdf =
+    raw.subarray(0, 1024).includes("%PDF-") ||
+    (!isXml && (opts.contentType.includes("pdf") || /\.pdf$/i.test(opts.fileName)));
+
+  let text: string | null = null;
+  let pdfError: string | null = null;
+  if (isPdf) {
+    const read = await readPdfXml(raw);
+    if ("xml" in read) text = read.xml;
+    else pdfError = read.error;
+    // The same file may have been imported while the PDF was being read.
+    existing = findDuplicate();
+    if (existing) return { id: existing.id, duplicate: true };
+  } else if (isXml) {
+    text = raw.toString("utf-8");
+  }
   const parsed = text ? parseEinvoiceXml(text) : null;
 
   const id = createHash("sha1").update(`${hash}${Date.now()}`).digest("hex").slice(0, 32);
@@ -92,9 +112,10 @@ export function importEinvoiceFile(opts: {
     parsed ? "ok" : "error",
     parsed
       ? null
-      : text
-        ? "Could not extract invoice data from XML (unsupported structure)."
-        : "Only XML e-invoices can be parsed; the raw file was stored for archiving.",
+      : (pdfError ??
+          (text
+            ? "Could not extract invoice data from XML (unsupported structure)."
+            : "Only XML and PDF e-invoices can be read; the raw file was stored for archiving.")),
     opts.source ?? "upload",
     opts.transportId ?? null,
     opts.providerMessageId ?? null,
@@ -172,6 +193,69 @@ function toItem(row: Record<string, unknown>): InboxItem {
     created_at: String(row.created_at),
     processed_at: row.processed_at != null ? String(row.processed_at) : null,
   };
+}
+
+// ---------- hybrid PDFs (ZUGFeRD / Factur-X) ----------
+
+const PDF_READER = join(import.meta.dir, "einvoice-pdf-reader.ts");
+/** A hybrid PDF reads in well under a second; this only stops a stuck reader. */
+const PDF_READ_TIMEOUT_MS = 10_000;
+/** PDFs read at the same time; more uploads wait for a free slot. */
+const PDF_READ_SLOTS = 2;
+let pdfReads = 0;
+const pdfReadWaiting: Array<() => void> = [];
+
+const PDF_ERRORS = {
+  no_xml: "No XRechnung or ZUGFeRD XML found in this PDF; the raw file was stored for archiving.",
+  encrypted:
+    "The PDF is encrypted, so its embedded XML cannot be read; the raw file was stored for archiving.",
+  too_large:
+    "The PDF or its embedded XML is too large to read; the raw file was stored for archiving.",
+  unreadable: "The PDF could not be read; the raw file was stored for archiving.",
+};
+
+/**
+ * Reads the embedded XML in a child process (einvoice-pdf-reader.ts), so a
+ * malformed or hostile PDF can cost that process its memory or time, never
+ * the server's.
+ */
+async function readPdfXml(pdf: Uint8Array): Promise<{ xml: string } | { error: string }> {
+  if (pdf.length > MAX_PDF_BYTES) return { error: PDF_ERRORS.too_large };
+  while (pdfReads >= PDF_READ_SLOTS) {
+    await new Promise<void>((resolve) => pdfReadWaiting.push(resolve));
+  }
+  pdfReads++;
+  try {
+    const child = Bun.spawn([process.execPath, "--smol", "--no-install", PDF_READER], {
+      stdin: pdf,
+      stdout: "pipe",
+      stderr: "ignore",
+      env: {},
+      timeout: PDF_READ_TIMEOUT_MS,
+      killSignal: "SIGKILL",
+    });
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    for await (const chunk of child.stdout) {
+      size += chunk.length;
+      if (size > MAX_XML_BYTES) {
+        child.kill("SIGKILL");
+        break;
+      }
+      chunks.push(chunk);
+    }
+    const code = await child.exited;
+    if (size > MAX_XML_BYTES || code === EXIT.too_large) return { error: PDF_ERRORS.too_large };
+    if (code === EXIT.ok) return { xml: Buffer.concat(chunks).toString("utf-8") };
+    if (code === EXIT.no_xml) return { error: PDF_ERRORS.no_xml };
+    if (code === EXIT.encrypted) return { error: PDF_ERRORS.encrypted };
+    return { error: PDF_ERRORS.unreadable };
+  } catch {
+    return { error: PDF_ERRORS.unreadable };
+  } finally {
+    pdfReads--;
+    pdfReadWaiting.shift()?.();
+  }
 }
 
 // ---------- targeted XML extraction (CII Factur-X + UBL XRechnung) ----------

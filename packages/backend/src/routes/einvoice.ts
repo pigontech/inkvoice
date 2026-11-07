@@ -63,7 +63,7 @@ einvoices.post("/inbox/import", requirePermission("invoices", "create"), async (
     return c.json({ success: false, error: "File must be between 1 byte and 20 MB" }, 400);
   }
 
-  const { id, duplicate } = importEinvoiceFile({ fileName: name, contentType: type, bytes });
+  const { id, duplicate } = await importEinvoiceFile({ fileName: name, contentType: type, bytes });
   logActivity({
     action: "create",
     resource_type: "einvoice_inbox",
