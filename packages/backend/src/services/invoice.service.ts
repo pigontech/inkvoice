@@ -1021,6 +1021,11 @@ export function createCreditNote(
     service_period_end: source.service_period_end,
     notes: `Credit note for invoice ${source.invoice_number}`,
     currency: source.currency,
+    // Same rate and document discount as the invoice, so the credit note
+    // reverses exactly what was charged.
+    exchange_rate: source.exchange_rate,
+    discount_type: source.discount_type,
+    discount_value: source.discount_value,
     locale: source.locale,
     template_id: source.template_id,
     items: source.items.map((item) => ({
