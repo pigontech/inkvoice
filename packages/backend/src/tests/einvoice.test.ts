@@ -277,6 +277,16 @@ describe("E-invoice inbox", () => {
     expect(parsed.currency).toBe("EUR");
   });
 
+  test("CII dates (format 102) are kept as ISO dates", () => {
+    const parsed = parseEinvoiceXml(`<?xml version="1.0" encoding="UTF-8"?>
+<rsm:CrossIndustryInvoice xmlns:rsm="urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100"
+  xmlns:ram="urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100"
+  xmlns:udt="urn:un:unece:uncefact:data:standard:UnqualifiedDataType:100">
+  <rsm:ExchangedDocument><ram:ID>RE-102</ram:ID><ram:IssueDateTime><udt:DateTimeString format="102">20260715</udt:DateTimeString></ram:IssueDateTime></rsm:ExchangedDocument>
+</rsm:CrossIndustryInvoice>`);
+    expect(parsed.issue_date).toBe("2026-07-15");
+  });
+
   test("status transitions + raw download", async () => {
     const list = await authed("/api/v1/einvoices/inbox");
     expect(list.status).toBe(200);

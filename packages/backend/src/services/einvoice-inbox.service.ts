@@ -153,7 +153,7 @@ function toItem(row: Record<string, unknown>): InboxItem {
   return {
     id: String(row.id),
     document_number: row.document_number != null ? String(row.document_number) : null,
-    issue_date: row.issue_date != null ? String(row.issue_date) : null,
+    issue_date: row.issue_date != null ? isoDate(String(row.issue_date)) : null,
     supplier_name: row.supplier_name != null ? String(row.supplier_name) : null,
     supplier_vat_id: row.supplier_vat_id != null ? String(row.supplier_vat_id) : null,
     total: row.total != null ? Number(row.total) : null,
@@ -206,9 +206,8 @@ function parseCii(xml: string): ParsedEinvoice {
     xml,
     /<(?:rsm|ram|\w+):ExchangedDocument[^>]*>\s*<(?:ram|\w+):ID>([^<]+)<\//,
   );
-  const issue_date = firstMatch(
-    xml,
-    /<ram:IssueDateTime>\s*<udt:DateTimeString[^>]*>([^<]+)<\/udt:DateTimeString>/,
+  const issue_date = isoDate(
+    firstMatch(xml, /<ram:IssueDateTime>\s*<udt:DateTimeString[^>]*>([^<]+)<\/udt:DateTimeString>/),
   );
   const supplier_name = firstMatch(seller, /<ram:Name>([^<]+)<\/ram:Name>/);
   const supplier_vat_id = firstMatch(seller, /<ram:ID schemeID="VA">([^<]+)<\/ram:ID>/);
@@ -256,6 +255,14 @@ function parseUbl(xml: string): ParsedEinvoice {
     total: total != null ? Number(total) : null,
     currency,
   };
+}
+
+/**
+ * CII dates use format 102 (YYYYMMDD); the inbox keeps ISO dates like the UBL
+ * IssueDate. Also applied when reading, for rows imported in the raw form.
+ */
+function isoDate(date: string | null): string | null {
+  return date?.replace(/^(\d{4})(\d{2})(\d{2})$/, "$1-$2-$3") ?? null;
 }
 
 function decodeXml(s: string): string {
