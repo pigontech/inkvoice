@@ -1,9 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { PDFArray, PDFDict, PDFDocument, PDFName, type PDFRawStream } from "pdf-lib";
-import { buildEinvoicePdf } from "../services/einvoice-pdf.service";
+import { buildEinvoicePdf, discountText } from "../services/einvoice-pdf.service";
 import { validateEinvoice } from "../services/einvoice-validator.service";
 import { en16931Category, prepareEn16931 } from "../xml/en16931";
 import { FacturxZugferdProfile } from "../xml/profiles/facturx-zugferd";
+import { FatturaPaProfile } from "../xml/profiles/fatturapa";
 import { UblPeppolProfile } from "../xml/profiles/ubl-peppol";
 import { XRechnungProfile } from "../xml/profiles/xrechnung";
 import type { XmlInvoiceData, XmlLineItem } from "../xml/types";
@@ -304,6 +305,60 @@ describe("XML", () => {
     expect(at("<cac:Delivery>")).toBeLessThan(at("<cac:TaxTotal>"));
     expect(xml).toContain("<cbc:ActualDeliveryDate>2026-10-31</cbc:ActualDeliveryDate>");
   });
+
+  // A credit note for 10 x 100 at 20 % with 10 % off: stored with negative
+  // lines, discount and totals.
+  const discountedCredit = () =>
+    invoice({
+      type: "credit_note",
+      subtotal: -1000,
+      discount_amount: -100,
+      tax_total: -180,
+      total: -1080,
+      items: [
+        line({
+          quantity: 10,
+          unit_price: -100,
+          line_total: -1000,
+          tax_rate: 20,
+          tax_amount: -200,
+        }),
+      ],
+      tax_breakdown: [
+        {
+          tax_name: "VAT",
+          tax_rate: 20,
+          category_code: "S",
+          taxable_amount: -900,
+          tax_amount: -180,
+        },
+      ],
+    });
+
+  test("PEPPOL BIS credit note keeps its discount, so the totals add up", () => {
+    const xml = new UblPeppolProfile().generateXml(discountedCredit());
+    expect(xml).toContain('<cbc:Amount currencyID="EUR">-100.00</cbc:Amount>');
+    expect(xml).toContain(
+      '<cbc:LineExtensionAmount currencyID="EUR">-1000.00</cbc:LineExtensionAmount>',
+    );
+    expect(xml).toContain(
+      '<cbc:TaxExclusiveAmount currencyID="EUR">-900.00</cbc:TaxExclusiveAmount>',
+    );
+    expect(xml).toContain(
+      '<cbc:AllowanceTotalAmount currencyID="EUR">-100.00</cbc:AllowanceTotalAmount>',
+    );
+  });
+
+  test("FatturaPA credit note keeps its discount", () => {
+    const xml = new FatturaPaProfile().generateXml(discountedCredit());
+    expect(xml).toContain("<Importo>-100.00</Importo>");
+    expect(xml).toContain("<ImportoTotaleDocumento>-1080.00</ImportoTotaleDocumento>");
+  });
+
+  test("PEPPOL BIS and FatturaPA without a discount have no discount element", () => {
+    expect(new UblPeppolProfile().generateXml(invoice())).not.toContain("<cac:AllowanceCharge>");
+    expect(new FatturaPaProfile().generateXml(invoice())).not.toContain("<ScontoMaggiorazione>");
+  });
 });
 
 describe("validator", () => {
@@ -386,6 +441,15 @@ describe("validator", () => {
 });
 
 describe("hybrid PDF", () => {
+  test("discount row: minus on an invoice, plus on a credit note, never two signs", () => {
+    const invoiceRow = discountText(100, "EUR", "de-DE");
+    const creditRow = discountText(-100, "EUR", "de-DE");
+    expect(invoiceRow.startsWith("- ")).toBe(true);
+    expect(creditRow.startsWith("+ ")).toBe(true);
+    expect(creditRow.slice(2)).toBe(invoiceRow.slice(2));
+    expect(creditRow).not.toMatch(/[-\u2212]/);
+  });
+
   test("is PDF/A-3 with Factur-X metadata, an embedded font and the XML attached", async () => {
     const data = invoice();
     const xml = new FacturxZugferdProfile().generateXml(data);

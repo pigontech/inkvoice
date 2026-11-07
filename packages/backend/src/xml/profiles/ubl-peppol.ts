@@ -164,8 +164,9 @@ export class UblPeppolProfile implements XmlProfile {
       );
     }
 
-    // Discount as allowance
-    if (data.discount_amount > 0) {
+    // Discount as allowance. On a credit note it is negative, like the
+    // lines and totals, so the document still adds up.
+    if (data.discount_amount !== 0) {
       lines.push(`  <cac:AllowanceCharge>`);
       lines.push(`    <cbc:ChargeIndicator>false</cbc:ChargeIndicator>`);
       lines.push(`    <cbc:AllowanceChargeReason>Discount</cbc:AllowanceChargeReason>`);
@@ -208,7 +209,7 @@ export class UblPeppolProfile implements XmlProfile {
     lines.push(
       `    <cbc:TaxInclusiveAmount currencyID="${esc(data.currency)}">${amt(data.total)}</cbc:TaxInclusiveAmount>`,
     );
-    if (data.discount_amount > 0) {
+    if (data.discount_amount !== 0) {
       lines.push(
         `    <cbc:AllowanceTotalAmount currencyID="${esc(data.currency)}">${amt(data.discount_amount)}</cbc:AllowanceTotalAmount>`,
       );
