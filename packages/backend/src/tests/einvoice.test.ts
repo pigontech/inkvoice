@@ -181,6 +181,21 @@ describe("E-invoice emission", () => {
     expect(codes).toContain("xr_seller_email");
   });
 
+  test("check lists what the e-invoice misses without creating one", async () => {
+    const count = async () =>
+      ((await (await authed(`/api/v1/invoices/${govInvoiceId}/einvoices`)).json()) as any).data
+        .length;
+    const before = await count();
+    const res = await authed(`/api/v1/invoices/${govInvoiceId}/einvoice/check`);
+    expect(res.status).toBe(200);
+    const { data } = (await res.json()) as any;
+    expect(data.format).toBe("xrechnung-ubl");
+    // No phone number in the settings: XRechnung needs one (BR-DE-6).
+    expect(data.issues.map((i: any) => i.code)).toContain("xr_seller_phone");
+    expect(await count()).toBe(before);
+    expect((await authed("/api/v1/invoices/nope/einvoice/check")).status).toBe(404);
+  });
+
   test("list + download records", async () => {
     const list = await authed(`/api/v1/invoices/${invoiceId}/einvoices`);
     expect(list.status).toBe(200);

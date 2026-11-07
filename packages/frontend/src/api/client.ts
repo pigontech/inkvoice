@@ -214,6 +214,11 @@ export const api = {
   downloadXml: (id: string, profileId: string) => `${API_BASE}/invoices/${id}/xml/${profileId}`,
   emitEinvoice: (id: string) =>
     request<{ success: boolean; data: any }>(`/invoices/${id}/einvoice/emit`, { method: "POST" }),
+  checkEinvoice: (id: string) =>
+    request<{
+      success: boolean;
+      data: { format: string; issues: { severity: string; code: string; message: string }[] };
+    }>(`/invoices/${id}/einvoice/check`),
   listEinvoiceRecords: (id: string) =>
     request<{ success: boolean; data: any[] }>(`/invoices/${id}/einvoices`),
   downloadEinvoiceXml: (id: string, recordId: string) =>

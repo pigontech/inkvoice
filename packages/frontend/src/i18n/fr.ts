@@ -1270,6 +1270,9 @@ const fr: TranslationKeys = {
     attach_einvoice: "Joindre la facture électronique (PDF hybride ZUGFeRD)",
     attach_einvoice_hint:
       "Lorsqu'activé, un PDF hybride ZUGFeRD est joint automatiquement si le paramètre de facture électronique est actif",
+    einvoice_errors_title: "La facture électronique contient des erreurs",
+    einvoice_errors_hint:
+      "Votre client recevrait une facture électronique qui ne passe pas la validation. Corrigez d'abord ces erreurs ou décochez la case pour envoyer l'e-mail sans elle.",
   },
 
   // Boîte de dialogue d'enregistrement de paiement

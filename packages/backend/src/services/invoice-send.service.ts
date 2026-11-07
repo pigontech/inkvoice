@@ -1,7 +1,7 @@
 import { formatCurrency } from "../utils/currency";
 import { getEnv } from "../utils/env";
 import { logger } from "../utils/logger";
-import { emitEinvoice } from "./einvoice.service";
+import { checkEinvoice, emitEinvoice } from "./einvoice.service";
 import { isEmailConfigured, sendEmail } from "./email.service";
 import { invoiceDeliveryEmail } from "./email-templates";
 import * as invoiceService from "./invoice.service";
@@ -14,6 +14,11 @@ export interface SendInvoiceOptions {
   from?: string;
   replyTo?: string;
   attachEinvoice?: boolean;
+  /**
+   * Scheduled sends (recurring, auto-bill): leave out an e-invoice that has
+   * errors instead of attaching it. Manual sends warn in the send dialog.
+   */
+  skipInvalidEinvoice?: boolean;
   /** Request origin when there is one. The scheduler has no request. */
   origin?: string;
 }
@@ -97,19 +102,29 @@ export async function sendInvoiceEmail(
   const wantEinvoice = shouldAttachEinvoice(settings, opts);
   if (wantEinvoice) {
     try {
-      const emitted = await emitEinvoice(finalised.id);
-      if (emitted.pdf) {
-        attachments.push({
-          filename: `${finalised.invoice_number}-zugferd.pdf`,
-          content: emitted.pdf,
-          contentType: "application/pdf",
-        });
+      const errors = opts.skipInvalidEinvoice
+        ? checkEinvoice(finalised.id).issues.filter((i) => i.severity === "error")
+        : [];
+      if (errors.length > 0) {
+        logger.warn(
+          { invoiceId: finalised.id, issues: errors.map((i) => i.code) },
+          "E-invoice left out of a scheduled email because it has errors. Fix them and send the invoice again.",
+        );
       } else {
-        attachments.push({
-          filename: `${finalised.invoice_number}-${emitted.format}.xml`,
-          content: Buffer.from(emitted.xml, "utf-8"),
-          contentType: "application/xml",
-        });
+        const emitted = await emitEinvoice(finalised.id);
+        if (emitted.pdf) {
+          attachments.push({
+            filename: `${finalised.invoice_number}-zugferd.pdf`,
+            content: emitted.pdf,
+            contentType: "application/pdf",
+          });
+        } else {
+          attachments.push({
+            filename: `${finalised.invoice_number}-${emitted.format}.xml`,
+            content: Buffer.from(emitted.xml, "utf-8"),
+            contentType: "application/xml",
+          });
+        }
       }
     } catch (err: any) {
       logger.warn(`E-invoice emission failed for invoice ${finalised.id}: ${err.message}`);

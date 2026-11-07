@@ -295,7 +295,10 @@ export async function generateInvoice(recurringId: string): Promise<string | nul
     // Delivery failure must never roll back a generated invoice or stop the
     // scheduler. Generation and delivery are separate concerns.
     try {
-      const sent = await sendInvoiceEmail(newInvoice.id, { attachEinvoice: true });
+      const sent = await sendInvoiceEmail(newInvoice.id, {
+        attachEinvoice: true,
+        skipInvalidEinvoice: true,
+      });
       if (!sent.success) {
         logger.warn(
           { recurringId, invoiceId: newInvoice.id, error: sent.error },

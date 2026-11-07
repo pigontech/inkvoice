@@ -43,6 +43,23 @@ export function resolveEinvoiceFormat(opts: {
   return requested;
 }
 
+/**
+ * What an e-invoice for this invoice would be missing, in the format it would
+ * use, without storing anything. The send dialog warns with these.
+ */
+export function checkEinvoice(invoiceId: string): {
+  format: EinvoiceFormat;
+  issues: EinvoiceIssue[];
+} {
+  const data = buildXmlInvoiceData(invoiceId);
+  const format = resolveEinvoiceFormat({
+    customerFormat: data.customer.einvoice_format,
+    settingFormat: getAllSettings().einvoice_format,
+    leitwegId: data.customer.leitweg_id,
+  });
+  return { format, issues: validateEinvoice(data, format) };
+}
+
 function normalizeFormat(fmt: string | null | undefined): EinvoiceFormat {
   const f = (fmt || "").trim().toLowerCase();
   if (f === "xrechnung" || f === "xrechnung-ubl") return "xrechnung-ubl";

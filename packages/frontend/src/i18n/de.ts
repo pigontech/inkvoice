@@ -1280,6 +1280,9 @@ const de: TranslationKeys = {
     attach_einvoice: "E-Rechnung anhängen (ZUGFeRD-Hybrid-PDF)",
     attach_einvoice_hint:
       "Wenn aktiviert, wird eine ZUGFeRD-Hybrid-PDF automatisch angehängt, falls die E-Rechnungseinstellung aktiv ist",
+    einvoice_errors_title: "Die E-Rechnung enthält Fehler",
+    einvoice_errors_hint:
+      "Ihr Kunde würde eine E-Rechnung erhalten, die die Prüfung nicht besteht. Beheben Sie zuerst die Fehler oder entfernen Sie den Haken, um die E-Mail ohne E-Rechnung zu senden.",
   },
 
   // Dialog „Zahlung erfassen“

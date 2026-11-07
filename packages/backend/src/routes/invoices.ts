@@ -5,6 +5,7 @@ import { getDb } from "../database/connection";
 import { hasPermission, requirePermission } from "../middleware/auth";
 import { logActivity } from "../services/activity.service";
 import {
+  checkEinvoice,
   deleteEinvoiceRecord,
   emitEinvoice,
   getEinvoicePdf,
@@ -609,6 +610,21 @@ invoices.post("/:id/einvoice/emit", requirePermission("invoices", "publish"), as
       metadata: { format: result.format },
     });
     return c.json({ success: true, data: result });
+  } catch (err: any) {
+    return c.json({ success: false, error: err.message }, 400);
+  }
+});
+
+// What the e-invoice would be missing, without creating one. The send dialog
+// uses it to warn before an e-invoice with errors goes out.
+invoices.get("/:id/einvoice/check", requirePermission("invoices", "read"), (c) => {
+  const id = c.req.param("id");
+  const exists = getDb()
+    .query("SELECT id FROM invoices WHERE id = ? AND deleted_at IS NULL")
+    .get(id);
+  if (!exists) return c.json({ success: false, error: "Invoice not found" }, 404);
+  try {
+    return c.json({ success: true, data: checkEinvoice(id) });
   } catch (err: any) {
     return c.json({ success: false, error: err.message }, 400);
   }

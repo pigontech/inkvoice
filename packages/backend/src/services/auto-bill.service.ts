@@ -178,7 +178,10 @@ async function emailPaymentLinkAndNotify(
   let emailed = false;
   let error: string | undefined;
   try {
-    const sent = await sendInvoiceEmail(invoiceId, { attachEinvoice: true });
+    const sent = await sendInvoiceEmail(invoiceId, {
+      attachEinvoice: true,
+      skipInvalidEinvoice: true,
+    });
     emailed = sent.success;
     if (!sent.success) error = sent.error;
   } catch (err) {

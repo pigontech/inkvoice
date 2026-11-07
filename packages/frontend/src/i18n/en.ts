@@ -1248,6 +1248,9 @@ const en = {
     attach_einvoice: "Attach e-invoice (ZUGFeRD hybrid PDF)",
     attach_einvoice_hint:
       "When enabled, a ZUGFeRD hybrid PDF is attached automatically if the e-invoice setting is on",
+    einvoice_errors_title: "The e-invoice has errors",
+    einvoice_errors_hint:
+      "Your customer would get an e-invoice that fails validation. Fix these first, or untick the box to send the email without it.",
   },
 
   // Record payment dialog

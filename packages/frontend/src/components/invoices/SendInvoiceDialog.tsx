@@ -1,5 +1,5 @@
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/api/client";
 import { FormField } from "@/components/shared/FormField";
@@ -46,7 +46,29 @@ export function SendInvoiceDialog({
   const [replyTo, setReplyTo] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [attachEinvoice, setAttachEinvoice] = useState(true);
+  const [einvoiceErrors, setEinvoiceErrors] = useState<{ code: string; message: string }[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Warn before an e-invoice with errors goes out with the email.
+  useEffect(() => {
+    if (!open || type !== "invoice" || !einvoiceEnabled) {
+      setEinvoiceErrors([]);
+      return;
+    }
+    let cancelled = false;
+    api
+      .checkEinvoice(invoiceId)
+      .then((r) => {
+        if (!cancelled) setEinvoiceErrors(r.data.issues.filter((i) => i.severity === "error"));
+      })
+      .catch(() => {
+        if (!cancelled) setEinvoiceErrors([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, type, einvoiceEnabled, invoiceId]);
+  const einvoiceWarning = type === "invoice" && einvoiceEnabled && einvoiceErrors.length > 0;
 
   const handleSubmit = async () => {
     if (!to) {
@@ -108,6 +130,32 @@ export function SendInvoiceDialog({
               placeholder={t("common.optional")}
             />
           </FormField>
+          {einvoiceWarning && (
+            <div
+              className="rounded-md border border-destructive/40 p-3 text-sm"
+              data-testid="einvoice-send-warning"
+            >
+              <p className="font-medium">{t("send_dialog.einvoice_errors_title")}</p>
+              <ul className="mt-1 space-y-1 text-destructive">
+                {einvoiceErrors.map((issue) => (
+                  <li key={issue.code}>{issue.message}</li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {t("send_dialog.einvoice_errors_hint")}
+              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <Checkbox
+                  id="attach-einvoice-warning"
+                  checked={attachEinvoice}
+                  onCheckedChange={(checked) => setAttachEinvoice(checked === true)}
+                />
+                <label htmlFor="attach-einvoice-warning" className="font-medium">
+                  {t("send_dialog.attach_einvoice")}
+                </label>
+              </div>
+            </div>
+          )}
           <button
             type="button"
             onClick={() => setShowAdvanced((v) => !v)}
@@ -134,7 +182,7 @@ export function SendInvoiceDialog({
                   placeholder="support@example.com"
                 />
               </FormField>
-              {type === "invoice" && einvoiceEnabled && (
+              {type === "invoice" && einvoiceEnabled && !einvoiceWarning && (
                 <div className="flex items-start gap-2 text-sm">
                   <Checkbox
                     id="attach-einvoice"

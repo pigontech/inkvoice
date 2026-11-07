@@ -1250,6 +1250,9 @@ const tr: TranslationKeys = {
     attach_einvoice: "E-faturayı ekle (ZUGFeRD hibrit PDF)",
     attach_einvoice_hint:
       "Etkinse, e-fatura ayarı açıkken otomatik olarak ZUGFeRD hibrit PDF eklenir",
+    einvoice_errors_title: "E-faturada hatalar var",
+    einvoice_errors_hint:
+      "Müşteriniz doğrulamadan geçmeyen bir e-fatura alır. Önce bunları düzeltin ya da e-postayı e-fatura olmadan göndermek için işareti kaldırın.",
   },
 
   // Ödeme kaydetme diyaloğu

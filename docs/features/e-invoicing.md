@@ -53,7 +53,10 @@ out the VAT IDs (the Steuernummer identifies the seller) and can't mix `O` with 
 Inkvoice can't record, so the panel flags such an invoice.
 
 Missing or malformed fields do not block emission (sending over PEPPOL does block on errors);
-they are listed as errors and warnings in the e-invoice panel after **Create**.
+they are listed as errors and warnings in the e-invoice panel after **Create**. The send dialog
+lists the errors before an email goes out, so you can fix them or send without the e-invoice.
+Scheduled emails (recurring invoices, auto-bill) leave out an e-invoice with errors and log a
+warning.
 
 ## Customer e-invoice fields
 

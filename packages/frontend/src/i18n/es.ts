@@ -1265,6 +1265,9 @@ const es: TranslationKeys = {
     attach_einvoice: "Adjuntar factura electrónica (PDF híbrido ZUGFeRD)",
     attach_einvoice_hint:
       "Cuando está activado, se adjunta automáticamente un PDF híbrido ZUGFeRD si el ajuste de factura electrónica está activo",
+    einvoice_errors_title: "La factura electrónica tiene errores",
+    einvoice_errors_hint:
+      "Su cliente recibiría una factura electrónica que no supera la validación. Corrija primero estos errores o desmarque la casilla para enviar el correo sin ella.",
   },
 
   // Diálogo de registro de pago
