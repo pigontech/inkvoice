@@ -153,15 +153,7 @@ export class FacturxZugferdProfile implements XmlProfile {
     }
     L.push(`        <ram:Name>${esc(c.name)}</ram:Name>`);
     L.push(`        <ram:PostalTradeAddress>`);
-    if (c.postal_code)
-      L.push(`          <ram:PostcodeCode>${esc(c.postal_code)}</ram:PostcodeCode>`);
-    if (c.address_line1) L.push(`          <ram:LineOne>${esc(c.address_line1)}</ram:LineOne>`);
-    if (c.address_line2) L.push(`          <ram:LineTwo>${esc(c.address_line2)}</ram:LineTwo>`);
-    if (c.city) L.push(`          <ram:CityName>${esc(c.city)}</ram:CityName>`);
-    L.push(`          <ram:CountryID>${esc((c.country || "").toUpperCase())}</ram:CountryID>`);
-    if (c.state) {
-      L.push(`          <ram:CountrySubDivisionName>${esc(c.state)}</ram:CountrySubDivisionName>`);
-    }
+    L.push(...customerAddress(c, "          "));
     L.push(`        </ram:PostalTradeAddress>`);
     if (c.leitweg_id) {
       L.push(
@@ -184,17 +176,28 @@ export class FacturxZugferdProfile implements XmlProfile {
     L.push(`      </ram:BuyerTradeParty>`);
     L.push(`    </ram:ApplicableHeaderTradeAgreement>`);
 
-    // --- Delivery: the date of supply (BT-72) ---
-    if (data.service_date) {
-      L.push(`    <ram:ApplicableHeaderTradeDelivery>`);
-      L.push(`      <ram:ActualDeliverySupplyChainEvent>`);
-      L.push(
-        `        <ram:OccurrenceDateTime><udt:DateTimeString format="102">${date102(data.service_date)}</udt:DateTimeString></ram:OccurrenceDateTime>`,
-      );
-      L.push(`      </ram:ActualDeliverySupplyChainEvent>`);
-      L.push(`    </ram:ApplicableHeaderTradeDelivery>`);
-    } else {
+    // --- Delivery: for an intra-community supply the customer's address as
+    // the deliver-to address (BG-15, BR-IC-12), then the date of supply (BT-72) ---
+    if (!data.service_date && !doc.intraCommunity) {
       L.push(`    <ram:ApplicableHeaderTradeDelivery />`);
+    } else {
+      L.push(`    <ram:ApplicableHeaderTradeDelivery>`);
+      if (doc.intraCommunity) {
+        L.push(`      <ram:ShipToTradeParty>`);
+        L.push(`        <ram:Name>${esc(c.name)}</ram:Name>`);
+        L.push(`        <ram:PostalTradeAddress>`);
+        L.push(...customerAddress(c, "          "));
+        L.push(`        </ram:PostalTradeAddress>`);
+        L.push(`      </ram:ShipToTradeParty>`);
+      }
+      if (data.service_date) {
+        L.push(`      <ram:ActualDeliverySupplyChainEvent>`);
+        L.push(
+          `        <ram:OccurrenceDateTime><udt:DateTimeString format="102">${date102(data.service_date)}</udt:DateTimeString></ram:OccurrenceDateTime>`,
+        );
+        L.push(`      </ram:ActualDeliverySupplyChainEvent>`);
+      }
+      L.push(`    </ram:ApplicableHeaderTradeDelivery>`);
     }
 
     // --- Settlement: payment, VAT breakdown, allowances, terms, totals ---
@@ -310,6 +313,21 @@ export class FacturxZugferdProfile implements XmlProfile {
 
     return L.join("\n");
   }
+}
+
+/** The customer's address lines: the buyer address (BG-8) and the deliver-to address (BG-15). */
+function customerAddress(c: XmlInvoiceData["customer"], indent: string): string[] {
+  const out: string[] = [];
+  if (c.postal_code)
+    out.push(`${indent}<ram:PostcodeCode>${esc(c.postal_code)}</ram:PostcodeCode>`);
+  if (c.address_line1) out.push(`${indent}<ram:LineOne>${esc(c.address_line1)}</ram:LineOne>`);
+  if (c.address_line2) out.push(`${indent}<ram:LineTwo>${esc(c.address_line2)}</ram:LineTwo>`);
+  if (c.city) out.push(`${indent}<ram:CityName>${esc(c.city)}</ram:CityName>`);
+  out.push(`${indent}<ram:CountryID>${esc((c.country || "").toUpperCase())}</ram:CountryID>`);
+  if (c.state) {
+    out.push(`${indent}<ram:CountrySubDivisionName>${esc(c.state)}</ram:CountrySubDivisionName>`);
+  }
+  return out;
 }
 
 function mapUnitCode(unit: string): string {

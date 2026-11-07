@@ -258,6 +258,16 @@ await emit("23-xrechnung-service-date", await invoice(xrechnung, standard, servi
 await emit("24-zugferd-service-period", await invoice(zugferd, standard, servicePeriod));
 await emit("25-xrechnung-service-period", await invoice(xrechnung, standard, servicePeriod));
 
+// An intra-community supply of goods (§ 4 Nr. 1b, § 6a UStG): VAT category K,
+// both VAT IDs and the date of supply; the customer's address is sent as the
+// deliver-to address.
+const TK = await category("Innergemeinschaftliche Lieferung (§ 4 Nr. 1b UStG)", "K");
+const intraEuSupply = [
+  { description: "Kunstdrucke, Lieferung nach Österreich", quantity: 20, unit_price: 45, unit: "piece", tax_id: TK, tax_rate: 0 },
+];
+await emit("26-zugferd-intra-eu-supply", await invoice(euZugferd, intraEuSupply, serviceDate));
+await emit("27-xrechnung-intra-eu-supply", await invoice(euXrechnung, intraEuSupply, serviceDate));
+
 // Kleinunternehmer (§ 19 UStG): no USt-IdNr, no VAT.
 await api("PUT", "/api/v1/settings", { einvoice_kleinunternehmer: "true", company_tax_id: "" });
 await emit("12-zugferd-kleinunternehmer", await invoice(zugferd, smallBusiness));

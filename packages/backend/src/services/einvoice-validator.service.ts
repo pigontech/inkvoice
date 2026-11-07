@@ -266,11 +266,21 @@ function en16931Checks(data: XmlInvoiceData): EinvoiceIssue[] {
         ),
       );
     }
-    if (doc.groups.some((g) => g.category === "K")) {
+    // An intra-community supply sends the customer's address as the deliver-to
+    // address (BR-IC-12); it also needs both VAT IDs and the date of supply.
+    if (doc.intraCommunity && (!s.tax_id || !c.tax_id)) {
+      issues.push(
+        error(
+          "intra_community_vat_ids",
+          "An intra-community supply (category K) needs your USt-IdNr and the customer's VAT ID. [BR-IC-02]",
+        ),
+      );
+    }
+    if (doc.intraCommunity && !data.service_date && !data.service_period) {
       issues.push(
         error(
           "intra_community_delivery",
-          "An intra-community supply (category K) needs a service date or period and a delivery country. Inkvoice can't record the delivery country yet, so this e-invoice won't pass validation. [BR-IC-11, BR-IC-12]",
+          "An intra-community supply (category K) needs a service date or period. The customer's address is sent as the delivery address. [BR-IC-11]",
         ),
       );
     }

@@ -49,8 +49,9 @@ VAT category: `S` for 19 % and 7 %, `Z` zero rated, `E` exempt, `AE` reverse cha
 UStG), `K` intra-EU supply, `G` export, `O` not subject to VAT. Exempt and reverse-charge
 breakdowns carry the exemption reason the standard requires. An invoice with `O` lines leaves
 out the VAT IDs (the Steuernummer identifies the seller) and can't mix `O` with other categories.
-`K` is not supported yet: besides the service date, EN 16931 needs a delivery country for it,
-which Inkvoice can't record, so the panel flags such an invoice.
+`K` (intra-EU supply of goods) needs your USt-IdNr, the customer's VAT ID and the service date;
+the e-invoice sends the customer's address as the delivery address, so goods shipped to another
+address can't be shown yet.
 
 Missing or malformed fields do not block emission (sending over PEPPOL does block on errors);
 they are listed as errors and warnings in the e-invoice panel after **Create**. The send dialog
@@ -167,7 +168,7 @@ DELETE /api/v1/einvoices/inbox/:id
 `.github/workflows/einvoice-conformance.yml` generates a set of German sample invoices with
 `scripts/einvoice-samples.ts` (19 %, 19 % + 7 %, discount, reverse charge, credit note,
 Kleinunternehmer, Leitweg-ID, zero rated, exempt, export, not subject to VAT, service date,
-service period) and checks them with:
+service period, intra-EU supply) and checks them with:
 
 - the **KoSIT validator** with the **XRechnung 3.0.2 configuration**: XRechnung (UBL) and the
   ZUGFeRD XML (EN 16931, CII);

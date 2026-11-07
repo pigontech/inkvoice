@@ -567,12 +567,14 @@ const fr: TranslationKeys = {
         "Aucun IBAN dans les Paramètres : la facture électronique ne contient donc pas de coordonnées bancaires pour le virement.",
       reverse_charge_vat_ids:
         "L’autoliquidation exige votre USt-IdNr et le numéro de TVA du client. [BR-AE-02]",
+      intra_community_vat_ids:
+        "Une livraison intracommunautaire (catégorie K) exige votre USt-IdNr et le numéro de TVA du client. [BR-IC-02]",
       not_subject_mixed:
         "Des lignes hors champ de la TVA (catégorie O) ne peuvent pas figurer sur une facture avec d’autres catégories de TVA. Facturez-les séparément. [BR-O-11]",
       not_subject_tax_number:
         "Une facture hors champ de la TVA (catégorie O) ne peut pas porter votre USt-IdNr ; elle doit donc indiquer votre Steuernummer (Paramètres). [BR-O-02, BR-CO-26]",
       intra_community_delivery:
-        "Une livraison intracommunautaire (catégorie K) exige une date ou une période de prestation et un pays de livraison. Inkvoice ne peut pas encore enregistrer le pays de livraison : cette facture électronique ne passera donc pas la validation. [BR-IC-11, BR-IC-12]",
+        "Une livraison intracommunautaire (catégorie K) exige une date ou une période de prestation. L’adresse du client est transmise comme adresse de livraison. [BR-IC-11]",
       en16931_totals:
         "Les totaux enregistrés ne sont pas cohérents avec EN 16931 (TVA sur le montant remisé). Ouvrez la facture et enregistrez-la à nouveau pour les recalculer.",
       xr_seller_city_postcode:

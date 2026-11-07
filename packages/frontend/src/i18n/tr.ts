@@ -552,12 +552,14 @@ const tr: TranslationKeys = {
       payment_iban: "Ayarlarda IBAN yok, bu yüzden e-fatura havale için banka bilgisi içermiyor.",
       reverse_charge_vat_ids:
         "Reverse charge için sizin USt-IdNr'niz ve müşterinin KDV numarası gerekir. [BR-AE-02]",
+      intra_community_vat_ids:
+        "AB içi teslim (kategori K) için sizin USt-IdNr'niz ve müşterinin KDV numarası gerekir. [BR-IC-02]",
       not_subject_mixed:
         "KDV'ye tabi olmayan kalemler (kategori O) diğer KDV kategorileriyle aynı faturada yer alamaz. Bunları ayrı bir faturayla kesin. [BR-O-11]",
       not_subject_tax_number:
         "KDV'ye tabi olmayan bir fatura (kategori O) USt-IdNr'nizi taşıyamaz, bu yüzden Steuernummer bilginiz gerekir (Ayarlar). [BR-O-02, BR-CO-26]",
       intra_community_delivery:
-        "AB içi teslim (kategori K) bir hizmet tarihi veya dönemi ve bir teslim ülkesi gerektirir; Inkvoice teslim ülkesini henüz kaydedemiyor, bu yüzden bu e-fatura doğrulamadan geçmez. [BR-IC-11, BR-IC-12]",
+        "AB içi teslim (kategori K) bir hizmet tarihi veya dönemi gerektirir. Teslim adresi olarak müşterinin adresi gönderilir. [BR-IC-11]",
       en16931_totals:
         "Kayıtlı toplamlar EN 16931'in istediği şekilde tutmuyor (indirimli tutar üzerinden KDV). Yeniden hesaplamak için faturayı açıp tekrar kaydedin.",
       xr_seller_city_postcode:

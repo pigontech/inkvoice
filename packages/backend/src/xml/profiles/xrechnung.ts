@@ -137,18 +137,7 @@ export class XRechnungProfile implements XmlProfile {
     }
     L.push(`      <cac:PartyName><cbc:Name>${esc(c.name)}</cbc:Name></cac:PartyName>`);
     L.push(`      <cac:PostalAddress>`);
-    if (c.address_line1) L.push(`        <cbc:StreetName>${esc(c.address_line1)}</cbc:StreetName>`);
-    if (c.address_line2) {
-      L.push(
-        `        <cbc:AdditionalStreetName>${esc(c.address_line2)}</cbc:AdditionalStreetName>`,
-      );
-    }
-    if (c.city) L.push(`        <cbc:CityName>${esc(c.city)}</cbc:CityName>`);
-    if (c.postal_code) L.push(`        <cbc:PostalZone>${esc(c.postal_code)}</cbc:PostalZone>`);
-    if (c.state) L.push(`        <cbc:CountrySubentity>${esc(c.state)}</cbc:CountrySubentity>`);
-    L.push(
-      `        <cac:Country><cbc:IdentificationCode>${esc((c.country || "").toUpperCase())}</cbc:IdentificationCode></cac:Country>`,
-    );
+    L.push(...customerAddress(c, "        "));
     L.push(`      </cac:PostalAddress>`);
     if (doc.buyerVatId) L.push(...taxScheme(doc.buyerVatId, "VAT", "      "));
     L.push(
@@ -163,10 +152,24 @@ export class XRechnungProfile implements XmlProfile {
     L.push(`    </cac:Party>`);
     L.push(`  </cac:AccountingCustomerParty>`);
 
-    // --- Delivery (BG-13): the date of supply (BT-72) ---
-    if (data.service_date) {
+    // --- Delivery (BG-13): the date of supply (BT-72) and, for an
+    // intra-community supply, the customer's address as the deliver-to address
+    // (BG-15, BR-IC-12; XRechnung wants its city and postcode, BR-DE-10/11) ---
+    if (data.service_date || doc.intraCommunity) {
       L.push(`  <cac:Delivery>`);
-      L.push(`    <cbc:ActualDeliveryDate>${esc(data.service_date)}</cbc:ActualDeliveryDate>`);
+      if (data.service_date) {
+        L.push(`    <cbc:ActualDeliveryDate>${esc(data.service_date)}</cbc:ActualDeliveryDate>`);
+      }
+      if (doc.intraCommunity) {
+        L.push(`    <cac:DeliveryLocation>`);
+        L.push(`      <cac:Address>`);
+        L.push(...customerAddress(c, "        "));
+        L.push(`      </cac:Address>`);
+        L.push(`    </cac:DeliveryLocation>`);
+        L.push(
+          `    <cac:DeliveryParty><cac:PartyName><cbc:Name>${esc(c.name)}</cbc:Name></cac:PartyName></cac:DeliveryParty>`,
+        );
+      }
       L.push(`  </cac:Delivery>`);
     }
 
@@ -271,6 +274,25 @@ function taxScheme(companyId: string, scheme: string, indent: string): string[] 
     `${indent}  <cac:TaxScheme><cbc:ID>${scheme}</cbc:ID></cac:TaxScheme>`,
     `${indent}</cac:PartyTaxScheme>`,
   ];
+}
+
+/** The customer's address lines: the buyer address (BG-8) and the deliver-to address (BG-15). */
+function customerAddress(c: XmlInvoiceData["customer"], indent: string): string[] {
+  const out: string[] = [];
+  if (c.address_line1)
+    out.push(`${indent}<cbc:StreetName>${esc(c.address_line1)}</cbc:StreetName>`);
+  if (c.address_line2) {
+    out.push(
+      `${indent}<cbc:AdditionalStreetName>${esc(c.address_line2)}</cbc:AdditionalStreetName>`,
+    );
+  }
+  if (c.city) out.push(`${indent}<cbc:CityName>${esc(c.city)}</cbc:CityName>`);
+  if (c.postal_code) out.push(`${indent}<cbc:PostalZone>${esc(c.postal_code)}</cbc:PostalZone>`);
+  if (c.state) out.push(`${indent}<cbc:CountrySubentity>${esc(c.state)}</cbc:CountrySubentity>`);
+  out.push(
+    `${indent}<cac:Country><cbc:IdentificationCode>${esc((c.country || "").toUpperCase())}</cbc:IdentificationCode></cac:Country>`,
+  );
+  return out;
 }
 
 /** cac:TaxCategory for a VAT group; the breakdown also carries the exemption reason. */

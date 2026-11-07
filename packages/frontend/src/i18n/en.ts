@@ -551,12 +551,14 @@ const en = {
         "No IBAN in Settings, so the e-invoice carries no bank details for the transfer.",
       reverse_charge_vat_ids:
         "Reverse charge needs your USt-IdNr and the customer's VAT ID. [BR-AE-02]",
+      intra_community_vat_ids:
+        "An intra-community supply (category K) needs your USt-IdNr and the customer's VAT ID. [BR-IC-02]",
       not_subject_mixed:
         "Lines not subject to VAT (category O) can't share an invoice with other VAT categories. Bill them on a separate invoice. [BR-O-11]",
       not_subject_tax_number:
         "An invoice not subject to VAT (category O) can't carry your USt-IdNr, so it needs your Steuernummer (Settings). [BR-O-02, BR-CO-26]",
       intra_community_delivery:
-        "An intra-community supply (category K) needs a service date or period and a delivery country. Inkvoice can't record the delivery country yet, so this e-invoice won't pass validation. [BR-IC-11, BR-IC-12]",
+        "An intra-community supply (category K) needs a service date or period. The customer's address is sent as the delivery address. [BR-IC-11]",
       en16931_totals:
         "The stored totals do not add up as EN 16931 requires (VAT on a discount). Open the invoice and save it again to recalculate.",
       xr_seller_city_postcode:

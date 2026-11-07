@@ -54,6 +54,8 @@ export interface En16931Doc {
   /** VAT IDs to send; none on an invoice not subject to VAT (BR-O-02). */
   sellerVatId: string | null;
   buyerVatId: string | null;
+  /** An intra-community supply (category K): the customer's address is the deliver-to address (BG-15). */
+  intraCommunity: boolean;
 }
 
 function round2(n: number): number {
@@ -218,6 +220,7 @@ export function prepareEn16931(data: XmlInvoiceData): En16931Doc {
     grandTotal,
     sellerVatId: notSubject ? null : data.supplier.tax_id || null,
     buyerVatId: notSubject ? null : data.customer.tax_id || null,
+    intraCommunity: groups.some((g) => g.category === "K"),
   };
 }
 

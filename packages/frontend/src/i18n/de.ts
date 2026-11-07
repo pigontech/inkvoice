@@ -575,12 +575,14 @@ const de: TranslationKeys = {
         "In den Einstellungen ist keine IBAN hinterlegt, daher enthält die E-Rechnung keine Bankverbindung für die Überweisung.",
       reverse_charge_vat_ids:
         "Reverse Charge benötigt Ihre USt-IdNr. und die USt-IdNr. des Kunden. [BR-AE-02]",
+      intra_community_vat_ids:
+        "Eine innergemeinschaftliche Lieferung (Kategorie K) benötigt Ihre USt-IdNr. und die USt-IdNr. des Kunden. [BR-IC-02]",
       not_subject_mixed:
         "Nicht steuerbare Positionen (Kategorie O) dürfen nicht mit anderen Steuerkategorien auf einer Rechnung stehen. Stellen Sie diese gesondert in Rechnung. [BR-O-11]",
       not_subject_tax_number:
         "Eine nicht steuerbare Rechnung (Kategorie O) darf Ihre USt-IdNr. nicht enthalten und benötigt daher Ihre Steuernummer (Einstellungen). [BR-O-02, BR-CO-26]",
       intra_community_delivery:
-        "Eine innergemeinschaftliche Lieferung (Kategorie K) benötigt ein Leistungsdatum oder einen Leistungszeitraum und ein Lieferland. Das Lieferland kann Inkvoice noch nicht erfassen, daher besteht diese E-Rechnung die Prüfung nicht. [BR-IC-11, BR-IC-12]",
+        "Eine innergemeinschaftliche Lieferung (Kategorie K) benötigt ein Leistungsdatum oder einen Leistungszeitraum. Als Lieferanschrift wird die Anschrift des Kunden übermittelt. [BR-IC-11]",
       en16931_totals:
         "Die gespeicherten Summen entsprechen nicht der Berechnung nach EN 16931 (Umsatzsteuer auf den rabattierten Betrag). Öffnen Sie die Rechnung und speichern Sie sie erneut, um sie neu zu berechnen.",
       xr_seller_city_postcode:

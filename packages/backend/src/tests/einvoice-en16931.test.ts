@@ -346,13 +346,42 @@ describe("validator", () => {
     expect(codes).toContain("not_subject_tax_number");
   });
 
-  test("intra-community supplies are flagged while no delivery date can be recorded", () => {
-    const data = invoice({
+  test("an intra-community supply needs a service date and both VAT IDs", () => {
+    const supply = {
       tax_total: 0,
       total: 100,
       items: [line({ tax_rate: 0, tax_amount: 0, tax_category_code: "K" })],
+    };
+    expect(validateEinvoice(invoice(supply)).map((i) => i.code)).toContain(
+      "intra_community_delivery",
+    );
+    const dated = invoice({ ...supply, service_date: "2026-10-30" });
+    expect(validateEinvoice(dated).map((i) => i.code)).not.toContain("intra_community_delivery");
+    expect(validateEinvoice(dated).map((i) => i.code)).not.toContain("intra_community_vat_ids");
+    dated.customer.tax_id = null;
+    expect(validateEinvoice(dated).map((i) => i.code)).toContain("intra_community_vat_ids");
+  });
+
+  test("an intra-community supply sends the customer's address as the deliver-to address", () => {
+    const data = invoice({
+      tax_total: 0,
+      total: 100,
+      service_date: "2026-10-30",
+      items: [line({ tax_rate: 0, tax_amount: 0, tax_category_code: "K" })],
     });
-    expect(validateEinvoice(data).map((i) => i.code)).toContain("intra_community_delivery");
+    data.customer = { ...data.customer, country: "AT", city: "Wien", postal_code: "1010" };
+    const ubl = new XRechnungProfile().generateXml(data);
+    expect(ubl).toMatch(
+      /<cac:Delivery>\s*<cbc:ActualDeliveryDate>2026-10-30<\/cbc:ActualDeliveryDate>\s*<cac:DeliveryLocation>\s*<cac:Address>[\s\S]*<cbc:CityName>Wien<\/cbc:CityName>\s*<cbc:PostalZone>1010<\/cbc:PostalZone>\s*<cac:Country><cbc:IdentificationCode>AT<\/cbc:IdentificationCode>/,
+    );
+    const cii = new FacturxZugferdProfile().generateXml(data);
+    expect(cii).toMatch(
+      /<ram:ShipToTradeParty>[\s\S]*<ram:CountryID>AT<\/ram:CountryID>[\s\S]*<\/ram:ShipToTradeParty>\s*<ram:ActualDeliverySupplyChainEvent>/,
+    );
+    // Without category K nothing but the date goes in the delivery group.
+    const plain = invoice({ service_date: "2026-10-30" });
+    expect(new XRechnungProfile().generateXml(plain)).not.toContain("<cac:DeliveryLocation>");
+    expect(new FacturxZugferdProfile().generateXml(plain)).not.toContain("<ram:ShipToTradeParty>");
   });
 });
 
