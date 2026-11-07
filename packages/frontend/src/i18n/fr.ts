@@ -572,7 +572,7 @@ const fr: TranslationKeys = {
       not_subject_tax_number:
         "Une facture hors champ de la TVA (catégorie O) ne peut pas porter votre USt-IdNr ; elle doit donc indiquer votre Steuernummer (Paramètres). [BR-O-02, BR-CO-26]",
       intra_community_delivery:
-        "Une livraison intracommunautaire (catégorie K) exige une date et un pays de livraison, qu’Inkvoice ne peut pas encore enregistrer : cette facture électronique ne passera donc pas la validation. [BR-IC-11, BR-IC-12]",
+        "Une livraison intracommunautaire (catégorie K) exige une date ou une période de prestation et un pays de livraison. Inkvoice ne peut pas encore enregistrer le pays de livraison : cette facture électronique ne passera donc pas la validation. [BR-IC-11, BR-IC-12]",
       en16931_totals:
         "Les totaux enregistrés ne sont pas cohérents avec EN 16931 (TVA sur le montant remisé). Ouvrez la facture et enregistrez-la à nouveau pour les recalculer.",
       xr_seller_city_postcode:

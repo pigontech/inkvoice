@@ -580,7 +580,7 @@ const de: TranslationKeys = {
       not_subject_tax_number:
         "Eine nicht steuerbare Rechnung (Kategorie O) darf Ihre USt-IdNr. nicht enthalten und benötigt daher Ihre Steuernummer (Einstellungen). [BR-O-02, BR-CO-26]",
       intra_community_delivery:
-        "Eine innergemeinschaftliche Lieferung (Kategorie K) benötigt ein Lieferdatum und ein Lieferland, die Inkvoice noch nicht erfassen kann. Diese E-Rechnung besteht die Prüfung daher nicht. [BR-IC-11, BR-IC-12]",
+        "Eine innergemeinschaftliche Lieferung (Kategorie K) benötigt ein Leistungsdatum oder einen Leistungszeitraum und ein Lieferland. Das Lieferland kann Inkvoice noch nicht erfassen, daher besteht diese E-Rechnung die Prüfung nicht. [BR-IC-11, BR-IC-12]",
       en16931_totals:
         "Die gespeicherten Summen entsprechen nicht der Berechnung nach EN 16931 (Umsatzsteuer auf den rabattierten Betrag). Öffnen Sie die Rechnung und speichern Sie sie erneut, um sie neu zu berechnen.",
       xr_seller_city_postcode:

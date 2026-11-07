@@ -556,7 +556,7 @@ const en = {
       not_subject_tax_number:
         "An invoice not subject to VAT (category O) can't carry your USt-IdNr, so it needs your Steuernummer (Settings). [BR-O-02, BR-CO-26]",
       intra_community_delivery:
-        "An intra-community supply (category K) needs a delivery date and a delivery country, which Inkvoice can't record yet, so this e-invoice won't pass validation. [BR-IC-11, BR-IC-12]",
+        "An intra-community supply (category K) needs a service date or period and a delivery country. Inkvoice can't record the delivery country yet, so this e-invoice won't pass validation. [BR-IC-11, BR-IC-12]",
       en16931_totals:
         "The stored totals do not add up as EN 16931 requires (VAT on a discount). Open the invoice and save it again to recalculate.",
       xr_seller_city_postcode:

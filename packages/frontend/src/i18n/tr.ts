@@ -557,7 +557,7 @@ const tr: TranslationKeys = {
       not_subject_tax_number:
         "KDV'ye tabi olmayan bir fatura (kategori O) USt-IdNr'nizi taşıyamaz, bu yüzden Steuernummer bilginiz gerekir (Ayarlar). [BR-O-02, BR-CO-26]",
       intra_community_delivery:
-        "AB içi teslim (kategori K) bir teslim tarihi ve teslim ülkesi gerektirir; Inkvoice bunları henüz kaydedemiyor, bu yüzden bu e-fatura doğrulamadan geçmez. [BR-IC-11, BR-IC-12]",
+        "AB içi teslim (kategori K) bir hizmet tarihi veya dönemi ve bir teslim ülkesi gerektirir; Inkvoice teslim ülkesini henüz kaydedemiyor, bu yüzden bu e-fatura doğrulamadan geçmez. [BR-IC-11, BR-IC-12]",
       en16931_totals:
         "Kayıtlı toplamlar EN 16931'in istediği şekilde tutmuyor (indirimli tutar üzerinden KDV). Yeniden hesaplamak için faturayı açıp tekrar kaydedin.",
       xr_seller_city_postcode:

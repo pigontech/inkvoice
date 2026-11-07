@@ -570,7 +570,7 @@ const es: TranslationKeys = {
       not_subject_tax_number:
         "Una factura no sujeta a IVA (categoría O) no puede llevar su USt-IdNr, así que necesita su Steuernummer (Configuración). [BR-O-02, BR-CO-26]",
       intra_community_delivery:
-        "Una entrega intracomunitaria (categoría K) necesita una fecha y un país de entrega, que Inkvoice aún no puede registrar, así que esta factura electrónica no pasará la validación. [BR-IC-11, BR-IC-12]",
+        "Una entrega intracomunitaria (categoría K) necesita una fecha o un periodo de servicio y un país de entrega. Inkvoice aún no puede registrar el país de entrega, así que esta factura electrónica no pasará la validación. [BR-IC-11, BR-IC-12]",
       en16931_totals:
         "Los totales guardados no cuadran como exige EN 16931 (IVA sobre el importe con descuento). Abra la factura y guárdela de nuevo para recalcularlos.",
       xr_seller_city_postcode:

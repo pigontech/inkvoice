@@ -270,7 +270,7 @@ function en16931Checks(data: XmlInvoiceData): EinvoiceIssue[] {
       issues.push(
         error(
           "intra_community_delivery",
-          "An intra-community supply (category K) needs a delivery date and a delivery country, which Inkvoice can't record yet, so this e-invoice won't pass validation. [BR-IC-11, BR-IC-12]",
+          "An intra-community supply (category K) needs a service date or period and a delivery country. Inkvoice can't record the delivery country yet, so this e-invoice won't pass validation. [BR-IC-11, BR-IC-12]",
         ),
       );
     }
