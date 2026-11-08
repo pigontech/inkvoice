@@ -103,6 +103,14 @@ Create invoices, record payments and log expenses from your phone with the free 
 | **Products & services** | **Dark mode** |
 | ![Products](./docs/screenshots/04-products.png) | ![Dark mode](./docs/screenshots/11-dashboard-dark.png) |
 
+## Hosting options
+
+Inkvoice is the same open-source app wherever it runs:
+
+- **Your own server (free):** one container on Docker, Dokploy or Coolify. See [Quick Start](#quick-start) and [Self-Hosting](#self-hosting).
+- **Inkvoice Cloud:** managed by the Inkvoice team at [cloud.inkvoice.app](https://cloud.inkvoice.app), with no server to run.
+- **A hosting provider:** providers may host unmodified Inkvoice and offer it as "Inkvoice hosting". For an official listing here, use the contact in our [trademark policy](./TRADEMARK.md#contact).
+
 ## Quick Start
 
 ### Docker (recommended)
