@@ -5,6 +5,18 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Settings echo the locale field on every keystroke, so a half-typed value
+// like "de-" reaches Intl, which throws on invalid tags. Fall back instead.
+export function safeLocale(locale: string | null | undefined, fallback = "en-US"): string {
+  const tag = (locale || "").trim();
+  if (!tag) return fallback;
+  try {
+    return Intl.getCanonicalLocales(tag)[0] || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 function getCurrentLocale(): string {
   try {
     const lang = localStorage.getItem("inkvoice-lang") || "en";

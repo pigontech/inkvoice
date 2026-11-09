@@ -27,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { type Language, languages, useTranslation } from "@/i18n";
 import { COUNTRIES } from "@/lib/countries";
 import { formatApiError } from "@/lib/format-api-error";
+import { safeLocale } from "@/lib/utils";
 import ProductSettings from "@/pages/ProductSettings";
 import { getSettingsTabs } from "@/pages/settings-tab-registry";
 import Templates from "@/pages/Templates";
@@ -500,7 +501,7 @@ export default function Settings() {
                   className="form-select"
                 >
                   {Array.from({ length: 12 }, (_, i) => {
-                    const monthName = new Intl.DateTimeFormat(settings.locale || "en-US", {
+                    const monthName = new Intl.DateTimeFormat(safeLocale(settings.locale), {
                       month: "long",
                     }).format(new Date(2000, i, 1));
                     return (
