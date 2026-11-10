@@ -54,6 +54,9 @@ Putting this on the public internet? Terminate TLS in front of it, then switch t
 `COOKIE_SECURE: "true"` and add `ENABLE_HSTS: "true"`.
 :::
 
+The `latest` tag tracks `main`. For a stable deployment, pin a release tag such as
+`ghcr.io/pigontech/inkvoice:0.3.7`.
+
 ## Manual Setup
 
 If you prefer to run Inkvoice without Docker:

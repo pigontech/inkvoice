@@ -89,6 +89,36 @@ payments are confirmed server-side via webhooks.
 
 See [Online Payments](/features/payments) for setup instructions.
 
+## Single Sign-On (OIDC)
+
+Optional. Any standards-compliant OIDC provider (Keycloak, Authentik, Authelia, Entra ID,
+Okta, Google Workspace, and others) can act as the sign-in source. Setting
+`OIDC_ISSUER_URL`, `OIDC_CLIENT_ID` and `OIDC_CLIENT_SECRET` enables it; everything else
+is discovered from `/.well-known/openid-configuration`.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OIDC_ISSUER_URL` | (none) | Issuer URL. Must be https. Setting it enables SSO |
+| `OIDC_CLIENT_ID` | (none) | Confidential client ID |
+| `OIDC_CLIENT_SECRET` | (none) | Confidential client secret |
+| `OIDC_SCOPE` | `openid email profile` | Space-separated scopes (`openid` is always included) |
+| `OIDC_ALLOWED_DOMAINS` | (none) | Comma-separated email domains allowed to self-register |
+| `OIDC_AUTO_PROVISION` | `true` | Create a read-only Viewer account on first SSO login |
+| `OIDC_PROVIDER_NAME` | (none) | Label for the SSO button on the login page |
+
+1. Register a **confidential** client at your provider with the redirect URI
+   `https://your-domain/api/v1/auth/oidc/callback` (use the origin your install is served
+   from, or set `PUBLIC_BASE_URL`).
+2. First-time logins get a read-only **Viewer** account unless `OIDC_AUTO_PROVISION=false`.
+   Promote users under **Users**, and limit who can self-register with `OIDC_ALLOWED_DOMAINS`.
+3. Existing accounts link on first SSO login only when the provider attests the email
+   (`email_verified` claim). Password login stays available as the admin recovery path.
+
+## PEPPOL
+
+Optional. The `PEPPOL_SH_*` variables enable sending and receiving over the PEPPOL network.
+See [PEPPOL Transport](/features/peppol-transport#environment-variables-oss-self-hosted).
+
 ## PDF Generation
 
 Nothing to configure. Inkvoice renders invoices and quotes as HTML and the browser's print
