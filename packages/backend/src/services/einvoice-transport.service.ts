@@ -732,7 +732,7 @@ export async function handleTransportWebhook(
 
   switch (result.kind) {
     case "document":
-      handleInboundDocument(result, active);
+      await handleInboundDocument(result, active);
       return result;
     case "status":
       handleInboundStatus(result);
@@ -745,15 +745,15 @@ export async function handleTransportWebhook(
   }
 }
 
-function handleInboundDocument(
+async function handleInboundDocument(
   result: Extract<TransportWebhookResult, { kind: "document" }>,
   transport: EinvoiceTransport,
-): void {
+): Promise<void> {
   if (Buffer.byteLength(result.xml, "utf-8") > MAX_INBOUND_BYTES) {
     throw new TransportWebhookSizeError("Inbound document exceeds the 10 MB cap");
   }
   const source = transport.id === "qonto-fr" ? "qonto" : "peppol";
-  const { id } = importEinvoiceFile({
+  const { id } = await importEinvoiceFile({
     fileName: result.fileName,
     contentType: result.contentType,
     bytes: Buffer.from(result.xml, "utf-8"),

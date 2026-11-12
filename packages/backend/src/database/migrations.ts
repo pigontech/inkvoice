@@ -1149,6 +1149,45 @@ const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    version: 35,
+    name: "builtin_template_versions",
+    up: (db) => {
+      // The SHA-256 of every HTML a boot has bundled for each built-in
+      // template. A built-in whose HTML is one of these was never edited, so
+      // the boot sync may move it to a newer bundled version (see seed.ts).
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS builtin_template_versions (
+          name TEXT NOT NULL,
+          sha256 TEXT NOT NULL,
+          created_at TEXT DEFAULT (datetime('now')),
+          PRIMARY KEY (name, sha256)
+        );
+      `);
+    },
+  },
+  {
+    version: 36,
+    name: "vat_category_reduced_rate",
+    up: (db) => {
+      // The German 7 % preset was seeded with VAT category "AA", which is not
+      // in the EN 16931 code list, so e-invoices with it failed validation
+      // (BR-CL-17/18). A reduced rate is standard rated ("S") at 7 %.
+      if (!tableExists(db, "tax_definitions")) return;
+      db.run("UPDATE tax_definitions SET category_code = 'S' WHERE category_code = 'AA'");
+    },
+  },
+  {
+    version: 37,
+    name: "invoice_service_date",
+    up: (db) => {
+      // The date of supply (Leistungsdatum, § 14 Abs. 4 Nr. 6 UStG), as ISO
+      // dates: one date (EN 16931 BT-72) or a period (BG-14, BT-73/BT-74).
+      addColumnIfMissing(db, "invoices", "service_date", "TEXT");
+      addColumnIfMissing(db, "invoices", "service_period_start", "TEXT");
+      addColumnIfMissing(db, "invoices", "service_period_end", "TEXT");
+    },
+  },
 ];
 
 export const LATEST_MIGRATION_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

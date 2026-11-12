@@ -84,7 +84,7 @@ test("create, reload, edit, tax definition, PDF and CSV preserve 1.234", () => {
     issue_date: inv.issue_date,
     currency: "TND",
     prices_include_tax: true,
-    items: [{ ...item, unit_price: 1.469, tax_id: "tnd-tax" }],
+    items: [{ ...item, unit_price: 1.469, tax_id: "tnd-tax", tax_rate: 19 }],
   })!;
   expect(updated.total).toBe(1.469);
   expect(updated.items[0].tax_amount).toBe(0.235);

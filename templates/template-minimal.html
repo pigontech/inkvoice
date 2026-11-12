@@ -290,6 +290,14 @@
           <div class="label" style="margin-top: 4mm">{{#is_quote}}Valid until{{/is_quote}}{{^is_quote}}Due{{/is_quote}}</div>
           <div class="value">{{due_date}}</div>
           {{/due_date}}
+          {{#service_date}}
+          <div class="label" style="margin-top: 4mm">Service date</div>
+          <div class="value">{{service_date}}</div>
+          {{/service_date}}
+          {{#service_period}}
+          <div class="label" style="margin-top: 4mm">Service period</div>
+          <div class="value">{{service_period.start}} to {{service_period.end}}</div>
+          {{/service_period}}
         </div>
       </div>
 

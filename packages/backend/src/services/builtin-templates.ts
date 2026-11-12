@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -64,6 +65,11 @@ export function readTemplateFile(filename: string): string {
     }
   }
   throw new Error(`Could not find template file: ${filename}`);
+}
+
+/** SHA-256 of a template's HTML text, encoded as UTF-8, as hex. */
+export function hashTemplateHtml(html: string): string {
+  return createHash("sha256").update(html, "utf8").digest("hex");
 }
 
 export function getBuiltinTemplateByName(name: string): BuiltinTemplate | undefined {

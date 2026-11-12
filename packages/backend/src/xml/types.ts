@@ -3,6 +3,10 @@ export interface XmlInvoiceData {
   invoice_number: string;
   issue_date: string;
   due_date: string | null;
+  /** Actual delivery date (BT-72), the date of supply; ISO date. */
+  service_date?: string | null;
+  /** Invoicing period (BG-14: BT-73 start, BT-74 end); ISO dates. */
+  service_period?: { start: string; end: string } | null;
   currency: string;
   locale: string | null;
   type: "invoice" | "credit_note";
@@ -38,6 +42,10 @@ export interface XmlInvoiceData {
     /** German Steuernummer (tax number; not the USt-IdNr). */
     tax_number: string | null;
     bank_details: string | null;
+    /** IBAN for SEPA credit transfer (payment instructions, BG-16/BG-17). */
+    iban?: string | null;
+    bic?: string | null;
+    account_holder?: string | null;
     peppol_endpoint_id: string | null;
     peppol_scheme_id: string | null;
   };
@@ -65,6 +73,9 @@ export interface XmlInvoiceData {
     siret: string | null;
   };
 
+  /** Number and date of the invoice a credit note corrects (BT-25/BT-26). */
+  preceding_invoice?: { number: string; issue_date: string | null } | null;
+
   items: XmlLineItem[];
   tax_breakdown: XmlTaxBreakdown[];
 }
@@ -79,6 +90,8 @@ export interface XmlLineItem {
   tax_rate: number;
   tax_amount: number;
   tax_category_code: string;
+  /** Name of the tax definition (used as the VAT exemption reason for "E"). */
+  tax_name?: string | null;
 }
 
 export interface XmlTaxBreakdown {

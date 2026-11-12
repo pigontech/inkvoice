@@ -25,9 +25,16 @@ Voided  Overdue → Paid
 1. Navigate to **Invoices** and click **New Invoice**
 2. Select a customer (or create one inline)
 3. Add line items — pick from your product catalog or enter custom descriptions
-4. Set the issue date, due date, and any notes or payment terms
+4. Set the issue date, due date, service date, and any notes or payment terms
 5. Review the totals (subtotal, tax, discount, total)
 6. **Save as Draft** to continue editing later, or **Publish** to make it available
+
+## Service Date
+
+The date of supply (Leistungsdatum), which German invoices must state (§ 14 Abs. 4 Nr. 6
+UStG). Enter one date, or switch to **Use a period instead** for a service period. It is
+printed on the invoice PDF and sent in e-invoices (BT-72 for a date, BG-14 for a period). A
+credit note keeps the service date of the invoice it corrects; a duplicate starts without one.
 
 ## Line Items
 

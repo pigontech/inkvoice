@@ -17,8 +17,8 @@ import type {
 } from "./types";
 
 // Adapter that exposes the existing Stripe service through the gateway
-// interface. The underlying `stripe.service.ts` is intentionally left
-// unchanged so a downstream overlay, which imports it directly, keeps working.
+// interface. The exported functions of `stripe.service.ts` keep their
+// signatures so a downstream overlay, which imports it directly, keeps working.
 export const stripeGateway: PaymentGateway = {
   id: "stripe",
   label: "Stripe",

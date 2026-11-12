@@ -23,15 +23,16 @@ let publicJwk: Record<string, unknown>;
 let discoveryHits = 0;
 let evilIssuer = false;
 let trailingSlashIssuer = false;
+let doubleSlashIssuer = false;
 let hugeDoc = false;
 let nextIdToken = "";
 let certDir: string | null = null;
 let prevTlsRejectUnauthorized: string | undefined;
 
-async function signIdToken(claims: Record<string, unknown>): Promise<string> {
+async function signIdToken(claims: Record<string, unknown>, iss = issuer): Promise<string> {
   return new SignJWT(claims)
     .setProtectedHeader({ alg: "ES256", kid: "test-kid" })
-    .setIssuer(issuer)
+    .setIssuer(iss)
     .setAudience(CLIENT_ID)
     .setSubject("sub-123")
     .setExpirationTime("5m")
@@ -90,9 +91,11 @@ beforeAll(async () => {
         return Response.json({
           issuer: evilIssuer
             ? "https://evil.example.com"
-            : trailingSlashIssuer
-              ? `${issuer}/`
-              : issuer,
+            : doubleSlashIssuer
+              ? `${issuer}//`
+              : trailingSlashIssuer
+                ? `${issuer}/`
+                : issuer,
           authorization_endpoint: `${issuer}/authorize`,
           token_endpoint: `${issuer}/token`,
           jwks_uri: `${issuer}/jwks`,
@@ -158,10 +161,24 @@ describe("discovery", () => {
   test("accepts a document whose issuer has a trailing slash", async () => {
     resetOidcServiceForTesting();
     trailingSlashIssuer = true;
-    const doc = await discoverOidc();
-    expect(doc.issuer).toBe(`${issuer}/`);
-    trailingSlashIssuer = false;
+    try {
+      const doc = await discoverOidc();
+      expect(doc.issuer).toBe(`${issuer}/`);
+    } finally {
+      trailingSlashIssuer = false;
+      resetOidcServiceForTesting();
+    }
+  });
+
+  test("rejects a document whose issuer has more than one trailing slash", async () => {
     resetOidcServiceForTesting();
+    doubleSlashIssuer = true;
+    try {
+      await expect(discoverOidc()).rejects.toThrow("OIDC discovery issuer mismatch");
+    } finally {
+      doubleSlashIssuer = false;
+      resetOidcServiceForTesting();
+    }
   });
 
   test("rejects a discovery document over 1 MB", async () => {
@@ -226,30 +243,68 @@ describe("token exchange + id_token validation", () => {
   });
 
   test("id_token with wrong nonce is rejected", async () => {
-    const idToken = await signIdToken({ email_verified: true });
-    await expect(validateIdToken(idToken, "wrong-nonce")).rejects.toThrow();
+    const idToken = await signIdToken({ email: "a@b.c", nonce: "nonce-1" });
+    await expect(validateIdToken(idToken, "wrong-nonce")).rejects.toThrow(
+      "OIDC id_token nonce mismatch",
+    );
   });
 
   test("id_token with wrong issuer is rejected", async () => {
-    const idToken = await new SignJWT({ email_verified: true })
+    const idToken = await new SignJWT({ email_verified: true, nonce: "nonce-1" })
       .setProtectedHeader({ alg: "ES256", kid: "test-kid" })
       .setIssuer("https://evil.example.com")
       .setAudience(CLIENT_ID)
       .setSubject("sub-123")
       .setExpirationTime("5m")
       .sign(privateKey);
-    await expect(validateIdToken(idToken, "nonce-1")).rejects.toThrow();
+    await expect(validateIdToken(idToken, "nonce-1")).rejects.toThrow(
+      'unexpected "iss" claim value',
+    );
+  });
+
+  test("id_token from an issuer with a trailing slash is accepted", async () => {
+    resetOidcServiceForTesting();
+    trailingSlashIssuer = true;
+    try {
+      const idToken = await signIdToken({ email: "a@b.c", nonce: "nonce-1" }, `${issuer}/`);
+      expect((await validateIdToken(idToken, "nonce-1")).subject).toBe("sub-123");
+    } finally {
+      trailingSlashIssuer = false;
+      resetOidcServiceForTesting();
+    }
+  });
+
+  test("id_token without the slash is accepted when discovery has one", async () => {
+    resetOidcServiceForTesting();
+    trailingSlashIssuer = true;
+    try {
+      const idToken = await signIdToken({ email: "a@b.c", nonce: "nonce-1" });
+      expect((await validateIdToken(idToken, "nonce-1")).subject).toBe("sub-123");
+    } finally {
+      trailingSlashIssuer = false;
+      resetOidcServiceForTesting();
+    }
+  });
+
+  test("id_token with a trailing slash is rejected when discovery has none", async () => {
+    resetOidcServiceForTesting();
+    const idToken = await signIdToken({ email: "a@b.c", nonce: "nonce-1" }, `${issuer}/`);
+    await expect(validateIdToken(idToken, "nonce-1")).rejects.toThrow(
+      'unexpected "iss" claim value',
+    );
   });
 
   test("id_token with wrong audience is rejected", async () => {
-    const idToken = await new SignJWT({ email_verified: true })
+    const idToken = await new SignJWT({ email_verified: true, nonce: "nonce-1" })
       .setProtectedHeader({ alg: "ES256", kid: "test-kid" })
       .setIssuer(issuer)
       .setAudience("some-other-client")
       .setSubject("sub-123")
       .setExpirationTime("5m")
       .sign(privateKey);
-    await expect(validateIdToken(idToken, "nonce-1")).rejects.toThrow();
+    await expect(validateIdToken(idToken, "nonce-1")).rejects.toThrow(
+      'unexpected "aud" claim value',
+    );
   });
 
   test("missing email in id_token is rejected", async () => {

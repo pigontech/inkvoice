@@ -8,8 +8,13 @@ import { runMigrations } from "../database/migrations";
 import { seed } from "../database/seed";
 import { setTenantSmtpResolver } from "../services/email.service";
 import { createInvoice, finaliseForSending } from "../services/invoice.service";
-import { resolvePublicOrigin, sendInvoiceEmail } from "../services/invoice-send.service";
+import {
+  resolvePublicOrigin,
+  sendInvoiceEmail,
+  shouldAttachEinvoice,
+} from "../services/invoice-send.service";
 import { createQuote } from "../services/quote.service";
+import { getAllSettings } from "../services/settings.service";
 import { resetEnvCache } from "../utils/env";
 import { signToken } from "../utils/jwt";
 
@@ -231,4 +236,25 @@ describe("CC recipients", () => {
       ).toEqual({ status: "draft", is_published: 0 });
     });
   }
+});
+
+describe("shouldAttachEinvoice", () => {
+  test('a disabled module (stored as the string "false") attaches nothing', () => {
+    expect(shouldAttachEinvoice({ einvoice_enabled: "false" }, {})).toBe(false);
+  });
+
+  test("the seeded default on a fresh install attaches nothing", () => {
+    expect(shouldAttachEinvoice(getAllSettings(), {})).toBe(false);
+  });
+
+  test("a missing setting attaches nothing", () => {
+    expect(shouldAttachEinvoice({}, {})).toBe(false);
+  });
+
+  test("an enabled module attaches unless the caller opts out", () => {
+    expect(shouldAttachEinvoice({ einvoice_enabled: "true" }, {})).toBe(true);
+    expect(shouldAttachEinvoice({ einvoice_enabled: "true" }, { attachEinvoice: false })).toBe(
+      false,
+    );
+  });
 });

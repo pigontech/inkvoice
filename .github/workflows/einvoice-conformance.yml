@@ -1,0 +1,99 @@
+name: E-invoice conformance
+
+# Generates the German sample e-invoices (scripts/einvoice-samples.ts) and checks
+# them with the official tools:
+# - KoSIT validator + XRechnung configuration: XRechnung 3.0 (UBL) and
+#   EN 16931 (CII, the ZUGFeRD/Factur-X XML);
+# - Mustang: the ZUGFeRD hybrid PDF (PDF/A-3 via veraPDF, embedded XML).
+# Versions and SHA-256 sums are pinned; bump them together.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/backend/src/xml/**"
+      - "packages/backend/src/services/einvoice*"
+      - "packages/backend/src/utils/tax-calculator.ts"
+      - "packages/backend/src/assets/einvoice/**"
+      - "scripts/einvoice-samples.ts"
+      - ".github/workflows/einvoice-conformance.yml"
+  pull_request:
+    paths:
+      - "packages/backend/src/xml/**"
+      - "packages/backend/src/services/einvoice*"
+      - "packages/backend/src/utils/tax-calculator.ts"
+      - "packages/backend/src/assets/einvoice/**"
+      - "scripts/einvoice-samples.ts"
+      - ".github/workflows/einvoice-conformance.yml"
+  workflow_dispatch:
+
+env:
+  KOSIT_URL: https://github.com/itplr-kosit/validator/releases/download/v1.6.3/validator-1.6.3-standalone.jar
+  KOSIT_SHA256: 799e64befca97d4080e03608c80b85dd5a5ecc5f4ae4f35d1116ec2855b9a7c9
+  XRECHNUNG_URL: https://github.com/itplr-kosit/validator-configuration-xrechnung/releases/download/v2026-08-31/xrechnung-3.0.2-validator-configuration-2026-08-31.zip
+  XRECHNUNG_SHA256: 2530cd107c414511c5d0462ec10f886910395abfca820db82e83d70bf01221a8
+  MUSTANG_URL: https://github.com/ZUGFeRD/mustangproject/releases/download/core-2.26.0/Mustang-CLI-2.26.0.jar
+  MUSTANG_SHA256: 42d7868cb68264874a7b8cab4c3587b03b23ccc7cd72373da917f66758bb9736
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - run: bun install --frozen-lockfile
+
+      - uses: actions/cache@v4
+        id: tools
+        with:
+          path: .validators
+          key: einvoice-validators-${{ env.KOSIT_SHA256 }}-${{ env.XRECHNUNG_SHA256 }}-${{ env.MUSTANG_SHA256 }}
+      - name: Download validators
+        if: steps.tools.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p .validators
+          curl -sSfL -o .validators/kosit.jar "$KOSIT_URL"
+          curl -sSfL -o .validators/xrechnung.zip "$XRECHNUNG_URL"
+          curl -sSfL -o .validators/mustang.jar "$MUSTANG_URL"
+          echo "$KOSIT_SHA256  .validators/kosit.jar" | sha256sum -c -
+          echo "$XRECHNUNG_SHA256  .validators/xrechnung.zip" | sha256sum -c -
+          echo "$MUSTANG_SHA256  .validators/mustang.jar" | sha256sum -c -
+          unzip -q .validators/xrechnung.zip -d .validators/xrechnung
+
+      - name: Generate samples
+        run: bun run scripts/einvoice-samples.ts samples
+
+      - name: KoSIT validator (XRechnung 3.0 and EN 16931)
+        run: |
+          mkdir -p reports
+          java -jar .validators/kosit.jar \
+            -s .validators/xrechnung/scenarios.xml -r .validators/xrechnung \
+            -o reports -h samples/*.xml
+
+      - name: Mustang (ZUGFeRD PDF/A-3 hybrid)
+        run: |
+          status=0
+          for pdf in samples/*.pdf; do
+            if java -jar .validators/mustang.jar --action validate --source "$pdf" \
+                 --no-notices --disable-file-logging > "reports/$(basename "$pdf" .pdf)-mustang.xml"; then
+              echo "valid: $pdf"
+            else
+              echo "::error::Mustang rejected $pdf"
+              status=1
+            fi
+          done
+          exit $status
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: einvoice-samples-and-reports
+          path: |
+            samples
+            reports

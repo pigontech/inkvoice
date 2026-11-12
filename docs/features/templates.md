@@ -6,6 +6,8 @@ Customize the appearance of your invoice PDFs and public invoice pages with Must
 
 Inkvoice ships with built-in templates that cover common invoice layouts. You can use them as-is or as a starting point for customization.
 
+Upgrades bring new versions of the built-in templates you have not edited. Once you save changes to one, Inkvoice keeps your version. **Reset to default** in the editor, then **Save**, returns it to the bundled HTML, and later upgrades update it again.
+
 ## Custom Templates
 
 ### Creating a Template
@@ -25,6 +27,8 @@ Templates receive the full invoice data as Mustache variables:
 | `invoice_number` | Invoice number |
 | `issue_date` | Issue date |
 | `due_date` | Due date |
+| `service_date` | Date of supply (Leistungsdatum), when set |
+| `service_period.start`, `service_period.end` | Service period, when set (use `{{#service_period}}…{{/service_period}}`) |
 | `status` | Invoice status |
 | `subtotal` | Subtotal before tax and discount |
 | `tax_total` | Total tax amount |

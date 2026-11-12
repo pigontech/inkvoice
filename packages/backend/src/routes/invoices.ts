@@ -6,6 +6,7 @@ import { getDb } from "../database/connection";
 import { hasPermission, requirePermission } from "../middleware/auth";
 import { logActivity } from "../services/activity.service";
 import {
+  checkEinvoice,
   deleteEinvoiceRecord,
   emitEinvoice,
   getEinvoicePdf,
@@ -23,6 +24,7 @@ import { getTagsForItem, setItemTags } from "../services/tag.service";
 import type { Invoice } from "../types/invoice";
 import { buildCsv, type CsvColumn, csvHeaders } from "../utils/csv";
 import { todayIso } from "../utils/date";
+import { isDraftNumber } from "../utils/invoice-number";
 import { buildXmlInvoiceData } from "../xml/build-data";
 import { getProfile, listProfiles } from "../xml/profile-registry";
 
@@ -241,11 +243,21 @@ const itemSchema = z.object({
   sort_order: z.number().optional(),
 });
 
-const invoiceSchema = z.object({
+// An ISO date (YYYY-MM-DD); "" clears it like null.
+const optionalIsoDate = z
+  .preprocess((v) => (v === "" ? null : v), z.iso.date().nullable())
+  .optional();
+
+const invoiceFields = z.object({
   bank_account_id: z.string().min(1).nullable().optional(),
   customer_id: z.string().min(1),
   issue_date: z.string().min(1),
   due_date: z.string().optional().nullable(),
+  // Date of supply (Leistungsdatum): one date, a period, or both. On update,
+  // a body without any of the three keeps the stored values.
+  service_date: optionalIsoDate,
+  service_period_start: optionalIsoDate,
+  service_period_end: optionalIsoDate,
   invoice_number: z.string().optional(),
   notes: z.string().max(2000).optional().nullable(),
   payment_terms: z.string().max(500).optional().nullable(),
@@ -263,6 +275,25 @@ const invoiceSchema = z.object({
   template_id: z.string().optional().nullable(),
   tags: z.array(z.string().trim().min(1).max(50)).max(30).optional(),
   items: z.array(itemSchema).min(1),
+});
+
+// A service period needs both dates, and may not end before it starts.
+const invoiceSchema = invoiceFields.superRefine((v, ctx) => {
+  const start = v.service_period_start;
+  const end = v.service_period_end;
+  if (!start !== !end) {
+    ctx.addIssue({
+      code: "custom",
+      path: [start ? "service_period_end" : "service_period_start"],
+      message: "A service period needs a start and an end date",
+    });
+  } else if (start && end && end < start) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["service_period_end"],
+      message: "The service period must not end before it starts",
+    });
+  }
 });
 
 const tagListSchema = z.object({
@@ -617,9 +648,19 @@ invoices.get("/:id/comments", requirePermission("invoices", "read"), (c) => {
 invoices.post("/:id/einvoice/emit", requirePermission("invoices", "publish"), async (c) => {
   const id = c.req.param("id");
   const exists = getDb()
-    .query("SELECT id FROM invoices WHERE id = ? AND deleted_at IS NULL")
-    .get(id);
+    .query("SELECT id, invoice_number FROM invoices WHERE id = ? AND deleted_at IS NULL")
+    .get(id) as { id: string; invoice_number: string } | null;
   if (!exists) return c.json({ success: false, error: "Invoice not found" }, 404);
+  // A draft still has a placeholder number; the e-invoice needs the real one.
+  if (isDraftNumber(exists.invoice_number)) {
+    return c.json(
+      {
+        success: false,
+        error: "Mark the invoice as sent (or send it) first, so it has its final number.",
+      },
+      400,
+    );
+  }
 
   try {
     const result = await emitEinvoice(id);
@@ -630,6 +671,22 @@ invoices.post("/:id/einvoice/emit", requirePermission("invoices", "publish"), as
       metadata: { format: result.format },
     });
     return c.json({ success: true, data: result });
+  } catch (err: any) {
+    return c.json({ success: false, error: err.message }, 400);
+  }
+});
+
+// What the e-invoice would be missing, without creating one, and which file an
+// email would attach. The send dialog uses it to warn before an e-invoice with
+// errors goes out and to name the file.
+invoices.get("/:id/einvoice/check", requirePermission("invoices", "read"), (c) => {
+  const id = c.req.param("id");
+  const exists = getDb()
+    .query("SELECT id FROM invoices WHERE id = ? AND deleted_at IS NULL")
+    .get(id);
+  if (!exists) return c.json({ success: false, error: "Invoice not found" }, 404);
+  try {
+    return c.json({ success: true, data: checkEinvoice(id) });
   } catch (err: any) {
     return c.json({ success: false, error: err.message }, 400);
   }

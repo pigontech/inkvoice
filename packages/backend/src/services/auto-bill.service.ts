@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { getDb } from "../database/connection";
+import { outstandingBalance } from "../utils/currency";
 import { todayIso } from "../utils/date";
 import { logger } from "../utils/logger";
 import { logActivity } from "./activity.service";
@@ -177,7 +178,10 @@ async function emailPaymentLinkAndNotify(
   let emailed = false;
   let error: string | undefined;
   try {
-    const sent = await sendInvoiceEmail(invoiceId, { attachEinvoice: true });
+    const sent = await sendInvoiceEmail(invoiceId, {
+      attachEinvoice: true,
+      skipInvalidEinvoice: true,
+    });
     emailed = sent.success;
     if (!sent.success) error = sent.error;
   } catch (err) {
@@ -217,7 +221,7 @@ export async function attemptAutoBill(
     return { status: "skipped", errorCode: "unsupported_currency", emailedPaymentLink: false };
   }
 
-  const balanceDue = invoice.total - (invoice.amount_paid || 0);
+  const balanceDue = outstandingBalance(invoice.total, invoice.amount_paid || 0, invoice.currency);
   if (balanceDue <= 0) {
     return { status: "skipped", errorCode: "no_balance_due", emailedPaymentLink: false };
   }
@@ -297,7 +301,9 @@ export async function attemptAutoBill(
 
     if (!alreadyRecorded) {
       const fresh = getInvoice(invoiceId);
-      const freshBalance = fresh ? fresh.total - (fresh.amount_paid || 0) : balanceDue;
+      const freshBalance = fresh
+        ? outstandingBalance(fresh.total, fresh.amount_paid || 0, fresh.currency)
+        : balanceDue;
       if (freshBalance <= 0) {
         // The invoice was paid through another channel (for example the
         // customer paying the public invoice page) during the round trip to
@@ -321,7 +327,9 @@ export async function attemptAutoBill(
     let recorded: { success: boolean; error?: string };
     try {
       recorded = recordPayment(invoiceId, {
-        amount: balanceDue,
+        // Record what the card was charged, which can be a fraction below the
+        // balance in a currency without decimals.
+        amount: result.amountCharged ?? balanceDue,
         payment_date: todayIso(),
         method: "card",
         reference: result.reference,

@@ -206,6 +206,15 @@ const de: TranslationKeys = {
     customer: "Kunde",
     issue_date: "Rechnungsdatum",
     due_date: "Fälligkeitsdatum",
+    service_date: "Leistungsdatum",
+    service_period: "Leistungszeitraum",
+    service_period_start: "Von",
+    service_period_end: "Bis",
+    service_period_range: "{{start}} bis {{end}}",
+    service_date_hint:
+      "Wann Sie geliefert oder die Leistung erbracht haben. Pflichtangabe auf deutschen Rechnungen.",
+    service_use_period: "Stattdessen einen Zeitraum angeben",
+    service_use_date: "Stattdessen ein Datum angeben",
     status: "Status",
     no_invoices: "Noch keine Rechnungen. Erstellen Sie Ihre erste Rechnung!",
     empty_title: "Noch keine Rechnungen",
@@ -399,7 +408,7 @@ const de: TranslationKeys = {
     country_iso: "Land (ISO)",
     country_hint: "2-Buchstaben-Code, z. B. US",
     select_country: "Land auswählen...",
-    tax_id: "Steuernummer",
+    tax_id: "USt-IdNr.",
     language: "Bevorzugte Sprache",
     language_hint:
       "Wird für Währung, Datumsangaben und Ländernamen auf den PDFs dieses Kunden verwendet.",
@@ -523,6 +532,71 @@ const de: TranslationKeys = {
     emit_success: "E-Rechnung erstellt ({{format}})",
     emit_with_issues:
       "E-Rechnung mit {{count}} Validierungsfehler(n) erstellt. Firmeneinstellungen prüfen.",
+    issues_title: "Vor dem Versand dieser E-Rechnung prüfen:",
+    issue: {
+      invoice_number: "Die Rechnungsnummer fehlt.",
+      issue_date: "Das Rechnungsdatum fehlt.",
+      seller_name: "Ihr Firmenname fehlt.",
+      buyer_name: "Der Name des Kunden fehlt.",
+      seller_address: "Ihre Anschrift fehlt (Straße, Ort).",
+      buyer_address: "Die Anschrift des Kunden fehlt.",
+      seller_vat_id: "Ihre USt-IdNr. fehlt (für deutsche Rechnungen empfohlen).",
+      seller_vat_format:
+        "„{{vat_id}}“ ist keine gültige deutsche USt-IdNr. (erwartetes Format: DE123456789).",
+      seller_tax_number_format:
+        "„{{tax_number}}“ sieht nicht wie eine deutsche Steuernummer aus (z. B. 12/345/67890).",
+      buyer_vat_id:
+        "Der Kunde sitzt nicht in Deutschland ({{country}}). Für innergemeinschaftliche B2B-Umsätze ist seine USt-IdNr. erforderlich (Reverse Charge, 0 % USt).",
+      buyer_vat_id_de:
+        "Die USt-IdNr. des Kunden fehlt (sie hilft dem Empfänger, die E-Rechnung zu verarbeiten).",
+      buyer_siren_fr:
+        "Die SIREN des Kunden fehlt (nötig, um E-Rechnungen an französische Unternehmen zuzustellen).",
+      kleinunternehmer_vat:
+        "Sie sind als Kleinunternehmer (§ 19 UStG) eingestellt, aber die Rechnung weist Umsatzsteuer aus.",
+      franchise_fr_vat:
+        "Sie sind als „franchise en base“ (art. 293 B CGI) eingestellt, aber die Rechnung weist Umsatzsteuer aus.",
+      reverse_charge_vat:
+        "Reverse-Charge-Rechnungen dürfen keine Umsatzsteuer berechnen (verwenden Sie den Satz 0 %).",
+      tax_category:
+        "Die Steuerkategorie „{{category}}“ ist keine gültige EN-16931-Kategorie (verwenden Sie S, AA, Z, E, AE, …).",
+      monetary_subtotal:
+        "Die Bemessungsgrundlage der Positionen passt nicht zur Zwischensumme der Rechnung.",
+      monetary_tax:
+        "Die Steueraufschlüsselung ({{breakdown}}) passt nicht zur Steuersumme der Rechnung ({{tax_total}}).",
+      monetary_total:
+        "Der Gesamtbetrag ({{total}}) entspricht nicht dem Nettobetrag plus Steuer ({{expected}}).",
+      currency: "Die Rechnungswährung fehlt.",
+      seller_country: "Ihr Land fehlt (Einstellungen → E-Rechnung). [BR-9]",
+      buyer_country: "Das Land des Kunden fehlt. [BR-11]",
+      seller_tax_registration:
+        "Tragen Sie Ihre USt-IdNr. oder Ihre Steuernummer ein (Einstellungen). [BR-S-02, BR-E-02, BR-CO-26]",
+      payment_due:
+        "Geben Sie auf der Rechnung ein Fälligkeitsdatum oder Zahlungsbedingungen an. [BR-CO-25]",
+      payment_iban:
+        "In den Einstellungen ist keine IBAN hinterlegt, daher enthält die E-Rechnung keine Bankverbindung für die Überweisung.",
+      reverse_charge_vat_ids:
+        "Reverse Charge benötigt Ihre USt-IdNr. und die USt-IdNr. des Kunden. [BR-AE-02]",
+      intra_community_vat_ids:
+        "Eine innergemeinschaftliche Lieferung (Kategorie K) benötigt Ihre USt-IdNr. und die USt-IdNr. des Kunden. [BR-IC-02]",
+      not_subject_mixed:
+        "Nicht steuerbare Positionen (Kategorie O) dürfen nicht mit anderen Steuerkategorien auf einer Rechnung stehen. Stellen Sie diese gesondert in Rechnung. [BR-O-11]",
+      not_subject_tax_number:
+        "Eine nicht steuerbare Rechnung (Kategorie O) darf Ihre USt-IdNr. nicht enthalten und benötigt daher Ihre Steuernummer (Einstellungen). [BR-O-02, BR-CO-26]",
+      intra_community_delivery:
+        "Eine innergemeinschaftliche Lieferung (Kategorie K) benötigt ein Leistungsdatum oder einen Leistungszeitraum. Als Lieferanschrift wird die Anschrift des Kunden übermittelt. [BR-IC-11]",
+      en16931_totals:
+        "Die gespeicherten Summen entsprechen nicht der Berechnung nach EN 16931 (Umsatzsteuer auf den rabattierten Betrag). Öffnen Sie die Rechnung und speichern Sie sie erneut, um sie neu zu berechnen.",
+      xr_seller_city_postcode:
+        "XRechnung benötigt Ihre Postleitzahl und Ihren Ort (Einstellungen → E-Rechnung). [BR-DE-3, BR-DE-4]",
+      xr_seller_phone: "XRechnung benötigt Ihre Telefonnummer (Einstellungen). [BR-DE-6]",
+      xr_seller_email: "XRechnung benötigt Ihre E-Mail-Adresse (Einstellungen). [BR-DE-7]",
+      xr_buyer_city_postcode:
+        "XRechnung benötigt Postleitzahl und Ort des Kunden. [BR-DE-8, BR-DE-9]",
+      xr_buyer_address:
+        "XRechnung benötigt die Leitweg-ID oder die E-Mail-Adresse des Kunden. [PEPPOL-EN16931-R010]",
+    },
+    draft_hint:
+      "Markieren Sie die Rechnung zuerst als versendet (oder senden Sie sie): Die E-Rechnung braucht die endgültige Rechnungsnummer.",
     loading: "Lädt…",
     no_records: "Für diese Rechnung wurden noch keine E-Rechnungen erstellt.",
     format: "Format",
@@ -541,7 +615,7 @@ const de: TranslationKeys = {
     tab_processed: "Verarbeitet",
     tab_archived: "Archiviert",
     inbox_empty:
-      "Keine Dokumente im Posteingang. XRechnung- oder ZUGFeRD-XML-Dateien hier importieren.",
+      "Keine Dokumente im Posteingang. XRechnung- oder ZUGFeRD-Dateien (XML oder PDF) hier importieren.",
     inbox_imported: "E-Rechnung importiert und geparst",
     inbox_duplicate: "Datei ist bereits im Posteingang (Duplikat)",
     document_number: "Rechnungs-Nr.",
@@ -560,7 +634,7 @@ const de: TranslationKeys = {
     restore: "Zurück in den Posteingang",
     mark_processed: "Verarbeitet",
     actions: "Aktionen",
-    source: "Source",
+    source: "Quelle",
     source_peppol: "PEPPOL",
     source_qonto: "Qonto (Frankreich)",
     source_upload: "Upload",
@@ -878,7 +952,7 @@ const de: TranslationKeys = {
     email: "E-Mail",
     phone: "Telefon",
     address: "Adresse",
-    tax_id: "Steuernummer",
+    tax_id: "USt-IdNr.",
     bank_details: "Bankverbindung (PDF-Vorlagen)",
     bank_details_hint:
       "Wird auf Rechnungsvorlagen mit Bankdaten-Block angezeigt. Eine Zeile pro Feld genügt.",
@@ -923,6 +997,31 @@ const de: TranslationKeys = {
     einvoice_enabled_hint:
       "Zeigt das E-Rechnungs-Panel auf Rechnungen, den E-Rechnungs-Posteingang in der Seitenleiste und die E-Rechnungsfelder beim Kunden. Nur für die deutsche E-Rechnung (ZUGFeRD/XRechnung/PEPPOL) erforderlich.",
     einvoice_enabled_checkbox: "E-Rechnungsmodul aktivieren",
+    einvoice_details_hint:
+      "E-Rechnungen brauchen Ihre Anschrift in getrennten Feldern und eine Steuernummer oder USt-IdNr. Einmal ausfüllen, sie gelten für jede E-Rechnung.",
+    einvoice_street: "Straße und Hausnummer",
+    einvoice_postal_code: "PLZ",
+    einvoice_city: "Ort",
+    einvoice_country: "Land",
+    einvoice_select_country: "Land wählen",
+    einvoice_tax_number: "Steuernummer",
+    einvoice_tax_number_hint: "Vom Finanzamt. Nötig, wenn Sie keine USt-IdNr. haben.",
+    einvoice_format_label: "Standardformat",
+    einvoice_format_hint:
+      "Kunden mit Leitweg-ID erhalten immer XRechnung. Das Format lässt sich pro Kunde ändern.",
+    einvoice_format_zugferd: "ZUGFeRD (PDF mit eingebettetem XML)",
+    einvoice_format_xrechnung: "XRechnung (XML)",
+    einvoice_kleinunternehmer_label: "Kleinunternehmer (§ 19 UStG)",
+    einvoice_kleinunternehmer_checkbox: "Ich bin Kleinunternehmer und weise keine Umsatzsteuer aus",
+    tax_category: "Umsatzsteuerkategorie (E-Rechnung)",
+    tax_category_hint: "Pflichtangabe in E-Rechnungen. S gilt für 19 % und 7 %.",
+    tax_category_s: "Regelsatz oder ermäßigt (S)",
+    tax_category_z: "Nullsatz (Z)",
+    tax_category_e: "Steuerbefreit (E)",
+    tax_category_ae: "Reverse Charge, § 13b UStG (AE)",
+    tax_category_k: "Innergemeinschaftliche Lieferung (K)",
+    tax_category_g: "Ausfuhr aus der EU (G)",
+    tax_category_o: "Nicht steuerbar (O)",
 
     backup_description:
       "Laden Sie eine vollständige Sicherung Ihrer Daten herunter. JSON ist menschenlesbar und leicht zu prüfen; SQLite ist ein byteidentischer Snapshot, den Sie durch Ersetzen der Live-Datenbankdatei wiederherstellen können.",
@@ -1335,6 +1434,7 @@ const de: TranslationKeys = {
     to: "An",
     subject: "Betreff",
     subject_hint: "Leer lassen, um den Standard zu verwenden",
+    subject_placeholder: "Wird automatisch erzeugt, wenn leer",
     message: "Nachricht",
     message_hint: "Optionale Nachricht, die in der E-Mail enthalten ist",
     send: "Senden",
@@ -1346,9 +1446,17 @@ const de: TranslationKeys = {
     from_hint: "Absenderadresse überschreiben (Standard: SMTP-Einstellung)",
     reply_to: "Antwort an",
     reply_to_hint: "Wohin Antworten des Kunden gehen sollen",
-    attach_einvoice: "E-Rechnung anhängen (ZUGFeRD-Hybrid-PDF)",
-    attach_einvoice_hint:
-      "Wenn aktiviert, wird eine ZUGFeRD-Hybrid-PDF automatisch angehängt, falls die E-Rechnungseinstellung aktiv ist",
+    attach_einvoice: "E-Rechnung anhängen ({{format}})",
+    attach_einvoice_hint: "Wenn aktiviert, wird diese Datei an die E-Mail angehängt",
+    einvoice_file: {
+      zugferd_pdf: "ZUGFeRD-Hybrid-PDF",
+      zugferd_xml: "ZUGFeRD-XML",
+      xrechnung_xml: "XRechnung-XML",
+      peppol_xml: "PEPPOL-BIS-XML",
+    },
+    einvoice_errors_title: "Die E-Rechnung enthält Fehler",
+    einvoice_errors_hint:
+      "Ihr Kunde würde eine E-Rechnung erhalten, die die Prüfung nicht besteht. Beheben Sie zuerst die Fehler oder entfernen Sie den Haken, um die E-Mail ohne E-Rechnung zu senden.",
   },
 
   // Dialog „Zahlung erfassen“
@@ -1389,6 +1497,8 @@ const de: TranslationKeys = {
     issue_date_required: "Rechnungsdatum ist erforderlich",
     invoice_number_required: "Rechnungsnummer ist erforderlich",
     due_date_after_issue: "Das Fälligkeitsdatum muss nach dem Rechnungsdatum liegen",
+    service_period_incomplete: "Geben Sie Beginn und Ende des Leistungszeitraums an",
+    service_period_order: "Der Leistungszeitraum kann nicht vor seinem Beginn enden",
     description_required: "Beschreibung ist erforderlich",
     must_be_positive: "Muss > 0 sein",
     must_be_non_negative: "Muss >= 0 sein",

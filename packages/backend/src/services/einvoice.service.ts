@@ -43,6 +43,31 @@ export function resolveEinvoiceFormat(opts: {
   return requested;
 }
 
+/**
+ * What an e-invoice for this invoice would be missing, in the format it would
+ * use, without storing anything. The send dialog warns with these and names
+ * the file an email would attach: the hybrid PDF or bare XML, or null when the
+ * format can't be emitted (nothing would be attached).
+ */
+export function checkEinvoice(invoiceId: string): {
+  format: EinvoiceFormat;
+  file: "pdf" | "xml" | null;
+  issues: EinvoiceIssue[];
+} {
+  const data = buildXmlInvoiceData(invoiceId);
+  const settings = getAllSettings();
+  const format = resolveEinvoiceFormat({
+    customerFormat: data.customer.einvoice_format,
+    settingFormat: settings.einvoice_format,
+    leitwegId: data.customer.leitweg_id,
+  });
+  let file: "pdf" | "xml" | null = null;
+  if (getProfile(formatToProfileId(format))) {
+    file = wantsHybridPdf(format, settings) ? "pdf" : "xml";
+  }
+  return { format, file, issues: validateEinvoice(data, format) };
+}
+
 function normalizeFormat(fmt: string | null | undefined): EinvoiceFormat {
   const f = (fmt || "").trim().toLowerCase();
   if (f === "xrechnung" || f === "xrechnung-ubl") return "xrechnung-ubl";
@@ -51,12 +76,16 @@ function normalizeFormat(fmt: string | null | undefined): EinvoiceFormat {
   return "zugferd";
 }
 
+/** ZUGFeRD goes out as the hybrid PDF unless the workspace turned that off. */
+function wantsHybridPdf(format: EinvoiceFormat, settings: Record<string, string>): boolean {
+  return format === "zugferd" && settings.einvoice_attach_pdf !== "false";
+}
+
 export async function emitEinvoice(
   invoiceId: string,
   opts: { forceFormat?: EinvoiceFormat } = {},
 ): Promise<EinvoiceEmitResult> {
   const data = buildXmlInvoiceData(invoiceId);
-  const issues = validateEinvoice(data);
   const settings = getAllSettings();
 
   const format =
@@ -66,6 +95,7 @@ export async function emitEinvoice(
       settingFormat: settings.einvoice_format,
       leitwegId: data.customer.leitweg_id,
     });
+  const issues = validateEinvoice(data, format);
 
   const profile = getProfile(formatToProfileId(format));
   if (!profile) {
@@ -79,7 +109,7 @@ export async function emitEinvoice(
   // ZUGFeRD is always delivered as a hybrid PDF (XML embedded, PDF/A-3).
   // Standalone XRechnung stays an XML document; the UI offers both.
   let pdf: Uint8Array | null = null;
-  if (format === "zugferd" && settings.einvoice_attach_pdf !== "false") {
+  if (wantsHybridPdf(format, settings)) {
     const { pdfBytes } = await buildEinvoicePdf({ data, facturXml: xml });
     pdf = pdfBytes;
   }

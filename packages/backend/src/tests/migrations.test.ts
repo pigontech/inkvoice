@@ -308,7 +308,7 @@ describe("schema migration runner", () => {
   test("removing contact roles preserves details and bank associations", () => {
     runWith(db, () => runMigrations());
     db.exec("ALTER TABLE contacts ADD COLUMN role TEXT NOT NULL DEFAULT 'accountant'");
-    db.exec("DELETE FROM schema_migrations WHERE version = 34");
+    db.exec("DELETE FROM schema_migrations WHERE version >= 34");
     db.exec("INSERT INTO banks (id, name) VALUES ('bank-1', 'Bank')");
     db.exec(`INSERT INTO contacts (id, name, email, phone, bank_id, role, archived)
       VALUES ('contact-1', 'Alex', 'alex@example.com', '00123', 'bank-1', 'bank_manager', 1)`);
@@ -326,8 +326,47 @@ describe("schema migration runner", () => {
     expect(db.query("SELECT * FROM contacts WHERE id = 'contact-1'").get()).toEqual(row);
   });
 
-  test("migrations reach version 34", () => {
-    expect(LATEST_MIGRATION_VERSION).toBe(34);
+  test("migrations reach version 37", () => {
+    expect(LATEST_MIGRATION_VERSION).toBe(37);
+  });
+
+  test("version 37 adds the service date columns to an existing invoice", () => {
+    runWith(db, () => runMigrations());
+    db.exec("DELETE FROM schema_migrations WHERE version >= 37");
+    db.exec("ALTER TABLE invoices DROP COLUMN service_date");
+    db.exec("ALTER TABLE invoices DROP COLUMN service_period_start");
+    db.exec("ALTER TABLE invoices DROP COLUMN service_period_end");
+    db.run("INSERT INTO customers (id, name) VALUES ('c1', 'Kunde GmbH')");
+    db.run(
+      "INSERT INTO invoices (id, invoice_number, customer_id, issue_date) VALUES ('i1', 'RE-1', 'c1', '2026-11-07')",
+    );
+
+    runWith(db, () => runMigrations());
+
+    const row = db
+      .query(
+        "SELECT invoice_number, service_date, service_period_start, service_period_end FROM invoices WHERE id = 'i1'",
+      )
+      .get() as Record<string, string | null>;
+    expect(row).toEqual({
+      invoice_number: "RE-1",
+      service_date: null,
+      service_period_start: null,
+      service_period_end: null,
+    });
+  });
+
+  test("the reduced-rate VAT category AA becomes S (EN 16931)", () => {
+    runWith(db, () => runMigrations());
+    db.exec("DELETE FROM schema_migrations WHERE version >= 36");
+    db.run(
+      "INSERT INTO tax_definitions (id, name, rate, category_code) VALUES ('t7', 'USt 7 %', 7, 'AA')",
+    );
+    runWith(db, () => runMigrations());
+    const row = db.query("SELECT category_code FROM tax_definitions WHERE id = 't7'").get() as {
+      category_code: string;
+    };
+    expect(row.category_code).toBe("S");
   });
 
   test("customer_payment_methods has the expected shape", () => {

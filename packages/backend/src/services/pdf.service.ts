@@ -5,13 +5,32 @@ import { cashDiscountDeadline, cashDiscountOn, hasCashDiscount } from "../utils/
 import { formatCurrency } from "../utils/currency";
 import { buildEpcPayload } from "../utils/epc-qr";
 import { escapeMultiline, inlineAddress } from "../utils/html";
+import { localizePaymentTerms } from "../utils/payment-terms";
 import { qrToDataUri } from "../utils/qr-code";
+import { type StoredTaxLine, taxByRate } from "../utils/tax-calculator";
 import { invoiceBankSettings } from "./banking.service";
 import { getInvoice } from "./invoice.service";
 import { listPayments } from "./payment.service";
 import { getQuote } from "./quote.service";
 import { getAllSettings } from "./settings.service";
 import { getDefaultTemplate, getTemplate } from "./template.service";
+
+/**
+ * The line tax amounts are before the document discount; the discount lowers
+ * each rate's VAT, so the summary shows the VAT actually charged.
+ */
+function applyDiscountToTaxSummary(
+  taxMap: Map<string, { amount: number }>,
+  items: StoredTaxLine[],
+  discountAmount: number | null | undefined,
+  currency?: string,
+): void {
+  if (!discountAmount) return;
+  for (const { rate, tax } of taxByRate(items, discountAmount, currency)) {
+    const entry = taxMap.get(`${rate}`);
+    if (entry) entry.amount = tax;
+  }
+}
 
 function formatDateStr(dateStr: string, dateFormat?: string, localeOverride?: string): string {
   const d = new Date(dateStr);
@@ -150,6 +169,7 @@ export function buildInvoiceContext(invoiceId: string) {
       }
     }
   }
+  applyDiscountToTaxSummary(taxMap, invoice.items, invoice.discount_amount, invoice.currency);
 
   const currency = invoice.currency || settings.currency || "USD";
   const dateFormat = settings.date_format || undefined;
@@ -164,6 +184,17 @@ export function buildInvoiceContext(invoiceId: string) {
     invoice_number: invoice.invoice_number,
     issue_date: formatDateStr(invoice.issue_date, dateFormat, localeOverride),
     due_date: invoice.due_date ? formatDateStr(invoice.due_date, dateFormat, localeOverride) : null,
+    // Date of supply (Leistungsdatum): a single date and/or a period.
+    service_date: invoice.service_date
+      ? formatDateStr(invoice.service_date, dateFormat, localeOverride)
+      : null,
+    service_period:
+      invoice.service_period_start && invoice.service_period_end
+        ? {
+            start: formatDateStr(invoice.service_period_start, dateFormat, localeOverride),
+            end: formatDateStr(invoice.service_period_end, dateFormat, localeOverride),
+          }
+        : null,
     status: invoice.status,
     company: {
       name: settings.company_name || "",
@@ -297,7 +328,7 @@ export function buildInvoiceContext(invoiceId: string) {
       reference: p.reference,
       formatted_amount: formatCurrency(p.amount, currency, numberFormat, localeOverride),
     })),
-    payment_terms: invoice.payment_terms,
+    payment_terms: localizePaymentTerms(invoice.payment_terms, locale),
     notes: invoice.notes,
     currency,
   };
@@ -376,6 +407,7 @@ export function buildQuoteContext(quoteId: string) {
         });
     }
   }
+  applyDiscountToTaxSummary(taxMap, quote.items, quote.discount_amount, quote.currency);
 
   const currency = quote.currency || settings.currency || "USD";
   const dateFormat = settings.date_format || undefined;

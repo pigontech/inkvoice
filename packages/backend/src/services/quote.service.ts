@@ -7,6 +7,7 @@ import { generateQuoteNumber } from "../utils/invoice-number";
 import { roundMoney } from "../utils/money";
 import { calculateInvoiceTotals, calculateLineItem } from "../utils/tax-calculator";
 import { createInvoice, getInvoice, updateInvoice } from "./invoice.service";
+import { lineTaxRate } from "./tax.service";
 
 interface QuoteFilterParams {
   status?: string;
@@ -163,19 +164,12 @@ export function createQuote(data: CreateQuoteData): QuoteWithItems {
     const quoteId = crypto.randomBytes(16).toString("hex");
     const quoteNumber = data.quote_number || generateQuoteNumber();
 
-    // Calculate totals
-    const itemInputs = data.items.map((item) => ({
+    // Totals use the same rate each line is stored with.
+    const rates = data.items.map((item) => lineTaxRate(item, "definition"));
+    const itemInputs = data.items.map((item, i) => ({
       quantity: item.quantity,
       unit_price: item.unit_price,
-      tax_rate: item.tax_id
-        ? ((
-            db.query("SELECT rate FROM tax_definitions WHERE id = ?").get(item.tax_id) as {
-              rate: number;
-            } | null
-          )?.rate ??
-          item.tax_rate ??
-          0)
-        : (item.tax_rate ?? 0),
+      tax_rate: rates[i],
     }));
     const totals = calculateInvoiceTotals(itemInputs, data.discount_type, data.discount_value, {
       currency: data.currency,
@@ -212,9 +206,9 @@ export function createQuote(data: CreateQuoteData): QuoteWithItems {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
 
-    for (const [index, item] of data.items.entries()) {
+    for (const [i, item] of data.items.entries()) {
       const itemId = crypto.randomBytes(16).toString("hex");
-      const taxRate = itemInputs[index].tax_rate;
+      const taxRate = rates[i];
       const calc = calculateLineItem(
         {
           quantity: item.quantity,
@@ -256,18 +250,12 @@ export function updateQuote(id: string, data: CreateQuoteData): QuoteWithItems |
   if (!existing || existing.status !== "draft") return null;
 
   db.transaction(() => {
-    const itemInputs = data.items.map((item) => ({
+    // Totals use the same rate each line is stored with.
+    const rates = data.items.map((item) => lineTaxRate(item, "definition"));
+    const itemInputs = data.items.map((item, i) => ({
       quantity: item.quantity,
       unit_price: item.unit_price,
-      tax_rate: item.tax_id
-        ? ((
-            db.query("SELECT rate FROM tax_definitions WHERE id = ?").get(item.tax_id) as {
-              rate: number;
-            } | null
-          )?.rate ??
-          item.tax_rate ??
-          0)
-        : (item.tax_rate ?? 0),
+      tax_rate: rates[i],
     }));
     const totals = calculateInvoiceTotals(itemInputs, data.discount_type, data.discount_value, {
       currency: data.currency,
@@ -304,9 +292,9 @@ export function updateQuote(id: string, data: CreateQuoteData): QuoteWithItems |
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
 
-    for (const [index, item] of data.items.entries()) {
+    for (const [i, item] of data.items.entries()) {
       const itemId = crypto.randomBytes(16).toString("hex");
-      const taxRate = itemInputs[index].tax_rate;
+      const taxRate = rates[i];
       const calc = calculateLineItem(
         {
           quantity: item.quantity,

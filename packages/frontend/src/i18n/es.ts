@@ -197,6 +197,15 @@ const es: TranslationKeys = {
     customer: "Cliente",
     issue_date: "Fecha de emisión",
     due_date: "Fecha de vencimiento",
+    service_date: "Fecha de servicio",
+    service_period: "Periodo de servicio",
+    service_period_start: "Desde",
+    service_period_end: "Hasta",
+    service_period_range: "del {{start}} al {{end}}",
+    service_date_hint:
+      "Cuándo entregó los bienes o prestó el servicio. Obligatoria en las facturas alemanas.",
+    service_use_period: "Indicar un periodo",
+    service_use_date: "Indicar una sola fecha",
     status: "Estado",
     no_invoices: "Aún no hay facturas. ¡Cree su primera factura!",
     empty_title: "Aún no hay facturas",
@@ -507,29 +516,96 @@ const es: TranslationKeys = {
 
   // Gastos
   einvoice: {
-    title: "E-invoices (E-Rechnung)",
-    emit: "Emit",
-    emit_success: "E-invoice emitted ({{format}})",
+    title: "Facturas electrónicas (E-Rechnung)",
+    emit: "Generar",
+    emit_success: "Factura electrónica generada ({{format}})",
     emit_with_issues:
-      "E-invoice emitted with {{count}} validation error(s). Review company settings.",
-    loading: "Loading…",
-    no_records: "No e-invoices emitted for this invoice yet.",
-    format: "Format",
-    emitted_at: "Emitted at",
-    download: "Download",
-    download_xml: "Download XML",
-    download_pdf: "Download hybrid PDF (ZUGFeRD)",
-    delete_record: "Delete e-invoice record",
+      "Factura electrónica generada con {{count}} error(es) de validación. Revise la configuración de la empresa.",
+    issues_title: "Revise antes de enviar esta factura electrónica:",
+    issue: {
+      invoice_number: "El número de factura es obligatorio.",
+      issue_date: "La fecha de la factura es obligatoria.",
+      seller_name: "El nombre de su empresa es obligatorio.",
+      buyer_name: "El nombre del cliente es obligatorio.",
+      seller_address: "Su dirección es obligatoria (calle, ciudad).",
+      buyer_address: "La dirección del cliente es obligatoria.",
+      seller_vat_id:
+        "Falta su USt-IdNr (número de IVA alemán), recomendado para facturas alemanas.",
+      seller_vat_format:
+        "La USt-IdNr «{{vat_id}}» no es un número de IVA alemán válido (formato esperado: DE123456789).",
+      seller_tax_number_format:
+        "La Steuernummer «{{tax_number}}» no parece un número fiscal alemán (p. ej., 12/345/67890).",
+      buyer_vat_id:
+        "El cliente está fuera de Alemania ({{country}}); en las entregas intracomunitarias B2B se necesita su número de IVA (inversión del sujeto pasivo, IVA del 0 %).",
+      buyer_vat_id_de:
+        "Falta la USt-IdNr del cliente (ayuda al destinatario a procesar la factura electrónica).",
+      buyer_siren_fr:
+        "Falta el SIREN del cliente (necesario para enviar facturas electrónicas a empresas francesas).",
+      kleinunternehmer_vat:
+        "Su empresa figura como Kleinunternehmer (§ 19 UStG), pero la factura incluye IVA.",
+      franchise_fr_vat:
+        "Su empresa figura en franchise en base (art. 293 B CGI), pero la factura incluye IVA.",
+      reverse_charge_vat:
+        "Las facturas con inversión del sujeto pasivo no deben cobrar IVA (use el tipo del 0 %).",
+      tax_category:
+        "La categoría fiscal «{{category}}» no es una categoría EN 16931 válida (use S, AA, Z, E, AE, …).",
+      monetary_subtotal:
+        "La base imponible de las líneas no coincide con el subtotal del documento.",
+      monetary_tax:
+        "El desglose de impuestos ({{breakdown}}) no coincide con el total de impuestos del documento ({{tax_total}}).",
+      monetary_total:
+        "El total ({{total}}) no es igual a la base imponible más los impuestos ({{expected}}).",
+      currency: "La moneda de la factura es obligatoria.",
+      seller_country: "Su país es obligatorio (Configuración → Factura electrónica). [BR-9]",
+      buyer_country: "El país del cliente es obligatorio. [BR-11]",
+      seller_tax_registration:
+        "Añada su USt-IdNr o su Steuernummer (Configuración). [BR-S-02, BR-E-02, BR-CO-26]",
+      payment_due:
+        "Indique una fecha de vencimiento o unas condiciones de pago en la factura. [BR-CO-25]",
+      payment_iban:
+        "No hay IBAN en Configuración, así que la factura electrónica no lleva datos bancarios para la transferencia.",
+      reverse_charge_vat_ids:
+        "La inversión del sujeto pasivo requiere su USt-IdNr y el número de IVA del cliente. [BR-AE-02]",
+      intra_community_vat_ids:
+        "Una entrega intracomunitaria (categoría K) requiere su USt-IdNr y el número de IVA del cliente. [BR-IC-02]",
+      not_subject_mixed:
+        "Las líneas no sujetas a IVA (categoría O) no pueden compartir factura con otras categorías de IVA. Facture esas líneas por separado. [BR-O-11]",
+      not_subject_tax_number:
+        "Una factura no sujeta a IVA (categoría O) no puede llevar su USt-IdNr, así que necesita su Steuernummer (Configuración). [BR-O-02, BR-CO-26]",
+      intra_community_delivery:
+        "Una entrega intracomunitaria (categoría K) necesita una fecha o un periodo de servicio. Como dirección de entrega se envía la dirección del cliente. [BR-IC-11]",
+      en16931_totals:
+        "Los totales guardados no cuadran como exige EN 16931 (IVA sobre el importe con descuento). Abra la factura y guárdela de nuevo para recalcularlos.",
+      xr_seller_city_postcode:
+        "XRechnung necesita su código postal y su ciudad (Configuración → Factura electrónica). [BR-DE-3, BR-DE-4]",
+      xr_seller_phone: "XRechnung necesita su número de teléfono (Configuración). [BR-DE-6]",
+      xr_seller_email:
+        "XRechnung necesita su dirección de correo electrónico (Configuración). [BR-DE-7]",
+      xr_buyer_city_postcode:
+        "XRechnung necesita el código postal y la ciudad del cliente. [BR-DE-8, BR-DE-9]",
+      xr_buyer_address:
+        "XRechnung necesita la Leitweg-ID o el correo electrónico del cliente. [PEPPOL-EN16931-R010]",
+    },
+    draft_hint:
+      "Primero marque la factura como enviada (o envíela): la factura electrónica necesita su número definitivo.",
+    loading: "Cargando…",
+    no_records: "Todavía no se ha generado ninguna factura electrónica para esta factura.",
+    format: "Formato",
+    emitted_at: "Generada el",
+    download: "Descargar",
+    download_xml: "Descargar XML",
+    download_pdf: "Descargar PDF híbrido (ZUGFeRD)",
+    delete_record: "Eliminar el registro de factura electrónica",
     delete_record_desc:
-      "This removes the stored XML/PDF for this revision. Emitted invoices should normally be kept for tax archiving (8 years, §147 AO).",
-    record_deleted: "E-invoice record deleted",
+      "Elimina el XML/PDF guardado de esta revisión. Normalmente, las facturas generadas deben conservarse para el archivo fiscal (8 años, §147 AO).",
+    record_deleted: "Registro de factura electrónica eliminado",
     inbox_title: "Inbox (incoming e-invoices)",
     import: "Import",
     tab_all: "All",
     tab_inbox: "Inbox",
     tab_processed: "Processed",
     tab_archived: "Archived",
-    inbox_empty: "No documents in the inbox. Import XRechnung or ZUGFeRD XML files here.",
+    inbox_empty: "No documents in the inbox. Import XRechnung or ZUGFeRD files (XML or PDF) here.",
     inbox_imported: "E-invoice imported and parsed",
     inbox_duplicate: "File already exists in the inbox (duplicate)",
     document_number: "Document no.",
@@ -910,6 +986,31 @@ const es: TranslationKeys = {
     einvoice_enabled_hint:
       "Muestra el panel E-Rechnung en las facturas, la bandeja de entrada de facturas electrónicas en la barra lateral y los campos de factura electrónica del cliente. Solo es necesario para la facturación electrónica alemana (ZUGFeRD/XRechnung/PEPPOL).",
     einvoice_enabled_checkbox: "Activar módulo de factura electrónica",
+    einvoice_details_hint:
+      "Las facturas electrónicas necesitan su dirección en campos separados y un registro fiscal. Rellénelos una vez; se usan en cada factura electrónica.",
+    einvoice_street: "Calle y número",
+    einvoice_postal_code: "Código postal",
+    einvoice_city: "Ciudad",
+    einvoice_country: "País",
+    einvoice_select_country: "Seleccionar país",
+    einvoice_tax_number: "Número fiscal (Steuernummer)",
+    einvoice_tax_number_hint: "De su oficina tributaria. Necesario si no tiene NIF-IVA (USt-IdNr).",
+    einvoice_format_label: "Formato predeterminado",
+    einvoice_format_hint:
+      "Los clientes con Leitweg-ID siempre reciben XRechnung. Puede cambiar el formato por cliente.",
+    einvoice_format_zugferd: "ZUGFeRD (PDF con XML incrustado)",
+    einvoice_format_xrechnung: "XRechnung (XML)",
+    einvoice_kleinunternehmer_label: "Pequeña empresa (§ 19 UStG)",
+    einvoice_kleinunternehmer_checkbox: "Soy Kleinunternehmer y no cobro IVA",
+    tax_category: "Categoría de IVA (factura electrónica)",
+    tax_category_hint: "Obligatoria en facturas electrónicas. Use S para el 19 % y el 7 %.",
+    tax_category_s: "Tipo general o reducido (S)",
+    tax_category_z: "Tipo cero (Z)",
+    tax_category_e: "Exento de IVA (E)",
+    tax_category_ae: "Inversión del sujeto pasivo (AE)",
+    tax_category_k: "Entrega intracomunitaria (K)",
+    tax_category_g: "Exportación fuera de la UE (G)",
+    tax_category_o: "No sujeto a IVA (O)",
 
     backup_description:
       "Descargue una copia de seguridad completa de sus datos. JSON es legible y fácil de inspeccionar; SQLite es una instantánea byte a byte que puede restaurar reemplazando el archivo de base de datos activo.",
@@ -1320,6 +1421,7 @@ const es: TranslationKeys = {
     to: "Para",
     subject: "Asunto",
     subject_hint: "Deje en blanco para usar el predeterminado",
+    subject_placeholder: "Se genera automáticamente si se deja vacío",
     message: "Mensaje",
     message_hint: "Mensaje opcional incluido en el correo",
     send: "Enviar",
@@ -1331,9 +1433,17 @@ const es: TranslationKeys = {
     from_hint: "Anular la dirección del remitente (por defecto, la configuración SMTP)",
     reply_to: "Responder a",
     reply_to_hint: "Adónde deben ir las respuestas del cliente",
-    attach_einvoice: "Adjuntar factura electrónica (PDF híbrido ZUGFeRD)",
-    attach_einvoice_hint:
-      "Cuando está activado, se adjunta automáticamente un PDF híbrido ZUGFeRD si el ajuste de factura electrónica está activo",
+    attach_einvoice: "Adjuntar factura electrónica ({{format}})",
+    attach_einvoice_hint: "Si está marcado, este archivo se adjunta al correo",
+    einvoice_file: {
+      zugferd_pdf: "PDF híbrido ZUGFeRD",
+      zugferd_xml: "XML ZUGFeRD",
+      xrechnung_xml: "XML XRechnung",
+      peppol_xml: "XML PEPPOL BIS",
+    },
+    einvoice_errors_title: "La factura electrónica tiene errores",
+    einvoice_errors_hint:
+      "Su cliente recibiría una factura electrónica que no supera la validación. Corrija primero estos errores o desmarque la casilla para enviar el correo sin ella.",
   },
 
   // Diálogo de registro de pago
@@ -1374,6 +1484,8 @@ const es: TranslationKeys = {
     issue_date_required: "La fecha de emisión es obligatoria",
     invoice_number_required: "El número de factura es obligatorio",
     due_date_after_issue: "La fecha de vencimiento debe ser posterior a la fecha de emisión",
+    service_period_incomplete: "Indique el inicio y el fin del periodo de servicio",
+    service_period_order: "El periodo de servicio no puede terminar antes de empezar",
     description_required: "La descripción es obligatoria",
     must_be_positive: "Debe ser > 0",
     must_be_non_negative: "Debe ser >= 0",

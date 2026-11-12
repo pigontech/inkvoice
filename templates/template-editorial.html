@@ -343,6 +343,18 @@
         <div class="date-group-value">{{due_date}}</div>
       </div>
       {{/due_date}}
+      {{#service_date}}
+      <div class="date-group">
+        <div class="date-group-label">Service date</div>
+        <div class="date-group-value">{{service_date}}</div>
+      </div>
+      {{/service_date}}
+      {{#service_period}}
+      <div class="date-group">
+        <div class="date-group-label">Service period</div>
+        <div class="date-group-value">{{service_period.start}} to {{service_period.end}}</div>
+      </div>
+      {{/service_period}}
     </div>
 
     <!-- PARTIES -->

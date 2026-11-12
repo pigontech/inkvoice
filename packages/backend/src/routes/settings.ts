@@ -120,7 +120,7 @@ const PATTERN_COUNTER_TOKEN = /\{SEQ\d*\}|\{RAND4\}/;
 
 settings.put("/", async (c) => {
   const raw = await c.req.json().catch(() => null);
-  const parsed = z.record(z.unknown()).safeParse(raw);
+  const parsed = z.record(z.string(), z.unknown()).safeParse(raw);
   if (!parsed.success || raw === null || typeof raw !== "object") {
     return c.json({ success: false, error: "Invalid JSON body" }, 400);
   }
