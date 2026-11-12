@@ -259,9 +259,12 @@ export function buildInvoiceContext(invoiceId: string) {
         }
       : null,
     formatted_subtotal: formatCurrency(invoice.subtotal, currency, numberFormat, localeOverride),
+    // Positive document discounts (invoices). Credit notes keep a separate flag
+    // so older custom templates that hardcode &minus; do not flip the sign.
     has_discount: invoice.discount_amount > 0,
+    has_credit_discount: invoice.discount_amount < 0,
     formatted_discount: formatCurrency(
-      invoice.discount_amount,
+      Math.abs(invoice.discount_amount),
       currency,
       numberFormat,
       localeOverride,
