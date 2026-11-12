@@ -2,7 +2,7 @@ import Mustache from "mustache";
 import { getDb } from "../database/connection";
 import type { Customer } from "../types/customer";
 import { formatCurrency } from "../utils/currency";
-import { todayIso } from "../utils/date";
+import { formatDateStr, todayIso } from "../utils/date";
 import { escapeLines, escapeMultiline } from "../utils/html";
 import { getAllSettings } from "./settings.service";
 import { STATEMENT_TEMPLATE } from "./statement-template";
@@ -203,21 +203,6 @@ const LABELS: Record<"en" | "tr" | "es" | "de" | "fr", Record<string, string>> =
       "Ce relevé reflète l'activité de la période sélectionnée. N'hésitez pas à nous contacter pour toute question.",
   },
 };
-
-function formatDateStr(dateStr: string, dateFormat?: string, localeOverride?: string): string {
-  const d = new Date(dateStr);
-  if (dateFormat && !localeOverride) {
-    const yyyy = d.getFullYear().toString();
-    const mm = (d.getMonth() + 1).toString().padStart(2, "0");
-    const dd = d.getDate().toString().padStart(2, "0");
-    return dateFormat.replace("YYYY", yyyy).replace("MM", mm).replace("DD", dd);
-  }
-  return d.toLocaleDateString(localeOverride || "en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
-}
 
 function agingBuckets(rows: AgingRow[], asOf: string, labels: Record<string, string>) {
   const buckets = [

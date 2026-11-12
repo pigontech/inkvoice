@@ -1,4 +1,5 @@
 import { formatCurrency } from "../utils/currency";
+import { formatDateStr } from "../utils/date";
 import { getEnv } from "../utils/env";
 import { logger } from "../utils/logger";
 import { checkEinvoice, emitEinvoice } from "./einvoice.service";
@@ -81,13 +82,19 @@ export async function sendInvoiceEmail(
   const publicUrl =
     finalised.share_token && origin ? `${origin}/public/invoice/${finalised.share_token}` : null;
 
+  const localeOverride = finalised.locale || finalised.customer?.language || undefined;
+  const numberFormat = settings.number_format || undefined;
+  const dateFormat = settings.date_format || undefined;
+
   const email = invoiceDeliveryEmail({
     company_name: settings.company_name || "Inkvoice",
     customer_name: finalised.customer?.name || "Customer",
     invoice_number: finalised.invoice_number,
-    total: formatCurrency(finalised.total, finalised.currency),
+    total: formatCurrency(finalised.total, finalised.currency, numberFormat, localeOverride),
     currency: finalised.currency,
-    due_date: finalised.due_date,
+    due_date: finalised.due_date
+      ? formatDateStr(finalised.due_date, dateFormat, localeOverride)
+      : null,
     public_url: publicUrl,
     custom_message: opts.message,
   });

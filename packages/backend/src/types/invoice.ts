@@ -98,5 +98,6 @@ export interface InvoiceWithItems extends Invoice {
     id: string;
     name: string;
     email: string | null;
+    language?: string | null;
   };
 }

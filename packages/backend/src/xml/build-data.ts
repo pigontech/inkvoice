@@ -98,7 +98,14 @@ export function buildXmlInvoiceData(invoiceId: string): XmlInvoiceData {
           }
         : null,
     currency: (invoice.currency as string) || "EUR",
-    locale: invoice.locale as string | null,
+    // Explicit invoice or customer locale overrides number_format; when neither
+    // is set, leave locale null unless settings.number_format is absent.
+    locale:
+      (invoice.locale as string) ||
+      (invoice.customer_language as string) ||
+      (!settings.number_format && settings.locale ? settings.locale : null),
+    number_format: settings.number_format || null,
+    date_format: settings.date_format || null,
     type: (invoice.type as "invoice" | "credit_note") || "invoice",
     notes: (invoice.notes as string) || null,
     // In the invoice's language, chosen as for the PDF: invoice > customer > workspace.
