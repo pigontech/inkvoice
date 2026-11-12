@@ -35,8 +35,11 @@ export function invoiceDeliveryEmail(ctx: InvoiceEmailContext): {
       from_name: fromName,
       footer,
     };
-    const subject = Mustache.render(customSubject, view);
-    const text = Mustache.render(customBody, view);
+    // Custom subject and body are plain-text templates: disable Mustache's
+    // HTML escaper (which turns `/` into `&#x2F;` and double-escapes `&` below).
+    const plain = { escape: (v: unknown) => String(v ?? "") };
+    const subject = Mustache.render(customSubject, view, undefined, plain);
+    const text = Mustache.render(customBody, view, undefined, plain);
     // Render plain-text body as HTML by escaping + converting newlines to <br>
     const escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px;white-space:pre-wrap;">${escaped.replace(/\n/g, "<br>")}</div>`;
