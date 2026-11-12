@@ -163,11 +163,31 @@ describe("Stripe webhook for an invoice that no longer takes payments", () => {
     expect(unrecordedEntries(inv.id)).toHaveLength(1);
   });
 
+  test("a redelivered event on a paid invoice does not throw or double-record", async () => {
+    const inv = sentInvoice(60);
+    expect((await stripeWebhook(inv.id, inv.total, "pi_paid_twice")).recorded).toBe(true);
+    expect(getInvoice(inv.id)?.status).toBe("paid");
+    const again = await stripeWebhook(inv.id, inv.total, "pi_paid_twice");
+    expect(again.recorded).toBe(false);
+    expect(paymentCount(inv.id)).toBe(1);
+    expect(unrecordedEntries(inv.id)).toHaveLength(0);
+  });
+
   test("a redelivered event for a recorded payment is not reported after completion", async () => {
     const inv = sentInvoice(60);
     expect((await stripeWebhook(inv.id, inv.total, "pi_done")).recorded).toBe(true);
     expect(markComplete(inv.id)?.status).toBe("complete");
     const again = await stripeWebhook(inv.id, inv.total, "pi_done");
+    expect(again.recorded).toBe(false);
+    expect(paymentCount(inv.id)).toBe(1);
+    expect(unrecordedEntries(inv.id)).toHaveLength(0);
+  });
+
+  test("without a payment intent, a recorded session is not reported after completion", async () => {
+    const inv = sentInvoice(45);
+    expect((await stripeWebhook(inv.id, inv.total, null, "cs_done")).recorded).toBe(true);
+    expect(markComplete(inv.id)?.status).toBe("complete");
+    const again = await stripeWebhook(inv.id, inv.total, null, "cs_done");
     expect(again.recorded).toBe(false);
     expect(paymentCount(inv.id)).toBe(1);
     expect(unrecordedEntries(inv.id)).toHaveLength(0);

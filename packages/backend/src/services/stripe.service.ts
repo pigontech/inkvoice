@@ -186,21 +186,39 @@ export function handlePaymentSuccess(session: Stripe.Checkout.Session): boolean 
     typeof session.payment_intent === "string"
       ? session.payment_intent
       : session.payment_intent?.id;
+  // Fall back on the session id so a Checkout session without a PaymentIntent
+  // still dedupes across webhook redeliveries.
+  const reference = paymentIntentId || session.id || undefined;
+  if (
+    reference &&
+    getDb()
+      .query("SELECT 1 FROM payments WHERE invoice_id = ? AND reference = ? LIMIT 1")
+      .get(invoiceId, reference)
+  ) {
+    return false;
+  }
 
-  const recorded = recordPayment(invoiceId, {
-    amount,
-    payment_date: todayIso(),
-    method: "card",
-    reference: paymentIntentId || undefined,
-    notes: "Paid via Stripe",
-  });
+  let recorded: ReturnType<typeof recordPayment>;
+  try {
+    recorded = recordPayment(invoiceId, {
+      amount,
+      payment_date: todayIso(),
+      method: "card",
+      reference,
+      notes: "Paid via Stripe",
+    });
+  } catch (err) {
+    if ((err as { code?: string } | null)?.code === "SQLITE_CONSTRAINT_UNIQUE") {
+      return false;
+    }
+    throw err;
+  }
   if (!recorded.success) {
     logUnrecordedGatewayPayment({
       invoiceId,
       gateway: "Stripe",
       amount,
-      // The session id still identifies a redelivered event without an intent.
-      reference: paymentIntentId || session.id || undefined,
+      reference,
       error: recorded.error,
     });
   }
