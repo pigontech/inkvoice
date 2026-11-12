@@ -3,6 +3,7 @@ import { getDb } from "../database/connection";
 import type { Customer } from "../types/customer";
 import { cashDiscountDeadline, cashDiscountOn, hasCashDiscount } from "../utils/cash-discount";
 import { formatCurrency } from "../utils/currency";
+import { formatDateStr } from "../utils/date";
 import { buildEpcPayload } from "../utils/epc-qr";
 import { escapeMultiline, inlineAddress } from "../utils/html";
 import { localizePaymentTerms } from "../utils/payment-terms";
@@ -28,21 +29,6 @@ function applyDiscountToTaxSummary(
     const entry = taxMap.get(`${rate}`);
     if (entry) entry.amount = tax;
   }
-}
-
-function formatDateStr(dateStr: string, dateFormat?: string, localeOverride?: string): string {
-  const d = new Date(dateStr);
-  if (dateFormat && !localeOverride) {
-    const yyyy = d.getFullYear().toString();
-    const mm = (d.getMonth() + 1).toString().padStart(2, "0");
-    const dd = d.getDate().toString().padStart(2, "0");
-    return dateFormat.replace("YYYY", yyyy).replace("MM", mm).replace("DD", dd);
-  }
-  return d.toLocaleDateString(localeOverride || "en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
 }
 
 function buildWatermarkContext(

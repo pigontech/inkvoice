@@ -1,14 +1,18 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { unlinkSync } from "node:fs";
+import { inflateSync } from "node:zlib";
 import type { Hono } from "hono";
+import { PDFArray, PDFDict, PDFDocument, PDFName, PDFRawStream, PDFRef } from "pdf-lib";
 import { createApp } from "../app";
 import { closeDatabase, getDb, initDatabase } from "../database/connection";
 import { runMigrations } from "../database/migrations";
 import { seed } from "../database/seed";
+import { buildEinvoicePdf } from "../services/einvoice-pdf.service";
 import { validateEinvoice } from "../services/einvoice-validator.service";
 import { resetEnvCache } from "../utils/env";
 import { localizePaymentTerms } from "../utils/payment-terms";
 import { buildXmlInvoiceData } from "../xml/build-data";
+import { FacturxZugferdProfile } from "../xml/profiles/facturx-zugferd";
 
 // E-invoice feedback in the user's language: issue params for the panel, the
 // file the send dialog names, and payment-term presets on German documents.
@@ -227,3 +231,131 @@ describe("payment terms presets", () => {
     await json("PUT", "/api/v1/settings", { locale: "en-US" });
   });
 });
+
+describe("ZUGFeRD PDF number and date formatting", () => {
+  test("respects customer preferred language and configured date_format", async () => {
+    await json("PUT", "/api/v1/settings", {
+      number_format: "1,000.00",
+      date_format: "DD.MM.YYYY",
+    });
+    const custId = await customer({
+      name: "Kunde Deutsch",
+      language: "de-DE",
+      einvoice_format: "zugferd",
+    });
+    const invId = await sentInvoice(custId, {
+      issue_date: "2026-11-12",
+      due_date: "2026-11-26",
+      items: [{ description: "Beratung", quantity: 1, unit_price: 1234.56 }],
+    });
+    const data = buildXmlInvoiceData(invId);
+    const { pdfBytes } = await buildEinvoicePdf({
+      data,
+      facturXml: new FacturxZugferdProfile().generateXml(data),
+    });
+    const runs = await pdfTextRuns(pdfBytes);
+    expect(runs).toContain("1.234,56\u00a0€");
+    expect(runs).not.toContain("€1,234.56");
+    expect(runs).toContain("26.11.2026");
+
+    await json("PUT", "/api/v1/settings", { date_format: "YYYY-MM-DD" });
+  });
+
+  test("respects workspace number_format when customer has no language override", async () => {
+    await json("PUT", "/api/v1/settings", {
+      number_format: "1.000,00",
+      date_format: "YYYY-MM-DD",
+    });
+    const custId = await customer({ name: "Kunde Standard", einvoice_format: "zugferd" });
+    const invId = await sentInvoice(custId, {
+      issue_date: "2026-11-12",
+      due_date: "2026-11-26",
+      items: [{ description: "Beratung", quantity: 1, unit_price: 1234.56 }],
+    });
+    const data = buildXmlInvoiceData(invId);
+    const { pdfBytes } = await buildEinvoicePdf({
+      data,
+      facturXml: new FacturxZugferdProfile().generateXml(data),
+    });
+    const runs = await pdfTextRuns(pdfBytes);
+    expect(runs).toContain("1.234,56\u00a0€");
+    expect(runs).not.toContain("€1,234.56");
+    expect(runs).toContain("2026-11-26");
+
+    await json("PUT", "/api/v1/settings", { number_format: "1,000.00" });
+  });
+});
+
+function inflateStream(stream: PDFRawStream): string {
+  const filter = stream.dict.lookup(PDFName.of("Filter"));
+  const bytes =
+    filter === PDFName.of("FlateDecode") ? inflateSync(stream.contents) : stream.contents;
+  return new TextDecoder("latin1").decode(bytes);
+}
+
+async function pdfTextRuns(pdfBytes: Uint8Array): Promise<string[]> {
+  const pdf = await PDFDocument.load(pdfBytes, { updateMetadata: false });
+  const page = pdf.getPages()[0];
+  const resources = page.node.lookup(PDFName.of("Resources"), PDFDict);
+  const fonts = resources.lookup(PDFName.of("Font"), PDFDict);
+  const glyphToChar = new Map<number, string>();
+
+  for (const [, ref] of fonts.entries()) {
+    const fontDict = pdf.context.lookup(ref, PDFDict);
+    const toUnicode = fontDict.lookup(PDFName.of("ToUnicode"));
+    if (!(toUnicode instanceof PDFRawStream)) continue;
+    const cmap = inflateStream(toUnicode);
+    for (const block of cmap.matchAll(/beginbfchar([\s\S]*?)endbfchar/g)) {
+      for (const m of block[1].matchAll(/<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>/g)) {
+        const cps: number[] = [];
+        for (let i = 0; i < m[2].length; i += 4) {
+          cps.push(Number.parseInt(m[2].slice(i, i + 4), 16));
+        }
+        glyphToChar.set(Number.parseInt(m[1], 16), String.fromCodePoint(...cps));
+      }
+    }
+    for (const block of cmap.matchAll(/beginbfrange([\s\S]*?)endbfrange/g)) {
+      for (const m of block[1].matchAll(
+        /<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>\s*<([0-9A-Fa-f]+)>/g,
+      )) {
+        const start = Number.parseInt(m[1], 16);
+        const end = Number.parseInt(m[2], 16);
+        let target = Number.parseInt(m[3], 16);
+        for (let g = start; g <= end; g++, target++) {
+          glyphToChar.set(g, String.fromCodePoint(target));
+        }
+      }
+    }
+  }
+
+  const contentsEntry = page.node.get(PDFName.of("Contents"));
+  const streams: PDFRawStream[] = [];
+  if (contentsEntry instanceof PDFRef) {
+    const looked = pdf.context.lookup(contentsEntry);
+    if (looked instanceof PDFRawStream) streams.push(looked);
+    else if (looked instanceof PDFArray) {
+      for (let i = 0; i < looked.size(); i++) {
+        const s = looked.lookup(i);
+        if (s instanceof PDFRawStream) streams.push(s);
+      }
+    }
+  } else if (contentsEntry instanceof PDFArray) {
+    for (let i = 0; i < contentsEntry.size(); i++) {
+      const s = contentsEntry.lookup(i);
+      if (s instanceof PDFRawStream) streams.push(s);
+    }
+  }
+
+  const content = streams.map(inflateStream).join("\n");
+  const runs: string[] = [];
+  for (const m of content.matchAll(/<([0-9A-Fa-f]+)>\s*Tj/g)) {
+    const hex = m[1];
+    let decoded = "";
+    for (let i = 0; i < hex.length; i += 4) {
+      const gid = Number.parseInt(hex.slice(i, i + 4), 16);
+      decoded += glyphToChar.get(gid) ?? "";
+    }
+    runs.push(decoded);
+  }
+  return runs;
+}

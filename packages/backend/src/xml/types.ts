@@ -9,6 +9,10 @@ export interface XmlInvoiceData {
   service_period?: { start: string; end: string } | null;
   currency: string;
   locale: string | null;
+  /** Number format preference from workspace settings (e.g. "1.000,00"). */
+  number_format?: string | null;
+  /** Date format preference from workspace settings (e.g. "DD.MM.YYYY"). */
+  date_format?: string | null;
   type: "invoice" | "credit_note";
   notes: string | null;
   payment_terms: string | null;

@@ -1,16 +1,17 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, mock, test } from "bun:test";
 import crypto from "node:crypto";
 import { unlinkSync } from "node:fs";
 import { closeDatabase, getDb, initDatabase } from "../database/connection";
 import { runMigrations } from "../database/migrations";
 import { seed } from "../database/seed";
+import * as emailService from "../services/email.service";
 import { createInvoice, finaliseForSending } from "../services/invoice.service";
 import {
   resolvePublicOrigin,
   sendInvoiceEmail,
   shouldAttachEinvoice,
 } from "../services/invoice-send.service";
-import { getAllSettings } from "../services/settings.service";
+import { getAllSettings, updateSettings } from "../services/settings.service";
 import { resetEnvCache } from "../utils/env";
 
 const TEST_DB = "./data/test-invoice-send.db";
@@ -161,6 +162,71 @@ describe("sendInvoiceEmail", () => {
     const result = await sendInvoiceEmail(inv.id);
     expect(result.success).toBe(false);
     if (!result.success) expect(result.status).toBe(400);
+  });
+
+  test("formats {{total}} and {{due_date}} using customer language and configured number/date formats", async () => {
+    const sent: Array<{ subject: string; html: string; text?: string }> = [];
+    const realEmail = { ...emailService };
+    mock.module("../services/email.service", () => ({
+      ...realEmail,
+      isEmailConfigured: async () => true,
+      sendEmail: async (opts: Parameters<typeof emailService.sendEmail>[0]) => {
+        sent.push({ subject: opts.subject, html: opts.html, text: opts.text });
+        return { success: true as const };
+      },
+    }));
+
+    try {
+      updateSettings({
+        number_format: "1.000,00",
+        date_format: "DD.MM.YYYY",
+        invoice_email_subject: "Rechnung {{invoice_number}}",
+        invoice_email_body: "Gesamt: {{total}} — Fällig: {{due_date}}",
+      });
+
+      const deCustomer = crypto.randomBytes(16).toString("hex");
+      getDb().run("INSERT INTO customers (id, name, email, language) VALUES (?, ?, ?, ?)", [
+        deCustomer,
+        "Kunde GmbH",
+        "kunde@example.de",
+        "de-DE",
+      ]);
+      const inv = createInvoice({
+        customer_id: deCustomer,
+        issue_date: "2026-11-12",
+        due_date: "2026-11-26",
+        currency: "EUR",
+        items: [{ description: "Beratung", quantity: 1, unit_price: 1234.56 }],
+      });
+
+      const res = await sendInvoiceEmail(inv.id, { origin: "https://billing.example.com" });
+      expect(res.success).toBe(true);
+      expect(sent.length).toBe(1);
+      expect(sent[0].text).toContain("1.234,56\u00a0€");
+      expect(sent[0].text).toContain("26.11.2026");
+
+      // Also works via number_format alone when customer has no language set.
+      sent.length = 0;
+      const plainInv = createInvoice({
+        customer_id: customerId,
+        issue_date: "2026-11-12",
+        due_date: "2026-11-26",
+        currency: "EUR",
+        items: [{ description: "Beratung", quantity: 1, unit_price: 1234.56 }],
+      });
+      const res2 = await sendInvoiceEmail(plainInv.id, { origin: "https://billing.example.com" });
+      expect(res2.success).toBe(true);
+      expect(sent[0].text).toContain("1.234,56\u00a0€");
+      expect(sent[0].text).toContain("26.11.2026");
+    } finally {
+      mock.module("../services/email.service", () => realEmail);
+      updateSettings({
+        number_format: "1,000.00",
+        date_format: "YYYY-MM-DD",
+        invoice_email_subject: "",
+        invoice_email_body: "",
+      });
+    }
   });
 });
 

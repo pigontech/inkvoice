@@ -20,6 +20,7 @@ import {
   TextRenderingMode,
 } from "pdf-lib";
 import { formatCurrency } from "../utils/currency";
+import { formatDateStr } from "../utils/date";
 import type { XmlInvoiceData } from "../xml/types";
 
 // Lightweight A4 renderer for the ZUGFeRD hybrid PDF. It embeds the Factur-X
@@ -87,7 +88,11 @@ export async function buildEinvoicePdf(input: EinvoicePdfInput): Promise<Einvoic
   const { data, facturXml } = input;
   const isCredit = data.type === "credit_note";
   const currency = data.currency || "EUR";
-  const locale = data.locale && data.locale.startsWith("de") ? "de-DE" : "en-US";
+  const localeOverride = normalizeEinvoiceLocale(data.locale);
+  const numberFormat = data.number_format || undefined;
+  const dateFormat = data.date_format || "DD.MM.YYYY";
+  const money = (n: number) => formatCurrency(n, currency, numberFormat, localeOverride);
+  const fdate = (iso: string) => formatDateStr(iso, dateFormat, localeOverride);
 
   // PDF/A compares the Info dictionary with the XMP metadata, so both get the
   // same values (dates to the second).
@@ -134,16 +139,16 @@ export async function buildEinvoicePdf(input: EinvoicePdfInput): Promise<Einvoic
   right(page, isCredit ? "GUTSCHRIFT" : "RECHNUNG", 18, RIGHT, PAGE_H - MARGIN, font, INK, true);
   const meta: Array<[string, string]> = [
     [isCredit ? "Gutschrift-Nr." : "Rechnungs-Nr.", data.invoice_number],
-    ["Datum", fmtDate(data.issue_date)],
-    ...(data.due_date ? [["Fällig am", fmtDate(data.due_date)] as [string, string]] : []),
+    ["Datum", fdate(data.issue_date)],
+    ...(data.due_date ? [["Fällig am", fdate(data.due_date)] as [string, string]] : []),
     ...(data.service_date
-      ? [["Leistungsdatum", fmtDate(data.service_date)] as [string, string]]
+      ? [["Leistungsdatum", fdate(data.service_date)] as [string, string]]
       : []),
     // The period takes two rows: both dates on one row would run into the label.
     ...(data.service_period
       ? ([
-          ["Leistungszeitraum", fmtDate(data.service_period.start)],
-          ["", `bis ${fmtDate(data.service_period.end)}`],
+          ["Leistungszeitraum", fdate(data.service_period.start)],
+          ["", `bis ${fdate(data.service_period.end)}`],
         ] as Array<[string, string]>)
       : []),
     ["Währung", currency.toUpperCase()],
@@ -185,8 +190,8 @@ export async function buildEinvoicePdf(input: EinvoicePdfInput): Promise<Einvoic
     no: String(i + 1),
     desc: it.description,
     qty: fmtQty(it.quantity),
-    price: fmtMoney(it.unit_price, currency, locale),
-    total: fmtMoney(it.line_total, currency, locale),
+    price: money(it.unit_price),
+    total: money(it.line_total),
   }));
 
   for (const it of items) {
@@ -205,13 +210,13 @@ export async function buildEinvoicePdf(input: EinvoicePdfInput): Promise<Einvoic
   // A Kleinunternehmer charges no VAT; the § 19 note below says so instead.
   const taxRows: Array<[string, string]> = data.kleinunternehmer
     ? []
-    : data.tax_breakdown.map((tax) => [taxLabel(tax), fmtMoney(tax.tax_amount, currency, locale)]);
+    : data.tax_breakdown.map((tax) => [taxLabel(tax), money(tax.tax_amount)]);
 
   tableY -= 8;
   tableY = drawTotals(page, font, tableY, [
-    ["Zwischensumme", fmtMoney(data.subtotal, currency, locale)],
+    ["Zwischensumme", money(data.subtotal)],
     ...(data.discount_amount
-      ? [["Rabatt", `- ${fmtMoney(data.discount_amount, currency, locale)}`] as [string, string]]
+      ? [["Rabatt", `- ${money(data.discount_amount)}`] as [string, string]]
       : []),
     ...taxRows,
   ]);
@@ -220,7 +225,7 @@ export async function buildEinvoicePdf(input: EinvoicePdfInput): Promise<Einvoic
     font,
     tableY,
     isCredit ? "Gutschrift gesamt" : "Gesamtbetrag",
-    fmtMoney(data.total, currency, locale),
+    money(data.total),
     10,
   );
 
@@ -266,7 +271,7 @@ export async function buildEinvoicePdf(input: EinvoicePdfInput): Promise<Einvoic
   });
   text(
     page,
-    `E-Rechnung (${isCredit ? "Gutschrift" : "Rechnung"} · ZUGFeRD/Factur-X) mit eingebettetem XML. Gesamt ${fmtMoney(data.total, currency, locale)}`,
+    `E-Rechnung (${isCredit ? "Gutschrift" : "Rechnung"} · ZUGFeRD/Factur-X) mit eingebettetem XML. Gesamt ${money(data.total)}`,
     7,
     MARGIN,
     28,
@@ -539,21 +544,18 @@ function taxLabel(tax: XmlInvoiceData["tax_breakdown"][number]): string {
   return `Umsatzsteuer ${rate} %`;
 }
 
-function fmtDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  return `${dd}.${mm}.${d.getFullYear()}`;
+function normalizeEinvoiceLocale(locale: string | null | undefined): string | undefined {
+  const tag = (locale || "").trim();
+  if (!tag) return undefined;
+  // Bare language tags like "de" have no region, so Intl keeps prefix € ("€ 1.234,56")
+  // instead of Germany's suffix ("1.234,56 €").
+  if (tag.toLowerCase() === "de") return "de-DE";
+  return tag;
 }
 
 function fmtQty(n: number): string {
   if (Number.isInteger(n)) return String(n);
   return n.toFixed(3).replace(/\.?0+$/, "");
-}
-
-function fmtMoney(n: number, currency: string, locale: string): string {
-  return formatCurrency(n, currency, undefined, locale);
 }
 
 function utf8Bytes(s: string): Uint8Array {

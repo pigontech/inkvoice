@@ -272,11 +272,16 @@ export function getInvoice(id: string): InvoiceWithItems | null {
   const db = getDb();
   const invoice = db
     .query(
-      `SELECT i.*, c.name as customer_name, c.email as customer_email, c.id as cust_id
+      `SELECT i.*, c.name as customer_name, c.email as customer_email, c.language as customer_language, c.id as cust_id
      FROM invoices i LEFT JOIN customers c ON i.customer_id = c.id WHERE i.id = ?`,
     )
     .get(id) as
-    | (Invoice & { customer_name: string; customer_email: string | null; cust_id: string })
+    | (Invoice & {
+        customer_name: string;
+        customer_email: string | null;
+        customer_language: string | null;
+        cust_id: string;
+      })
     | null;
 
   if (!invoice) return null;
@@ -296,6 +301,7 @@ export function getInvoice(id: string): InvoiceWithItems | null {
       id: invoice.cust_id,
       name: invoice.customer_name,
       email: invoice.customer_email,
+      language: invoice.customer_language,
     },
   };
 }
