@@ -462,6 +462,12 @@
               <td>&minus;{{formatted_discount}}</td>
             </tr>
             {{/has_discount}}
+            {{#has_credit_discount}}
+            <tr>
+              <td>Discount</td>
+              <td>+{{formatted_discount}}</td>
+            </tr>
+            {{/has_credit_discount}}
             {{#tax_summary}}
             <tr>
               <td>{{name}} ({{rate}}%)</td>

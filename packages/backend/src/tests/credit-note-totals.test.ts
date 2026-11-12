@@ -5,6 +5,7 @@ import { runMigrations } from "../database/migrations";
 import { seed } from "../database/seed";
 import { createCustomer } from "../services/customer.service";
 import { createCreditNote, createInvoice, markSent } from "../services/invoice.service";
+import { buildInvoiceContext, renderInvoiceHtml } from "../services/pdf.service";
 import { resetEnvCache } from "../utils/env";
 
 // A credit note made from an invoice reverses that invoice: same lines, same
@@ -86,5 +87,21 @@ describe("credit note totals", () => {
     expect(inv.exchange_rate).toBe(1.08);
     expect(credit.currency).toBe("EUR");
     expect(credit.exchange_rate).toBe(1.08);
+  });
+
+  test("the print PDF shows a credit note's discount as a plus so the totals add up", () => {
+    const { inv, credit } = creditFor({ discount_type: "percentage", discount_value: 10 });
+    const invoiceCtx = buildInvoiceContext(inv.id)!;
+    const creditCtx = buildInvoiceContext(credit.id)!;
+    expect(invoiceCtx.has_discount).toBe(true);
+    expect(invoiceCtx.has_credit_discount).toBe(false);
+    expect(creditCtx.has_discount).toBe(false);
+    expect(creditCtx.has_credit_discount).toBe(true);
+
+    const html = renderInvoiceHtml(credit.id)!;
+    expect(html).toContain(`+${creditCtx.formatted_discount}`);
+    // Visible lines must add up: -1,000 + 100 - 180 = -1,080.
+    expect(html).toContain(creditCtx.formatted_subtotal);
+    expect(html).toContain(creditCtx.formatted_total);
   });
 });

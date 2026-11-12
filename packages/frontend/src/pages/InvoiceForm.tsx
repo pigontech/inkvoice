@@ -640,7 +640,12 @@ export default function InvoiceForm({ onSave }: Props) {
   }
   let discountAmount = 0;
   if (form.discount_type === "percentage") discountAmount = subtotal * (form.discount_value / 100);
-  else if (form.discount_type === "amount") discountAmount = form.discount_value;
+  else if (form.discount_type === "amount") {
+    // Same rule as calculateInvoiceTotals: capped at the size of the subtotal
+    // and signed like it, so a draft credit note reverses a fixed discount.
+    const capped = Math.min(Math.abs(form.discount_value), Math.abs(subtotal));
+    discountAmount = subtotal < 0 ? -capped : capped;
+  }
   // The discount lowers the VAT base, so each rate's share of it loses its VAT
   // (same rule as the backend calculator).
   if (discountAmount && subtotal) {

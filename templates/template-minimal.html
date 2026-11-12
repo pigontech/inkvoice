@@ -366,6 +366,12 @@
             <span class="v">−{{formatted_discount}}</span>
           </div>
           {{/has_discount}}
+          {{#has_credit_discount}}
+          <div class="row discount">
+            <span>Discount</span>
+            <span class="v">+{{formatted_discount}}</span>
+          </div>
+          {{/has_credit_discount}}
           {{#tax_summary}}
           <div class="row">
             <span>{{name}} ({{rate}}%)</span>
