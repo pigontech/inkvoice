@@ -112,13 +112,15 @@ export async function buildEinvoicePdf(input: EinvoicePdfInput): Promise<Einvoic
   // ---------- Seller block (left) ----------
   text(page, String(data.supplier.name || "").toUpperCase(), 13, MARGIN, y, font, INK, true);
   y -= 17;
-  const sellerAddr = [
-    data.supplier.address,
-    data.supplier.street,
-    [data.supplier.postal_code, data.supplier.city].filter(Boolean).join(" "),
-    data.supplier.country,
+  const structuredAddr = [
+    data.supplier.street?.trim(),
+    [data.supplier.postal_code?.trim(), data.supplier.city?.trim()].filter(Boolean).join(" "),
   ].filter(Boolean);
-  y = lines(page, sellerAddr.join("\n"), 10, MARGIN, y, font, INK, 13);
+  const sellerAddr = [
+    ...(structuredAddr.length ? structuredAddr : [data.supplier.address?.trim()]),
+    data.supplier.country?.trim(),
+  ].filter((v): v is string => !!v);
+  if (sellerAddr.length) y = lines(page, sellerAddr.join("\n"), 10, MARGIN, y, font, INK, 13);
   const contact = [
     data.supplier.email && `E-Mail: ${data.supplier.email}`,
     data.supplier.phone && `Telefon: ${data.supplier.phone}`,
@@ -442,7 +444,7 @@ function lines(
   color = INK,
   lineHeight: number,
 ): number {
-  for (const line of txt.split("\n")) {
+  for (const line of txt.split(/\r?\n/)) {
     page.drawText(line, { x, y, size, font, color });
     y -= lineHeight;
   }
