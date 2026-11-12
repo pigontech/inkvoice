@@ -25,6 +25,7 @@ import { STATUS_COLORS } from "@/lib/constants";
 import { COUNTRIES } from "@/lib/countries";
 import { formatApiError } from "@/lib/format-api-error";
 import { markRowHighlight } from "@/lib/highlight-row";
+import { sumOutstanding } from "@/lib/outstanding";
 import { pushRecentlyViewed } from "@/lib/recently-viewed";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { useSettingsStore } from "@/stores/settings.store";
@@ -209,9 +210,7 @@ export default function CustomerForm({ onSave }: Props) {
     onChange(field as any, newForm as any);
   };
 
-  const outstanding = invoices
-    .filter((inv: any) => inv.status === "sent" || inv.status === "overdue")
-    .reduce((sum: number, inv: any) => sum + inv.total, 0);
+  const outstanding = sumOutstanding(invoices);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6" noValidate>
