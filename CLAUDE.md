@@ -235,7 +235,7 @@ CREATE TABLE products (
   description TEXT,
   sku TEXT,
   unit_price REAL NOT NULL DEFAULT 0,
-  unit TEXT DEFAULT 'piece',       -- piece, hour, day, kg, meter, lump_sum
+  unit TEXT DEFAULT 'piece',       -- piece, hour, day, month, kg, meter, lump_sum
   category TEXT DEFAULT 'service', -- service, goods, subscription, other
   tax_id TEXT REFERENCES tax_definitions(id),
   is_active INTEGER DEFAULT 1,

@@ -301,6 +301,7 @@ const de: TranslationKeys = {
     unit_piece: "Stück",
     unit_hour: "Stunde",
     unit_day: "Tag",
+    unit_month: "Monat",
     unit_kg: "Kg",
     unit_meter: "Meter",
     unit_lump_sum: "Pauschale",

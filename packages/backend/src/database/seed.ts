@@ -246,6 +246,7 @@ export async function seed(): Promise<void> {
     ["piece", "pc"],
     ["hour", "hr"],
     ["day", "d"],
+    ["month", "mo"],
     ["kg", "kg"],
     ["meter", "m"],
     ["lump_sum", "ls"],

@@ -284,6 +284,7 @@ const en = {
     unit_piece: "Piece",
     unit_hour: "Hour",
     unit_day: "Day",
+    unit_month: "Month",
     unit_kg: "Kg",
     unit_meter: "Meter",
     unit_lump_sum: "Lump Sum",

@@ -172,6 +172,7 @@ function SortableLineItem({
             <option value="piece">{t("invoices.unit_piece")}</option>
             <option value="hour">{t("invoices.unit_hour")}</option>
             <option value="day">{t("invoices.unit_day")}</option>
+            <option value="month">{t("invoices.unit_month")}</option>
             <option value="kg">{t("invoices.unit_kg")}</option>
             <option value="meter">{t("invoices.unit_meter")}</option>
             <option value="lump_sum">{t("invoices.unit_lump_sum")}</option>

@@ -287,6 +287,7 @@ const tr: TranslationKeys = {
     unit_piece: "Adet",
     unit_hour: "Saat",
     unit_day: "Gün",
+    unit_month: "Ay",
     unit_kg: "Kg",
     unit_meter: "Metre",
     unit_lump_sum: "Götürü",
