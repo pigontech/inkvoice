@@ -1,6 +1,6 @@
 import { todayIso } from "../../utils/date";
 import { getEnv } from "../../utils/env";
-import { recordPayment } from "../payment.service";
+import { logUnrecordedGatewayPayment, recordPayment } from "../payment.service";
 import type { CheckoutContext, PaymentGateway, WebhookRequest, WebhookResult } from "./types";
 
 // PayPal integration via the Orders v2 API. The flow mirrors Stripe Checkout:
@@ -176,13 +176,23 @@ export const paypalGateway: PaymentGateway = {
     const result = extractCapture(capture.data);
     if (!result) return { handled: true, recorded: false };
 
-    recordPayment(invoiceId, {
+    const recorded = recordPayment(invoiceId, {
       amount: result.amount,
       payment_date: todayIso(),
       method: "card",
       reference: result.captureId,
       notes: "Paid via PayPal",
     });
-    return { handled: true, recorded: true };
+    if (!recorded.success) {
+      // The order is already captured, so the money has moved.
+      logUnrecordedGatewayPayment({
+        invoiceId,
+        gateway: "PayPal",
+        amount: result.amount,
+        reference: result.captureId,
+        error: recorded.error,
+      });
+    }
+    return { handled: true, recorded: recorded.success };
   },
 };

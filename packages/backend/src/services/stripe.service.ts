@@ -3,7 +3,7 @@ import { getDb } from "../database/connection";
 import { todayIso } from "../utils/date";
 import { getEnv } from "../utils/env";
 import { logger } from "../utils/logger";
-import { recordPayment } from "./payment.service";
+import { logUnrecordedGatewayPayment, recordPayment } from "./payment.service";
 import type {
   OffSessionContext,
   OffSessionResult,
@@ -173,9 +173,10 @@ function invoiceCurrency(invoiceId: string): string {
   return row?.currency ?? "";
 }
 
-export function handlePaymentSuccess(session: Stripe.Checkout.Session): void {
+/** Record a completed Checkout session against its invoice; returns whether it was recorded. */
+export function handlePaymentSuccess(session: Stripe.Checkout.Session): boolean {
   const invoiceId = session.metadata?.invoice_id;
-  if (!invoiceId) return;
+  if (!invoiceId) return false;
 
   // Fall back on the invoice's own currency: converting without one would
   // treat a JPY amount as cents and record a hundredth of the payment.
@@ -185,14 +186,43 @@ export function handlePaymentSuccess(session: Stripe.Checkout.Session): void {
     typeof session.payment_intent === "string"
       ? session.payment_intent
       : session.payment_intent?.id;
+  // Fall back on the session id so a Checkout session without a PaymentIntent
+  // still dedupes across webhook redeliveries.
+  const reference = paymentIntentId || session.id || undefined;
+  if (
+    reference &&
+    getDb()
+      .query("SELECT 1 FROM payments WHERE invoice_id = ? AND reference = ? LIMIT 1")
+      .get(invoiceId, reference)
+  ) {
+    return false;
+  }
 
-  recordPayment(invoiceId, {
-    amount,
-    payment_date: todayIso(),
-    method: "card",
-    reference: paymentIntentId || undefined,
-    notes: "Paid via Stripe",
-  });
+  let recorded: ReturnType<typeof recordPayment>;
+  try {
+    recorded = recordPayment(invoiceId, {
+      amount,
+      payment_date: todayIso(),
+      method: "card",
+      reference,
+      notes: "Paid via Stripe",
+    });
+  } catch (err) {
+    if ((err as { code?: string } | null)?.code === "SQLITE_CONSTRAINT_UNIQUE") {
+      return false;
+    }
+    throw err;
+  }
+  if (!recorded.success) {
+    logUnrecordedGatewayPayment({
+      invoiceId,
+      gateway: "Stripe",
+      amount,
+      reference,
+      error: recorded.error,
+    });
+  }
+  return recorded.success;
 }
 
 /**
