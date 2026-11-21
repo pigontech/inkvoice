@@ -683,13 +683,23 @@ export default function InvoiceView({ onBack }: Props) {
               </span>
             </div>
             {invoice.discount_amount !== 0 && (
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>{t("invoices.discount")}</span>
-                <span className="tabular-nums">
-                  {invoice.discount_amount < 0 ? "+" : "-"}
-                  {formatCurrency(Math.abs(invoice.discount_amount), invoice.currency)}
-                </span>
-              </div>
+              <>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>{t("invoices.discount")}</span>
+                  <span className="tabular-nums">
+                    {invoice.discount_amount < 0 ? "+" : "-"}
+                    {formatCurrency(Math.abs(invoice.discount_amount), invoice.currency)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {t("invoices.subtotal_after_discount")}
+                  </span>
+                  <span className="tabular-nums">
+                    {formatCurrency(invoice.subtotal - invoice.discount_amount, invoice.currency)}
+                  </span>
+                </div>
+              </>
             )}
             {invoice.tax_total !== 0 && (
               <div className="flex justify-between text-sm">

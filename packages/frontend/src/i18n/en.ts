@@ -286,6 +286,7 @@ const en = {
     notes_placeholder: "Notes for the customer...",
     subtotal: "Subtotal",
     discount: "Discount",
+    subtotal_after_discount: "Subtotal after discount",
     save_as_draft: "Save as Draft",
     update_invoice: "Update Invoice",
     // Units
@@ -725,6 +726,7 @@ const en = {
     notes: "Notes",
     subtotal: "Subtotal",
     discount: "Discount",
+    subtotal_after_discount: "Subtotal after discount",
     add_item: "Add Item",
     // View actions
     accept: "Accept",

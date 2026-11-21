@@ -357,6 +357,14 @@ const TEMPLATE_VARIABLES = [
       { tag: "formatted_subtotal", desc: "Formatted subtotal" },
       { tag: "has_discount", desc: "Boolean — true when discount > 0" },
       { tag: "formatted_discount", desc: "Formatted discount amount" },
+      {
+        tag: "has_subtotal_after_discount",
+        desc: "Boolean — true when a document discount is present",
+      },
+      {
+        tag: "formatted_subtotal_after_discount",
+        desc: "Net after discount (taxable base)",
+      },
       { tag: "formatted_total", desc: "Formatted grand total" },
     ],
   },
@@ -573,6 +581,8 @@ function TemplateEditor({
         snippet = `{{#epc_qr}}<img src="{{epc_qr.image}}" alt="" style="width:25mm;height:25mm">{{/epc_qr}}`;
       } else if (tag === "has_discount") {
         snippet = `{{#has_discount}}...{{/has_discount}}`;
+      } else if (tag === "has_subtotal_after_discount") {
+        snippet = `{{#has_subtotal_after_discount}}...{{/has_subtotal_after_discount}}`;
       } else if (tag === "is_quote") {
         snippet = `{{#is_quote}}...{{/is_quote}}`;
       } else {

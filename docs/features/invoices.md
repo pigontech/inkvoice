@@ -26,7 +26,7 @@ Voided  Overdue → Paid
 2. Select a customer (or create one inline)
 3. Add line items — pick from your product catalog or enter custom descriptions
 4. Set the issue date, due date, service date, and any notes or payment terms
-5. Review the totals (subtotal, tax, discount, total)
+5. Review the totals (subtotal, discount, subtotal after discount, tax, total)
 6. **Save as Draft** to continue editing later, or **Publish** to make it available
 
 ## Service Date

@@ -572,13 +572,24 @@ export default function QuoteView() {
               <span className="text-muted-foreground">{t("quotes.subtotal")}</span>
               <span className="tabular-nums">{formatCurrency(quote.subtotal, quote.currency)}</span>
             </div>
-            {quote.discount_amount > 0 && (
-              <div className="flex justify-between text-sm text-muted-foreground">
-                <span>{t("quotes.discount")}</span>
-                <span className="tabular-nums">
-                  -{formatCurrency(quote.discount_amount, quote.currency)}
-                </span>
-              </div>
+            {quote.discount_amount !== 0 && (
+              <>
+                <div className="flex justify-between text-sm text-muted-foreground">
+                  <span>{t("quotes.discount")}</span>
+                  <span className="tabular-nums">
+                    {quote.discount_amount < 0 ? "+" : "-"}
+                    {formatCurrency(Math.abs(quote.discount_amount), quote.currency)}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    {t("quotes.subtotal_after_discount")}
+                  </span>
+                  <span className="tabular-nums">
+                    {formatCurrency(quote.subtotal - quote.discount_amount, quote.currency)}
+                  </span>
+                </div>
+              </>
             )}
             {quote.tax_total > 0 && (
               <div className="flex justify-between text-sm">

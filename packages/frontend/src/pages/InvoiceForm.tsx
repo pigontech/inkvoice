@@ -1174,13 +1174,24 @@ export default function InvoiceForm({ onSave }: Props) {
                   </div>
                 )}
               </div>
-              {discountAmount > 0 && (
-                <div className="flex justify-between text-sm text-muted-foreground">
-                  <span>{t("invoices.discount")}</span>
-                  <span className="tabular-nums">
-                    -{formatCurrency(discountAmount, form.currency)}
-                  </span>
-                </div>
+              {discountAmount !== 0 && (
+                <>
+                  <div className="flex justify-between text-sm text-muted-foreground">
+                    <span>{t("invoices.discount")}</span>
+                    <span className="tabular-nums">
+                      {discountAmount < 0 ? "+" : "-"}
+                      {formatCurrency(Math.abs(discountAmount), form.currency)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {t("invoices.subtotal_after_discount")}
+                    </span>
+                    <span className="tabular-nums">
+                      {formatCurrency(subtotal - discountAmount, form.currency)}
+                    </span>
+                  </div>
+                </>
               )}
               {/* Early-payment (cash) discount */}
               <div className="space-y-2 border-t pt-3">

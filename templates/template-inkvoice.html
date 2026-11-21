@@ -468,6 +468,12 @@
               <td>+{{formatted_discount}}</td>
             </tr>
             {{/has_credit_discount}}
+            {{#has_subtotal_after_discount}}
+            <tr>
+              <td>Subtotal after discount</td>
+              <td>{{formatted_subtotal_after_discount}}</td>
+            </tr>
+            {{/has_subtotal_after_discount}}
             {{#tax_summary}}
             <tr>
               <td>{{name}} ({{rate}}%)</td>
