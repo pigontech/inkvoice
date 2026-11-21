@@ -109,6 +109,25 @@ describe("catalog service", () => {
     expect(res.catalog.plugins.some((p) => p.id === "time-tracker")).toBe(true);
   });
 
+  test("drops the PEPPOL and France plugins from every source", async () => {
+    const snap = await getCatalog();
+    expect(snap.catalog.plugins.map((p) => p.id)).not.toContain("peppol");
+    expect(snap.catalog.plugins.map((p) => p.id)).not.toContain("france");
+
+    enableEgress();
+    const remote = {
+      schema: 1,
+      plugins: [
+        { ...REMOTE.plugins[0], id: "peppol" },
+        { ...REMOTE.plugins[0], id: "france" },
+        REMOTE.plugins[0],
+      ],
+    };
+    stubFetch(() => ok(remote));
+    const res = await getCatalog({ force: true });
+    expect(res.catalog.plugins.map((p) => p.id)).toEqual(["remote-only"]);
+  });
+
   test("a cold cache fetches remote and writes the cache and timestamp", async () => {
     enableEgress();
     stubFetch(() => ok(REMOTE));

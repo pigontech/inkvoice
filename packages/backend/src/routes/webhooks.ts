@@ -1,9 +1,5 @@
 import type { Context } from "hono";
 import { Hono } from "hono";
-import {
-  handleTransportWebhook,
-  TransportWebhookSizeError,
-} from "../services/einvoice-transport.service";
 import { getGateway } from "../services/payment-gateways/registry";
 
 const webhooks = new Hono();
@@ -40,23 +36,5 @@ async function handleGatewayWebhook(c: Context, gatewayId: string) {
 
 webhooks.post("/stripe", (c) => handleGatewayWebhook(c, "stripe"));
 webhooks.post("/paypal", (c) => handleGatewayWebhook(c, "paypal"));
-
-// PEPPOL inbound callbacks (document.delivered / document.failed event
-// payloads, plus legacy document.received / document.status /
-// participant.status shapes). Public and CSRF-exempt like the gateway
-// webhooks; the transport driver verifies the HMAC over the raw body. Any
-// verification failure returns 401 with no detail — never echo why.
-webhooks.post("/peppol", async (c) => {
-  const rawBody = await c.req.text();
-  try {
-    const result = await handleTransportWebhook({ rawBody, headers: c.req.header() });
-    return c.json({ received: true, kind: result.kind });
-  } catch (err) {
-    if (err instanceof TransportWebhookSizeError) {
-      return c.json({ error: "Payload too large" }, 413);
-    }
-    return c.json({ error: "Webhook rejected" }, 401);
-  }
-});
 
 export { webhooks };

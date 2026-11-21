@@ -9,11 +9,11 @@ describe("plugin entitlement seam", () => {
   });
 
   test("an installed resolver is returned and consulted", () => {
-    setPluginEntitlementCheck((feature) => feature === "peppol");
+    setPluginEntitlementCheck((feature) => feature === "acme-sync");
     const check = getPluginEntitlementCheck();
     expect(check).not.toBeNull();
-    expect(check?.("peppol")).toBe(true);
-    expect(check?.("france")).toBe(false);
+    expect(check?.("acme-sync")).toBe(true);
+    expect(check?.("acme-other")).toBe(false);
   });
 
   test("passing null uninstalls it", () => {

@@ -17,7 +17,6 @@ import {
 } from "../services/invoice.service";
 import { buildInvoiceContext } from "../services/pdf.service";
 import { resetEnvCache } from "../utils/env";
-import { buildXmlInvoiceData } from "../xml/build-data";
 
 // The date of supply (Leistungsdatum, § 14 Abs. 4 Nr. 6 UStG): stored on the
 // invoice as one date or a period, printed on the PDF and sent as BT-72/BG-14.
@@ -182,22 +181,6 @@ describe("service date API", () => {
 });
 
 describe("service date output", () => {
-  test("the e-invoice data carries BT-72 and BG-14", () => {
-    const single = createInvoice({ ...base(), service_date: "2026-10-31" });
-    const singleData = buildXmlInvoiceData(single.id);
-    expect(singleData.service_date).toBe("2026-10-31");
-    expect(singleData.service_period).toBeNull();
-
-    const period = createInvoice({
-      ...base(),
-      service_period_start: "2026-10-01",
-      service_period_end: "2026-10-31",
-    });
-    const periodData = buildXmlInvoiceData(period.id);
-    expect(periodData.service_date).toBeNull();
-    expect(periodData.service_period).toEqual({ start: "2026-10-01", end: "2026-10-31" });
-  });
-
   test("every built-in template prints the date and the period", () => {
     const single = createInvoice({ ...base(), service_date: "2026-10-31" });
     const period = createInvoice({

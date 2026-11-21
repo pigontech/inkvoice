@@ -1,7 +1,6 @@
 import { formatCurrency } from "../utils/currency";
 import { getEnv } from "../utils/env";
 import { logger } from "../utils/logger";
-import { checkEinvoice, emitEinvoice } from "./einvoice.service";
 import { isEmailConfigured, type MailResult, sendEmail } from "./email.service";
 import { invoiceDeliveryEmail } from "./email-templates";
 import * as invoiceService from "./invoice.service";
@@ -14,12 +13,6 @@ export interface SendInvoiceOptions {
   message?: string;
   from?: string;
   replyTo?: string;
-  attachEinvoice?: boolean;
-  /**
-   * Scheduled sends (recurring, auto-bill): leave out an e-invoice that has
-   * errors instead of attaching it. Manual sends warn in the send dialog.
-   */
-  skipInvalidEinvoice?: boolean;
   /** Request origin when there is one. The scheduler has no request. */
   origin?: string;
 }
@@ -40,17 +33,6 @@ export type SendInvoiceResult =
 export function resolvePublicOrigin(requestOrigin?: string): string {
   if (requestOrigin) return requestOrigin;
   return getEnv().PUBLIC_BASE_URL || "";
-}
-
-/**
- * Whether the delivery email should carry the e-invoice attachment. Settings
- * are stored as strings, so a disabled module is the truthy string "false".
- */
-export function shouldAttachEinvoice(
-  settings: Record<string, string>,
-  opts: Pick<SendInvoiceOptions, "attachEinvoice">,
-): boolean {
-  return opts.attachEinvoice !== false && settings.einvoice_enabled === "true";
 }
 
 export async function sendInvoiceEmail(
@@ -98,45 +80,6 @@ export async function sendInvoiceEmail(
     custom_message: opts.message,
   });
 
-  // E-invoice delivery: attach the ZUGFeRD hybrid PDF (or XRechnung XML) when
-  // the workspace uses e-invoicing. Errors must not block the plain email.
-  const attachments: Array<{
-    filename: string;
-    content: Buffer | Uint8Array;
-    contentType: string;
-  }> = [];
-  const wantEinvoice = shouldAttachEinvoice(settings, opts);
-  if (wantEinvoice) {
-    try {
-      const errors = opts.skipInvalidEinvoice
-        ? checkEinvoice(finalised.id).issues.filter((i) => i.severity === "error")
-        : [];
-      if (errors.length > 0) {
-        logger.warn(
-          { invoiceId: finalised.id, issues: errors.map((i) => i.code) },
-          "E-invoice left out of a scheduled email because it has errors. Fix them and send the invoice again.",
-        );
-      } else {
-        const emitted = await emitEinvoice(finalised.id);
-        if (emitted.pdf) {
-          attachments.push({
-            filename: `${finalised.invoice_number}-zugferd.pdf`,
-            content: emitted.pdf,
-            contentType: "application/pdf",
-          });
-        } else {
-          attachments.push({
-            filename: `${finalised.invoice_number}-${emitted.format}.xml`,
-            content: Buffer.from(emitted.xml, "utf-8"),
-            contentType: "application/xml",
-          });
-        }
-      }
-    } catch (err: any) {
-      logger.warn(`E-invoice emission failed for invoice ${finalised.id}: ${err.message}`);
-    }
-  }
-
   const result = await sendEmail({
     to: customerEmail,
     cc: opts.cc,
@@ -145,7 +88,6 @@ export async function sendInvoiceEmail(
     text: email.text,
     from: opts.from?.trim() || undefined,
     replyTo: opts.replyTo?.trim() || undefined,
-    attachments,
   });
 
   if (!result.success) {

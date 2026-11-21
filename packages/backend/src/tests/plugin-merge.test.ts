@@ -108,7 +108,7 @@ describe("mergePlugins", () => {
   test("a cloud-only entry this build lacks is blocked as cloud_only", () => {
     const [p] = mergePlugins({
       ...base,
-      catalog: [entry({ id: "peppol", availability: "cloud", requires_feature: "peppol" })],
+      catalog: [entry({ id: "acme-sync", availability: "cloud", requires_feature: "acme-sync" })],
       installed: [],
     });
     expect(p!.installed).toBe(false);
@@ -116,20 +116,20 @@ describe("mergePlugins", () => {
   });
 
   test("an installed plan-gated plugin is blocked only when the resolver denies", () => {
-    const gated = entry({ id: "peppol", availability: "cloud", requires_feature: "peppol" });
+    const gated = entry({ id: "acme-sync", availability: "cloud", requires_feature: "acme-sync" });
     const [denied] = mergePlugins({
       ...base,
       isEntitled: () => false,
       catalog: [gated],
-      installed: [installed("peppol", "1.0.0", false)],
+      installed: [installed("acme-sync", "1.0.0", false)],
     });
     expect(denied!.blockedReason).toBe("requires_feature");
 
     const [allowed] = mergePlugins({
       ...base,
-      isEntitled: (f) => f === "peppol",
+      isEntitled: (f) => f === "acme-sync",
       catalog: [gated],
-      installed: [installed("peppol", "1.0.0", false)],
+      installed: [installed("acme-sync", "1.0.0", false)],
     });
     expect(allowed!.blockedReason).toBeNull();
   });

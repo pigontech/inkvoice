@@ -33,7 +33,7 @@ Voided  Overdue → Paid
 
 The date of supply (Leistungsdatum), which German invoices must state (§ 14 Abs. 4 Nr. 6
 UStG). Enter one date, or switch to **Use a period instead** for a service period. It is
-printed on the invoice PDF and sent in e-invoices (BT-72 for a date, BG-14 for a period). A
+printed on the invoice PDF. A
 credit note keeps the service date of the invoice it corrects; a duplicate starts without one.
 
 ## Line Items

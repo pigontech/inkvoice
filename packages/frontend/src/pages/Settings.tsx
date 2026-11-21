@@ -515,117 +515,6 @@ export default function Settings() {
 
           <Card className="mt-4">
             <CardHeader>
-              <CardTitle className="text-sm">{t("settings.einvoice_section")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <FormField
-                label={t("settings.einvoice_enabled_label")}
-                hint={t("settings.einvoice_enabled_hint")}
-              >
-                <label className="flex items-center gap-2 h-9">
-                  <input
-                    type="checkbox"
-                    checked={settings.einvoice_enabled === "true"}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        einvoice_enabled: e.target.checked ? "true" : "false",
-                      })
-                    }
-                    className="rounded"
-                  />
-                  <span className="text-sm text-muted-foreground">
-                    {t("settings.einvoice_enabled_checkbox")}
-                  </span>
-                </label>
-              </FormField>
-              {settings.einvoice_enabled === "true" && (
-                <div className="space-y-4 mt-2">
-                  <p className="text-xs text-muted-foreground">
-                    {t("settings.einvoice_details_hint")}
-                  </p>
-                  <FormField label={t("settings.einvoice_street")}>
-                    <Input value={settings.company_street || ""} onChange={set("company_street")} />
-                  </FormField>
-                  <div className="grid grid-cols-3 gap-4">
-                    <FormField label={t("settings.einvoice_postal_code")}>
-                      <Input
-                        value={settings.company_postal_code || ""}
-                        onChange={set("company_postal_code")}
-                      />
-                    </FormField>
-                    <div className="col-span-2">
-                      <FormField label={t("settings.einvoice_city")}>
-                        <Input value={settings.company_city || ""} onChange={set("company_city")} />
-                      </FormField>
-                    </div>
-                  </div>
-                  <FormField label={t("settings.einvoice_country")}>
-                    <select
-                      value={settings.company_country || ""}
-                      onChange={(e) =>
-                        setSettings({ ...settings, company_country: e.target.value })
-                      }
-                      className="form-select"
-                    >
-                      <option value="">{t("settings.einvoice_select_country")}</option>
-                      {COUNTRIES.map((c) => (
-                        <option key={c.code} value={c.code}>
-                          {language === "tr" ? c.tr : c.en}
-                        </option>
-                      ))}
-                    </select>
-                  </FormField>
-                  <FormField
-                    label={t("settings.einvoice_tax_number")}
-                    hint={t("settings.einvoice_tax_number_hint")}
-                  >
-                    <Input
-                      value={settings.company_tax_number || ""}
-                      onChange={set("company_tax_number")}
-                      placeholder="12/345/67890"
-                    />
-                  </FormField>
-                  <FormField
-                    label={t("settings.einvoice_format_label")}
-                    hint={t("settings.einvoice_format_hint")}
-                  >
-                    <select
-                      value={settings.einvoice_format || "zugferd"}
-                      onChange={(e) =>
-                        setSettings({ ...settings, einvoice_format: e.target.value })
-                      }
-                      className="form-select"
-                    >
-                      <option value="zugferd">{t("settings.einvoice_format_zugferd")}</option>
-                      <option value="xrechnung">{t("settings.einvoice_format_xrechnung")}</option>
-                    </select>
-                  </FormField>
-                  <FormField label={t("settings.einvoice_kleinunternehmer_label")}>
-                    <label className="flex items-center gap-2 h-9">
-                      <input
-                        type="checkbox"
-                        checked={settings.einvoice_kleinunternehmer === "true"}
-                        onChange={(e) =>
-                          setSettings({
-                            ...settings,
-                            einvoice_kleinunternehmer: e.target.checked ? "true" : "false",
-                          })
-                        }
-                        className="rounded"
-                      />
-                      <span className="text-sm text-muted-foreground">
-                        {t("settings.einvoice_kleinunternehmer_checkbox")}
-                      </span>
-                    </label>
-                  </FormField>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card className="mt-4">
-            <CardHeader>
               <CardTitle className="text-sm">{t("settings.data_backup")}</CardTitle>
             </CardHeader>
             <CardContent>
@@ -838,6 +727,20 @@ export default function Settings() {
                   onChange={set("company_address")}
                   rows={2}
                 />
+              </FormField>
+              <FormField label={t("settings.onboarding_country")}>
+                <select
+                  value={settings.company_country || ""}
+                  onChange={(e) => setSettings({ ...settings, company_country: e.target.value })}
+                  className="form-select"
+                >
+                  <option value="">{t("customers.select_country")}</option>
+                  {COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {language === "tr" ? c.tr : c.en}
+                    </option>
+                  ))}
+                </select>
               </FormField>
               <FormField label={t("settings.tax_id")}>
                 <Input value={settings.company_tax_id || ""} onChange={set("company_tax_id")} />
@@ -1274,24 +1177,6 @@ export default function Settings() {
                     onChange={(e) => setTaxForm({ ...taxForm, description: e.target.value })}
                   />
                 </FormField>
-                {settings.einvoice_enabled === "true" && (
-                  <FormField
-                    label={t("settings.tax_category")}
-                    hint={t("settings.tax_category_hint")}
-                  >
-                    <select
-                      value={taxForm.category_code}
-                      onChange={(e) => setTaxForm({ ...taxForm, category_code: e.target.value })}
-                      className="form-select"
-                    >
-                      {(["S", "Z", "E", "AE", "K", "G", "O"] as const).map((code) => (
-                        <option key={code} value={code}>
-                          {t(`settings.tax_category_${code.toLowerCase()}` as never)}
-                        </option>
-                      ))}
-                    </select>
-                  </FormField>
-                )}
               </div>
               <DialogFooter>
                 <Button onClick={handleSaveTax} disabled={taxLoading || !taxForm.name.trim()}>

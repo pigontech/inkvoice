@@ -27,9 +27,6 @@ const DEMO_SETTINGS: Record<string, string> = {
   company_email: "billing@northwindstudio.com",
   company_phone: "+1-555-0142",
   company_address: "1200 Harbor View Drive\nSuite 300\nSeattle, WA 98101\nUnited States",
-  company_street: "1200 Harbor View Drive, Suite 300",
-  company_city: "Seattle",
-  company_postal_code: "98101",
   company_country: "US",
   company_tax_id: "88-1234567",
   company_bank_details: "Cascade Bank\nAccount: 0042 1188 0031\nSWIFT: CASCUS33",
@@ -176,11 +173,6 @@ export async function seed(): Promise<void> {
       ["pdf_qr_code_enabled", "false"],
       ["pdf_epc_qr_enabled", "false"],
       ["company_country", ""],
-      ["einvoice_format", "zugferd"],
-      ["einvoice_enabled", "false"],
-      ["einvoice_attach_pdf", "true"],
-      ["einvoice_kleinunternehmer", "false"],
-      ["company_peppol_scheme", "0208"],
     ];
     const stmt = db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)");
     for (const [key, value] of defaults) {
@@ -194,11 +186,6 @@ export async function seed(): Promise<void> {
       ["pdf_qr_code_enabled", "false"],
       ["pdf_epc_qr_enabled", "false"],
       ["company_country", ""],
-      ["einvoice_format", "zugferd"],
-      ["einvoice_enabled", "false"],
-      ["einvoice_attach_pdf", "true"],
-      ["einvoice_kleinunternehmer", "false"],
-      ["company_peppol_scheme", "0208"],
       ["quote_number_pattern", "QT-{YYYY}-{SEQ4}"],
       ["credit_note_number_pattern", "CN-{YYYY}-{SEQ4}"],
     ];
@@ -316,8 +303,6 @@ export function seedDemoData(): void {
       phone: "+46-8-1234",
       city: "Stockholm",
       country: "SE",
-      einvoice_receiver_scheme: "0007",
-      einvoice_receiver_id: "5566778899",
     },
     {
       name: "Berlin Consulting GmbH",
@@ -325,8 +310,6 @@ export function seedDemoData(): void {
       phone: "+49-30-5678",
       city: "Berlin",
       country: "DE",
-      einvoice_receiver_scheme: "9930",
-      einvoice_receiver_id: "DE123456789",
     },
     {
       name: "Tokyo Digital Co",
@@ -342,18 +325,9 @@ export function seedDemoData(): void {
     const id = crypto.randomBytes(16).toString("hex");
     customerIds.push(id);
     db.run(
-      `INSERT INTO customers (id, name, email, phone, city, country, einvoice_receiver_scheme, einvoice_receiver_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        c.name,
-        c.email,
-        c.phone,
-        c.city,
-        c.country,
-        c.einvoice_receiver_scheme ?? null,
-        c.einvoice_receiver_id ?? null,
-      ],
+      `INSERT INTO customers (id, name, email, phone, city, country)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, c.name, c.email, c.phone, c.city, c.country],
     );
   }
 

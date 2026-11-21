@@ -29,9 +29,6 @@ import { formatCurrency } from "../utils/currency";
 import { resetEnvCache } from "../utils/env";
 import { minorUnits, roundMoney } from "../utils/money";
 import { calculateInvoiceTotals, calculateLineItemTaxInclusive } from "../utils/tax-calculator";
-import { buildXmlInvoiceData } from "../xml/build-data";
-import { getProfile, listProfiles } from "../xml/profile-registry";
-import "../xml/init";
 
 const dir = mkdtempSync(join(tmpdir(), "inkvoice-tnd-"));
 let customerId: string;
@@ -175,9 +172,6 @@ test("instalments reconcile to the last millime", () => {
 
 test("structured exports and online gateways reject TND before external work", async () => {
   const inv = draft();
-  const xmlData = buildXmlInvoiceData(inv.id);
-  for (const profile of listProfiles())
-    expect(() => getProfile(profile.id)!.generateXml(xmlData)).toThrow("TND");
   expect(() =>
     buildCsv([{ amount: 1.234, currency: "TND" } as any], getPaymentLayout("xero").columns),
   ).toThrow("TND");

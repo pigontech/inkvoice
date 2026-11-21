@@ -1,4 +1,3 @@
-import type { EinvoiceIssue } from "@/lib/einvoice-issues";
 import type {
   AccountInput,
   Bank,
@@ -260,138 +259,6 @@ export const api = {
     }),
   getNextInvoiceNumber: () =>
     request<{ success: boolean; data: { number: string } }>("/invoices/next-number"),
-  listXmlProfiles: () =>
-    request<{ success: boolean; data: { id: string; name: string }[] }>("/invoices/xml-profiles"),
-  downloadXml: (id: string, profileId: string) => `${API_BASE}/invoices/${id}/xml/${profileId}`,
-  emitEinvoice: (id: string) =>
-    request<{ success: boolean; data: any }>(`/invoices/${id}/einvoice/emit`, { method: "POST" }),
-  checkEinvoice: (id: string) =>
-    request<{
-      success: boolean;
-      data: { format: string; file: "pdf" | "xml" | null; issues: EinvoiceIssue[] };
-    }>(`/invoices/${id}/einvoice/check`),
-  listEinvoiceRecords: (id: string) =>
-    request<{ success: boolean; data: any[] }>(`/invoices/${id}/einvoices`),
-  downloadEinvoiceXml: (id: string, recordId: string) =>
-    `${API_BASE}/invoices/${id}/einvoices/${recordId}/xml`,
-  downloadEinvoicePdf: (id: string, recordId: string) =>
-    `${API_BASE}/invoices/${id}/einvoices/${recordId}/pdf`,
-  deleteEinvoiceRecord: (id: string, recordId: string) =>
-    request<{ success: boolean }>(`/invoices/${id}/einvoices/${recordId}`, { method: "DELETE" }),
-  listEinvoiceInbox: (status?: string) =>
-    request<{ success: boolean; data: any[] }>(
-      `/einvoices/inbox${status ? `?status=${status}` : ""}`,
-    ),
-  importEinvoiceFile: (file: File) => {
-    const form = new FormData();
-    form.append("file", file);
-    return request<{ success: boolean; data: { id: string; duplicate: boolean } }>(
-      "/einvoices/inbox/import",
-      { method: "POST", body: form },
-    );
-  },
-  setEinvoiceInboxStatus: (id: string, status: string) =>
-    request<{ success: boolean }>(`/einvoices/inbox/${id}/status`, {
-      method: "POST",
-      body: JSON.stringify({ status }),
-    }),
-  linkEinvoiceInbox: (id: string, customerId: string | null) =>
-    request<{ success: boolean }>(`/einvoices/inbox/${id}/link`, {
-      method: "POST",
-      body: JSON.stringify({ customer_id: customerId }),
-    }),
-  downloadEinvoiceInboxRaw: (id: string) => `${API_BASE}/einvoices/inbox/${id}/raw`,
-  transmitEinvoice: (invoiceId: string) =>
-    request<{ success: boolean; data: { transmission_id: string } }>(
-      `/einvoices/${invoiceId}/transmit`,
-      { method: "POST" },
-    ),
-  listEinvoiceTransmissions: (invoiceId: string) =>
-    request<{
-      success: boolean;
-      data: {
-        transmissions: Array<{
-          id: string;
-          transport_id: string;
-          document_type: string;
-          status: "queued" | "sending" | "sent" | "delivered" | "rejected" | "failed";
-          status_detail: string | null;
-          provider_message_id: string | null;
-          attempt_count: number;
-          created_at: string;
-          sent_at: string | null;
-          delivered_at: string | null;
-        }>;
-        attempts: Record<
-          string,
-          Array<{
-            id: string;
-            attempt_number: number;
-            status_code: number | null;
-            error_message: string | null;
-            response_body: string | null;
-            created_at: string;
-          }>
-        >;
-      };
-    }>(`/einvoices/${invoiceId}/transmissions`),
-  retryEinvoiceTransmission: (transmissionId: string) =>
-    request<{ success: boolean }>(`/einvoices/transmissions/${transmissionId}/retry`, {
-      method: "POST",
-    }),
-  cancelEinvoiceTransmission: (transmissionId: string) =>
-    request<{ success: boolean }>(`/einvoices/transmissions/${transmissionId}/cancel`, {
-      method: "POST",
-    }),
-  getPeppolParticipant: () =>
-    request<{ success: boolean; data: any }>("/einvoices/peppol/participant"),
-  registerPeppolParticipant: (data: {
-    scheme: string;
-    identifier: string;
-    legal_name: string;
-    country_code: string;
-    contact_email: string;
-  }) =>
-    request<{ success: boolean; data: any }>("/einvoices/peppol/participant", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
-  refreshPeppolParticipant: () =>
-    request<{ success: boolean; data: any }>("/einvoices/peppol/participant/refresh", {
-      method: "POST",
-    }),
-  deregisterPeppolParticipant: () =>
-    request<{ success: boolean }>("/einvoices/peppol/participant", { method: "DELETE" }),
-  lookupPeppolParticipant: (scheme: string, identifier: string, customerId?: string) =>
-    request<{
-      success: boolean;
-      data: {
-        exists: boolean;
-        documentTypes: string[];
-        accessPointName: string | null;
-        servedElsewhere: boolean;
-      };
-    }>("/einvoices/peppol/lookup", {
-      method: "POST",
-      body: JSON.stringify({
-        scheme,
-        identifier,
-        ...(customerId ? { customer_id: customerId } : {}),
-      }),
-    }),
-  franceLookup: (siren: string, customerId?: string) =>
-    request<{ success: boolean; data: { exists: boolean; documentTypes: string[] } }>(
-      "/einvoices/france/lookup",
-      {
-        method: "POST",
-        body: JSON.stringify({ siren, ...(customerId ? { customer_id: customerId } : {}) }),
-      },
-    ),
-  listPeppolTransports: () =>
-    request<{
-      success: boolean;
-      data: Array<{ id: string; label: string; networks: string[]; configured: boolean }>;
-    }>("/einvoices/peppol/transports"),
   createCreditNote: (id: string) =>
     request<{ success: boolean; data: any }>(`/invoices/${id}/credit-note`, { method: "POST" }),
   listCreditNotes: (id: string) =>
@@ -414,7 +281,6 @@ export const api = {
       message?: string;
       from?: string;
       reply_to?: string;
-      attach_einvoice?: boolean;
     },
   ) =>
     request<{ success: boolean; data: any }>(`/invoices/${id}/send`, {
@@ -545,12 +411,12 @@ export const api = {
       body: JSON.stringify(data),
     }),
   updateProductCategory: (id: string, data: { name: string }) =>
-    request<{ success: boolean; data: any }>("/products/categories/" + id, {
+    request<{ success: boolean; data: any }>(`/products/categories/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
   deleteProductCategory: (id: string) =>
-    request("/products/categories/" + id, { method: "DELETE" }),
+    request(`/products/categories/${id}`, { method: "DELETE" }),
   listProductUnits: () => request<{ success: boolean; data: any }>("/products/units"),
   createProductUnit: (data: { name: string; symbol?: string }) =>
     request<{ success: boolean; data: any }>("/products/units", {
@@ -558,11 +424,11 @@ export const api = {
       body: JSON.stringify(data),
     }),
   updateProductUnit: (id: string, data: { name: string; symbol?: string }) =>
-    request<{ success: boolean; data: any }>("/products/units/" + id, {
+    request<{ success: boolean; data: any }>(`/products/units/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
-  deleteProductUnit: (id: string) => request("/products/units/" + id, { method: "DELETE" }),
+  deleteProductUnit: (id: string) => request(`/products/units/${id}`, { method: "DELETE" }),
 
   // Tax Definitions
   listTaxDefinitions: () => request<{ success: boolean; data: any }>("/tax-definitions"),

@@ -33,9 +33,6 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       SMTP_FROM: ${SMTP_FROM:-}
       SMTP_SECURE: ${SMTP_SECURE:-false}
-      PEPPOL_SH_API_KEY: ${PEPPOL_SH_API_KEY:-}
-      PEPPOL_SH_WEBHOOK_SECRET: ${PEPPOL_SH_WEBHOOK_SECRET:-}
-      PEPPOL_SH_BASE_URL: ${PEPPOL_SH_BASE_URL:-https://api.peppol.sh}
     restart: unless-stopped
     # Bun sizes its heap to the memory it can see - keep this cap.
     mem_limit: 512m

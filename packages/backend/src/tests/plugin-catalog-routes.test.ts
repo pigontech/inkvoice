@@ -97,7 +97,7 @@ describe("GET /api/v1/plugins/catalog", () => {
   // Composition-proof: the id below is registered by nothing, in OSS or in any
   // overlay, so this asserts the route's cloud_only branch without depending on
   // which plugins the running build happens to ship. The previous version read
-  // the snapshot's real peppol entry and had to disable itself whenever an
+  // the snapshot's real cloud-only entry and had to disable itself whenever an
   // overlay registered it, which meant the assertion silently stopped running
   // in exactly the build most likely to break it.
   test("shows a cloud-only plugin this build does not ship as blocked", async () => {

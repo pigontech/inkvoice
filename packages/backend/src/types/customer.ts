@@ -11,19 +11,6 @@ export interface Customer {
   country: string | null;
   tax_id: string | null;
   /** German Steuernummer (tax number; not the USt-IdNr). */
-  tax_number: string | null;
-  /** Per-customer e-invoice format override (zugferd | xrechnung | peppol | auto). */
-  einvoice_format: string | null;
-  /** German Leitweg-ID for B2G e-invoices (schemeID "0204"). */
-  leitweg_id: string | null;
-  /** PEPPOL/e-invoice receiver endpoint id. */
-  einvoice_receiver_id: string | null;
-  /** PEPPOL/e-invoice receiver scheme (e.g. 0208 for EORI/GLN). */
-  einvoice_receiver_scheme: string | null;
-  /** French SIREN (9 digits), used for e-invoice delivery on the Annuaire. */
-  siren: string | null;
-  /** French SIRET (14 digits), optional establishment id. */
-  siret: string | null;
   notes: string | null;
   /** BCP 47 tag (e.g. "en-US", "tr-TR"); when set, PDFs render in this locale. */
   language: string | null;

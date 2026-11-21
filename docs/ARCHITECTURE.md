@@ -34,7 +34,6 @@ inkvoice/
 │   │       ├── database/         # connection singleton + migrations + seed
 │   │       ├── utils/            # pure helpers (tax math, CSV, ZIP, JWT, …)
 │   │       ├── types/            # Shared TS types (Invoice, Customer, …)
-│   │       ├── xml/              # e-invoice XML profiles (UBL, Peppol, …)
 │   │       └── tests/            # bun:test integration tests
 │   └── frontend/                 # React SPA
 │       └── src/
@@ -86,7 +85,6 @@ Anything that isn't an API route falls through to the SPA fallback (`index.html`
 | A new shared component                                 | `components/shared/` (cross-domain) or `components/<domain>/`. |
 | New user-facing strings                                | **Both** `i18n/en.ts` (source of truth) and `i18n/tr.ts`. |
 | A new bundled template                                 | A folder under `templates/` with `template.html`, `style.css`, `manifest.json`. |
-| A new e-invoice profile                                | A module under `packages/backend/src/xml/profiles/`, registered from `xml/init.ts`. |
 
 ## Conventions worth knowing
 

@@ -251,7 +251,6 @@ export default function InvoiceForm({ onSave }: Props) {
   const [customers, setCustomers] = useState<any[]>([]);
   const [customersLoading, setCustomersLoading] = useState(false);
   const [availableCredit, setAvailableCredit] = useState<number>(0);
-  const [peppolUnreachable, setPeppolUnreachable] = useState(false);
   const [editLoaded, setEditLoaded] = useState(false);
   // Customer id to auto-select once the list contains it — set when returning
   // from the customer-create page via "Add customer" (see handleAddCustomer).
@@ -680,11 +679,9 @@ export default function InvoiceForm({ onSave }: Props) {
     if (customerId) {
       api.getCustomer(customerId).then((r) => {
         setAvailableCredit(Math.max(0, Number(r.data.available_credit) || 0));
-        setPeppolUnreachable(r.data.einvoice_receiver_id && r.data.peppol_reachable === 0);
       });
     } else {
       setAvailableCredit(0);
-      setPeppolUnreachable(false);
     }
   };
 
@@ -847,12 +844,6 @@ export default function InvoiceForm({ onSave }: Props) {
                 {t("record_payment.available_credit", {
                   amount: formatCurrency(availableCredit, form.currency),
                 })}
-              </div>
-            )}
-            {peppolUnreachable && (
-              <div className="md:col-span-2 flex items-center gap-2 text-sm rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-amber-700 dark:text-amber-400">
-                <Info className="h-4 w-4 shrink-0" />
-                {t("peppol.invoice_form_unreachable")}
               </div>
             )}
             <FormField label={t("invoices.customer")} error={errors.customer_id} required>

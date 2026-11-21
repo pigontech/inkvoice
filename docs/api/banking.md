@@ -28,7 +28,7 @@ Reading directories requires `invoices:read`; writes require `settings:update`. 
 
 Invoice create/update accepts optional `bank_account_id`. Creation without it selects the active matching-currency default, if any; otherwise it retains the legacy company-settings behavior. An explicit null selects no banking instructions. Omitting the field on an update preserves selection. Archived or mismatched-currency selections are rejected.
 
-Only drafts can change selection. Issuance captures payment instructions in the same transaction as assigning the invoice number and marking it sent. `payment_details` on invoice detail responses, HTML/PDF output, and applicable XML/QR payment instructions read that snapshot after issuance. Updating a bank/account does not rewrite issued documents. New, duplicated, consolidated, and recurring-generated invoices resolve the matching-currency default.
+Only drafts can change selection. Issuance captures payment instructions in the same transaction as assigning the invoice number and marking it sent. `payment_details` on invoice detail responses, HTML/PDF output, and applicable QR payment instructions read that snapshot after issuance. Updating a bank/account does not rewrite issued documents. New, duplicated, consolidated, and recurring-generated invoices resolve the matching-currency default.
 
 Migration imports usable structured company banking settings into an initial account. Existing issued invoices preserve the legacy instructions available at migration time; historical settings overwritten before migration cannot be reconstructed. Legacy settings remain available for quotes and compatibility. Quotes have no new account-selection or contact-sharing behavior.
 
@@ -46,7 +46,6 @@ Customer email, with explicit CC and separate private copies:
     { "contact_id": "bank-manager-id", "mode": "cc" },
     { "contact_id": "accountant-id", "mode": "private" }
   ],
-  "attach_einvoice": true,
   "message": "Please include this invoice in this month's accounts."
 }
 ```

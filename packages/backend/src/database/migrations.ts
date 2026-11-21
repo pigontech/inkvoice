@@ -1188,6 +1188,46 @@ const MIGRATIONS: Migration[] = [
       addColumnIfMissing(db, "invoices", "service_period_end", "TEXT");
     },
   },
+  {
+    version: 38,
+    name: "drop_einvoicing",
+    up: (db) => {
+      // E-invoicing (XRechnung/ZUGFeRD/PEPPOL/France) was removed. Drop the
+      // schema versions 18, 24 and 25 added, and its settings rows.
+      // Children first: einvoice_transmissions references einvoice_documents.
+      db.exec(`
+        DROP TABLE IF EXISTS einvoice_transmission_attempts;
+        DROP TABLE IF EXISTS einvoice_transmissions;
+        DROP TABLE IF EXISTS einvoice_webhook_events;
+        DROP TABLE IF EXISTS peppol_participants;
+        DROP TABLE IF EXISTS einvoice_inbox;
+        DROP TABLE IF EXISTS einvoice_documents;
+      `);
+      for (const column of [
+        "einvoice_format",
+        "leitweg_id",
+        "einvoice_receiver_id",
+        "einvoice_receiver_scheme",
+        "tax_number",
+        "peppol_checked_at",
+        "peppol_reachable",
+        "siren",
+        "siret",
+        "france_checked_at",
+        "france_reachable",
+      ]) {
+        dropColumnIfExists(db, "customers", column);
+      }
+      db.run(
+        `DELETE FROM settings WHERE key LIKE 'einvoice\\_%' ESCAPE '\\'
+           OR key LIKE 'peppol\\_%' ESCAPE '\\'
+           OR key LIKE 'france\\_%' ESCAPE '\\'
+           OR key IN ('company_peppol_id', 'company_peppol_scheme', 'default_xml_profile',
+                      'pdf_embed_xml', 'company_street', 'company_city',
+                      'company_postal_code', 'company_tax_number')`,
+      );
+    },
+  },
 ];
 
 export const LATEST_MIGRATION_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
@@ -1198,6 +1238,15 @@ function addColumnIfMissing(db: Database, table: string, column: string, ddl: st
     .get(table, column) as { cnt: number };
   if (!has.cnt) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+  }
+}
+
+function dropColumnIfExists(db: Database, table: string, column: string): void {
+  const has = db
+    .query(`SELECT COUNT(*) as cnt FROM pragma_table_info(?) WHERE name = ?`)
+    .get(table, column) as { cnt: number };
+  if (has.cnt) {
+    db.exec(`ALTER TABLE ${table} DROP COLUMN ${column}`);
   }
 }
 

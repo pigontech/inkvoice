@@ -79,7 +79,6 @@ const fr: TranslationKeys = {
     recurring: "Récurrences",
     customers: "Clients",
     products: "Produits",
-    einvoices: "E-Rechnungen",
     expenses: "Dépenses",
     reports: "Rapports",
 
@@ -410,32 +409,6 @@ const fr: TranslationKeys = {
     default_currency: "Devise par défaut",
     default_currency_hint: "Pré-remplit la devise des nouvelles factures pour ce client",
     default_currency_inherit: "Valeur par défaut de l'entreprise",
-    einvoice_section: "Facture électronique (E-Rechnung)",
-    einvoice_format: "Format de facture électronique",
-    einvoice_format_hint:
-      "Format utilisé lors de l'émission d'une facture électronique pour ce client (Leitweg-ID force XRechnung).",
-    einvoice_format_inherit: "Utiliser la valeur par défaut de l'entreprise",
-    tax_number: "Numéro fiscal (Steuernummer)",
-    tax_number_hint: "Numéro fiscal du client allemand, p. ex. 12/345/67890",
-    leitweg_id: "Leitweg-ID",
-    leitweg_id_hint:
-      "Identifiant officiel pour les clients du secteur public (B2G) ; active XRechnung automatiquement",
-    einvoice_receiver_id: "ID du destinataire",
-    einvoice_receiver_id_hint:
-      "Identifiant du destinataire de la facture électronique (XRechnung/PEPPOL)",
-    einvoice_receiver_scheme: "Schéma du destinataire",
-    einvoice_receiver_scheme_hint: "p. ex. DE:VAT, 0204 (schéma Leitweg-ID)",
-    siren: "SIREN (France)",
-    siren_hint:
-      "Numéro d'immatriculation français à 9 chiffres, utilisé pour la livraison de factures électroniques.",
-    siret: "SIRET (France, facultatif)",
-    siret_hint:
-      "Numéro d'établissement à 14 chiffres. Uniquement requis si l'acheteur vise un site précis.",
-    france_check: "Vérifier sur l'Annuaire",
-    france_reachable: "Inscrit à la facturation électronique française.",
-    france_unreachable: "Introuvable sur l'Annuaire. Vérifiez le SIREN.",
-    france_checked_at: "Dernière vérification : {{date}}",
-    france_check_error: "Impossible de vérifier sur l'Annuaire. Réessayez.",
     notes_placeholder: "Notes internes sur ce client...",
     customer_created: "Client créé",
     customer_updated: "Client mis à jour",
@@ -517,119 +490,6 @@ const fr: TranslationKeys = {
   },
 
   // Dépenses
-  einvoice: {
-    title: "Factures électroniques (E-Rechnung)",
-    emit: "Générer",
-    emit_success: "Facture électronique générée ({{format}})",
-    emit_with_issues:
-      "Facture électronique générée avec {{count}} erreur(s) de validation. Vérifiez les paramètres de l’entreprise.",
-    issues_title: "À vérifier avant d’envoyer cette facture électronique :",
-    issue: {
-      invoice_number: "Le numéro de facture est obligatoire.",
-      issue_date: "La date de facture est obligatoire.",
-      seller_name: "Le nom de votre entreprise est obligatoire.",
-      buyer_name: "Le nom du client est obligatoire.",
-      seller_address: "Votre adresse est obligatoire (rue, ville).",
-      buyer_address: "L’adresse du client est obligatoire.",
-      seller_vat_id:
-        "Il manque votre USt-IdNr (numéro de TVA allemand), recommandé pour les factures allemandes.",
-      seller_vat_format:
-        "L’USt-IdNr « {{vat_id}} » n’est pas un numéro de TVA allemand valide (format attendu : DE123456789).",
-      seller_tax_number_format:
-        "La Steuernummer « {{tax_number}} » ne ressemble pas à un numéro fiscal allemand (p. ex. 12/345/67890).",
-      buyer_vat_id:
-        "Le client est établi hors d’Allemagne ({{country}}) ; pour une livraison intracommunautaire B2B, son numéro de TVA est obligatoire (autoliquidation, TVA à 0 %).",
-      buyer_vat_id_de:
-        "Il manque l’USt-IdNr du client (elle aide le destinataire à traiter la facture électronique).",
-      buyer_siren_fr:
-        "Il manque le SIREN du client (obligatoire pour transmettre des factures électroniques aux entreprises françaises).",
-      kleinunternehmer_vat:
-        "Votre entreprise est déclarée Kleinunternehmer (§ 19 UStG), mais la facture comporte de la TVA.",
-      franchise_fr_vat:
-        "Votre entreprise est en franchise en base de TVA (art. 293 B du CGI), mais la facture comporte de la TVA.",
-      reverse_charge_vat:
-        "Une facture en autoliquidation ne doit pas facturer de TVA (utilisez le taux de 0 %).",
-      tax_category:
-        "La catégorie de TVA « {{category}} » n’est pas une catégorie EN 16931 valide (utilisez S, AA, Z, E, AE, …).",
-      monetary_subtotal:
-        "La base imposable des lignes ne correspond pas au sous-total du document.",
-      monetary_tax:
-        "La ventilation de la TVA ({{breakdown}}) ne correspond pas au total de TVA du document ({{tax_total}}).",
-      monetary_total:
-        "Le total ({{total}}) n’est pas égal à la base imposable plus la TVA ({{expected}}).",
-      currency: "La devise de la facture est obligatoire.",
-      seller_country: "Votre pays est obligatoire (Paramètres → Facture électronique). [BR-9]",
-      buyer_country: "Le pays du client est obligatoire. [BR-11]",
-      seller_tax_registration:
-        "Ajoutez votre USt-IdNr ou votre Steuernummer (Paramètres). [BR-S-02, BR-E-02, BR-CO-26]",
-      payment_due:
-        "Indiquez une date d’échéance ou des conditions de paiement sur la facture. [BR-CO-25]",
-      payment_iban:
-        "Aucun IBAN dans les Paramètres : la facture électronique ne contient donc pas de coordonnées bancaires pour le virement.",
-      reverse_charge_vat_ids:
-        "L’autoliquidation exige votre USt-IdNr et le numéro de TVA du client. [BR-AE-02]",
-      intra_community_vat_ids:
-        "Une livraison intracommunautaire (catégorie K) exige votre USt-IdNr et le numéro de TVA du client. [BR-IC-02]",
-      not_subject_mixed:
-        "Des lignes hors champ de la TVA (catégorie O) ne peuvent pas figurer sur une facture avec d’autres catégories de TVA. Facturez-les séparément. [BR-O-11]",
-      not_subject_tax_number:
-        "Une facture hors champ de la TVA (catégorie O) ne peut pas porter votre USt-IdNr ; elle doit donc indiquer votre Steuernummer (Paramètres). [BR-O-02, BR-CO-26]",
-      intra_community_delivery:
-        "Une livraison intracommunautaire (catégorie K) exige une date ou une période de prestation. L’adresse du client est transmise comme adresse de livraison. [BR-IC-11]",
-      en16931_totals:
-        "Les totaux enregistrés ne sont pas cohérents avec EN 16931 (TVA sur le montant remisé). Ouvrez la facture et enregistrez-la à nouveau pour les recalculer.",
-      xr_seller_city_postcode:
-        "XRechnung exige votre code postal et votre ville (Paramètres → Facture électronique). [BR-DE-3, BR-DE-4]",
-      xr_seller_phone: "XRechnung exige votre numéro de téléphone (Paramètres). [BR-DE-6]",
-      xr_seller_email: "XRechnung exige votre adresse e-mail (Paramètres). [BR-DE-7]",
-      xr_buyer_city_postcode:
-        "XRechnung exige le code postal et la ville du client. [BR-DE-8, BR-DE-9]",
-      xr_buyer_address:
-        "XRechnung exige la Leitweg-ID ou l’adresse e-mail du client. [PEPPOL-EN16931-R010]",
-    },
-    draft_hint:
-      "Marquez d’abord la facture comme envoyée (ou envoyez-la) : la facture électronique a besoin de son numéro définitif.",
-    loading: "Chargement…",
-    no_records: "Aucune facture électronique n’a encore été générée pour cette facture.",
-    format: "Format",
-    emitted_at: "Générée le",
-    download: "Télécharger",
-    download_xml: "Télécharger le XML",
-    download_pdf: "Télécharger le PDF hybride (ZUGFeRD)",
-    delete_record: "Supprimer l’enregistrement de facture électronique",
-    delete_record_desc:
-      "Supprime le XML/PDF enregistré pour cette révision. Les factures générées doivent normalement être conservées pour l’archivage fiscal (8 ans, §147 AO).",
-    record_deleted: "Enregistrement de facture électronique supprimé",
-    inbox_title: "Inbox (incoming e-invoices)",
-    import: "Import",
-    tab_all: "All",
-    tab_inbox: "Inbox",
-    tab_processed: "Processed",
-    tab_archived: "Archived",
-    inbox_empty: "No documents in the inbox. Import XRechnung or ZUGFeRD files (XML or PDF) here.",
-    inbox_imported: "E-invoice imported and parsed",
-    inbox_duplicate: "File already exists in the inbox (duplicate)",
-    document_number: "Document no.",
-    supplier: "Supplier",
-    issue_date: "Issue date",
-    total: "Total",
-    parse_status: "Parse status",
-    parsed_ok: "OK",
-    parsed_error: "Error",
-    parsed_pending: "Pending",
-    download_raw: "Download raw file",
-    link_customer: "Link to customer",
-    link_prompt: "Customer ID (leave empty to unlink):",
-    link_success: "Inbox item linked",
-    archive: "Archive",
-    restore: "Restore to inbox",
-    mark_processed: "Processed",
-    actions: "Actions",
-    source: "Source",
-    source_peppol: "PEPPOL",
-    source_qonto: "Qonto (France)",
-    source_upload: "Upload",
-  },
   expenses: {
     title: "Dépenses",
     add_expense: "Ajouter une dépense",
@@ -931,7 +791,6 @@ const fr: TranslationKeys = {
     tab_payments: "Paiements",
     tab_reminders: "Rappels",
     tab_products: "Produits",
-    tab_peppol: "PEPPOL",
     tab_templates: "Modèles",
     tab_api: "API",
     preferences: "Préférences",
@@ -983,37 +842,6 @@ const fr: TranslationKeys = {
     email_template_variables:
       "Variables : {{customer_name}}, {{company_name}}, {{invoice_number}}, {{total}}, {{currency}}, {{due_date}}, {{public_url}}, {{custom_message}}",
     data_backup: "Données et sauvegarde",
-    einvoice_section: "Facture électronique (E-Rechnung)",
-    einvoice_enabled_label: "Module facture électronique",
-    einvoice_enabled_hint:
-      "Affiche le panneau E-Rechnung sur les factures, la boîte de réception des factures électroniques dans la barre latérale et les champs de facture électronique du client. Requis uniquement pour la facturation électronique allemande (ZUGFeRD/XRechnung/PEPPOL).",
-    einvoice_enabled_checkbox: "Activer le module facture électronique",
-    einvoice_details_hint:
-      "Les factures électroniques exigent votre adresse en champs séparés et un identifiant fiscal. Renseignez-les une fois ; ils servent pour chaque facture électronique.",
-    einvoice_street: "Rue et numéro",
-    einvoice_postal_code: "Code postal",
-    einvoice_city: "Ville",
-    einvoice_country: "Pays",
-    einvoice_select_country: "Choisir un pays",
-    einvoice_tax_number: "Numéro fiscal (Steuernummer)",
-    einvoice_tax_number_hint:
-      "Fourni par votre centre des impôts. Nécessaire sans numéro de TVA (USt-IdNr).",
-    einvoice_format_label: "Format par défaut",
-    einvoice_format_hint:
-      "Les clients avec un Leitweg-ID reçoivent toujours une XRechnung. Le format peut être changé par client.",
-    einvoice_format_zugferd: "ZUGFeRD (PDF avec XML intégré)",
-    einvoice_format_xrechnung: "XRechnung (XML)",
-    einvoice_kleinunternehmer_label: "Petite entreprise (§ 19 UStG)",
-    einvoice_kleinunternehmer_checkbox: "Je suis Kleinunternehmer et ne facture pas de TVA",
-    tax_category: "Catégorie de TVA (facture électronique)",
-    tax_category_hint: "Obligatoire dans les factures électroniques. Utilisez S pour 19 % et 7 %.",
-    tax_category_s: "Taux normal ou réduit (S)",
-    tax_category_z: "Taux zéro (Z)",
-    tax_category_e: "Exonéré de TVA (E)",
-    tax_category_ae: "Autoliquidation (AE)",
-    tax_category_k: "Livraison intracommunautaire (K)",
-    tax_category_g: "Exportation hors UE (G)",
-    tax_category_o: "Non soumis à la TVA (O)",
 
     backup_description:
       "Téléchargez une sauvegarde complète de vos données. Le JSON est lisible et facile à inspecter ; le SQLite est un instantané octet par octet restaurable en remplaçant le fichier de base de données actif.",
@@ -1438,17 +1266,6 @@ const fr: TranslationKeys = {
     from_hint: "Remplace l'adresse de l'expéditeur (par défaut, le paramètre SMTP)",
     reply_to: "Répondre à",
     reply_to_hint: "Où doivent arriver les réponses des clients",
-    attach_einvoice: "Joindre la facture électronique ({{format}})",
-    attach_einvoice_hint: "Si la case est cochée, ce fichier est joint à l’e-mail",
-    einvoice_file: {
-      zugferd_pdf: "PDF hybride ZUGFeRD",
-      zugferd_xml: "XML ZUGFeRD",
-      xrechnung_xml: "XML XRechnung",
-      peppol_xml: "XML PEPPOL BIS",
-    },
-    einvoice_errors_title: "La facture électronique contient des erreurs",
-    einvoice_errors_hint:
-      "Votre client recevrait une facture électronique qui ne passe pas la validation. Corrigez d'abord ces erreurs ou décochez la case pour envoyer l'e-mail sans elle.",
   },
 
   // Boîte de dialogue d'enregistrement de paiement
@@ -1755,93 +1572,6 @@ const fr: TranslationKeys = {
     filter_placeholder: "Filtrer par étiquettes",
     remove: "Retirer l'étiquette {{tag}}",
     save_error: "Impossible d'enregistrer les étiquettes",
-  },
-
-  // PEPPOL network transport
-  peppol: {
-    transmission_panel: "Livraison {{network}}",
-    send_via_network: "Envoyer via {{network}}",
-    send_via_peppol: "Envoyer via PEPPOL",
-    no_transmissions: "Rien n'a encore été envoyé via {{network}}.",
-    transmit_queued: "Transmission mise en file. Elle sera envoyée sous peu.",
-    status_queued: "En file",
-    status_sending: "Envoi en cours",
-    status_sent: "Envoyé au réseau",
-    status_delivered: "Livré",
-    status_rejected: "Rejeté",
-    status_failed: "Échec",
-    created_at: "Créé",
-    sent_at: "Envoyé",
-    delivered_at: "Livré",
-    attempts: "{{count}} tentative(s)",
-    retry: "Réessayer",
-    cancel: "Annuler",
-    retry_scheduled: "Transmission remise en file pour nouvel essai.",
-    cancel_done: "Transmission annulée.",
-    attempt_history: "Historique des tentatives",
-    provider_message_id: "ID de message du fournisseur",
-    test_environment_banner:
-      "Environnement de TEST : les documents ne sont PAS envoyés sur le réseau PEPPOL réel.",
-    master_toggle_title: "Réseau PEPPOL",
-    master_toggle: "Activer le transport PEPPOL",
-    master_toggle_hint:
-      "Envoyez des factures électroniques via le réseau PEPPOL et recevez automatiquement les documents entrants.",
-    master_toggle_label: "Activer le module PEPPOL",
-    connection_title: "Connexion",
-    transport_label: "Fournisseur de transport",
-    transport_hint: "Le pilote qui transporte les documents vers le réseau.",
-    credentials_status: "Identifiants",
-    credentials_configured: "Configurés",
-    credentials_missing:
-      "Non configurés (ajoutez les clés du fournisseur via les variables d'environnement)",
-    environment_label: "Environnement",
-    environment_hint: "Passer en test évite les envois réels accidentels.",
-    environment_test: "Test",
-    environment_live: "Production",
-    sender_title: "Identité de l'émetteur",
-    sender_scheme: "Schéma émetteur (EAS)",
-    sender_scheme_hint: "Code de schéma EAS identifiant votre entreprise.",
-    sender_scheme_suggested: "Recommandé pour votre pays : {{scheme}}",
-    sender_id: "Identifiant émetteur",
-    sender_id_hint: "Votre identifiant de participant PEPPOL sous le schéma ci-dessus.",
-    auto_send: "Envoi automatique",
-    auto_send_hint:
-      "Transmettre automatiquement lorsqu'une facture est envoyée et que le destinataire est joignable.",
-    receiver_title: "Recevoir des factures",
-    receiver_hint:
-      "Enregistrez votre entreprise comme destinataire PEPPOL. L'enregistrement est d'abord vérifié sur le réseau ; une entreprise déjà servie par un autre point d'accès n'est jamais reprise.",
-    register_button: "Vérifier et enregistrer",
-    registration_incomplete: "Renseignez d'abord schéma, identifiant, nom légal et pays.",
-    registration_started: "Enregistrement démarré.",
-    registration_kyc_pending: "Enregistrement créé — terminez la vérification chez le fournisseur.",
-    registration_conflict: "Cette entreprise est déjà enregistrée auprès d'un autre point d'accès.",
-    registration_active: "Enregistrement actif — réception des factures.",
-    refresh_status: "Actualiser le statut",
-    deregister: "Désinscrire",
-    deregister_confirm: "Désinscrire ce participant ? Les factures entrantes seront interrompues.",
-    deregistered: "Participant désinscrit.",
-    participant_status_kyc_pending: "Vérification en attente",
-    participant_status_active: "Actif",
-    participant_status_conflict: "Conflit",
-    participant_status_rejected: "Rejeté",
-    participant_status_suspended: "Suspendu",
-    participant_status_deregistered: "Désinscrit",
-    kyc_action_url: "Terminer la vérification chez le fournisseur",
-    conflict_explainer:
-      "Cette entreprise reçoit déjà des documents PEPPOL via un autre point d'accès. Conservez cette configuration et utilisez Inkvoice uniquement pour l'envoi, ou contactez le prestataire actuel pour vous désinscrire puis réessayez ici. Inkvoice ne reprend jamais le participant d'un autre point d'accès.",
-    receiver_scheme: "Schéma d'entreprise (EAS)",
-    receiver_identifier: "Identifiant d'entreprise",
-    receiver_legal_name: "Nom légal",
-    receiver_country: "Code pays",
-    receiver_contact_email: "E-mail de contact",
-    receiver_contact_hint: "Utilisé par le fournisseur pour la vérification KYC.",
-    check_button: "Vérifier PEPPOL",
-    lookup_reachable: "Joignable sur PEPPOL (accepte : {{types}})",
-    lookup_unreachable: "Introuvable sur le réseau PEPPOL.",
-    lookup_conflict: "Déjà enregistré auprès d'un autre point d'accès.",
-    lookup_conflict_with: "Déjà enregistré auprès de {{name}}.",
-    invoice_form_unreachable:
-      "Ce client n'est pas joignable sur le réseau PEPPOL. Vérifiez son identifiant de destinataire.",
   },
 };
 

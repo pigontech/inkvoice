@@ -182,89 +182,6 @@ describe("schema migration runner", () => {
     expect(after.c).toBe(LATEST_MIGRATION_VERSION);
   });
 
-  test("version 24 creates the PEPPOL transport tables and inbox columns", () => {
-    runWith(db, () => runMigrations());
-
-    const tables = [
-      "einvoice_transmissions",
-      "einvoice_transmission_attempts",
-      "peppol_participants",
-      "einvoice_webhook_events",
-    ];
-    for (const name of tables) {
-      const row = db
-        .query("SELECT name FROM sqlite_master WHERE type='table' AND name = ?")
-        .get(name) as { name: string } | null;
-      expect(row?.name, name).toBe(name);
-    }
-
-    // Column additions land on einvoice_inbox without disturbing existing rows.
-    const custCols = db
-      .query(
-        "SELECT name FROM pragma_table_info('einvoice_inbox') WHERE name LIKE 'source' OR name LIKE 'transport_id' OR name LIKE 'provider_message_id' OR name LIKE 'sender_scheme' OR name LIKE 'sender_id'",
-      )
-      .all() as { name: string }[];
-    expect(custCols.map((c) => c.name).sort()).toEqual([
-      "provider_message_id",
-      "sender_id",
-      "sender_scheme",
-      "source",
-      "transport_id",
-    ]);
-
-    const customerCols = db
-      .query("SELECT name FROM pragma_table_info('customers') WHERE name LIKE 'peppol_%'")
-      .all() as { name: string }[];
-    expect(customerCols.map((c) => c.name).sort()).toEqual([
-      "peppol_checked_at",
-      "peppol_reachable",
-    ]);
-
-    // The partial unique index on provider_message_id exists.
-    const idx = db
-      .query(
-        "SELECT name FROM sqlite_master WHERE type='index' AND name = 'idx_einvoice_tx_provider_msg'",
-      )
-      .get() as { name: string } | null;
-    expect(idx?.name).toBe("idx_einvoice_tx_provider_msg");
-  });
-
-  test("france columns exist on customers", () => {
-    runWith(db, () => runMigrations());
-    const cols = db
-      .query("SELECT name FROM pragma_table_info('customers')")
-      .all() as unknown as Array<{ name: string }>;
-    const names = cols.map((c) => c.name);
-    for (const col of ["siren", "siret", "france_checked_at", "france_reachable"]) {
-      expect(names).toContain(col);
-    }
-  });
-
-  test("version 24 applies on a database already at version 23", () => {
-    // Apply everything except the migrations above v23, then apply the remainder.
-    runWith(db, () => runMigrations());
-    db.exec("DELETE FROM schema_migrations WHERE version > 23");
-
-    // Simulate a real v23 tip: drop the v24 tables (as if never created).
-    db.exec("DROP TABLE einvoice_webhook_events");
-    db.exec("DROP TABLE peppol_participants");
-    db.exec("DROP TABLE einvoice_transmission_attempts");
-    db.exec("DROP TABLE einvoice_transmissions");
-
-    runWith(db, () => runMigrations());
-
-    const row = db.query("SELECT version FROM schema_migrations WHERE version = ?").get(24) as {
-      version: number;
-    } | null;
-    expect(row?.version).toBe(24);
-    const exists = db
-      .query(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name = 'einvoice_transmissions'",
-      )
-      .get() as { name: string } | null;
-    expect(exists?.name).toBe("einvoice_transmissions");
-  });
-
   test("version 26 adds OIDC identity columns and the partial unique index", () => {
     runWith(db, () => runMigrations());
 
@@ -326,8 +243,8 @@ describe("schema migration runner", () => {
     expect(db.query("SELECT * FROM contacts WHERE id = 'contact-1'").get()).toEqual(row);
   });
 
-  test("migrations reach version 37", () => {
-    expect(LATEST_MIGRATION_VERSION).toBe(37);
+  test("migrations reach version 38", () => {
+    expect(LATEST_MIGRATION_VERSION).toBe(38);
   });
 
   test("version 37 adds the service date columns to an existing invoice", () => {
@@ -354,6 +271,47 @@ describe("schema migration runner", () => {
       service_period_start: null,
       service_period_end: null,
     });
+  });
+
+  test("version 38 drops the e-invoicing schema and settings", () => {
+    runWith(db, () => runMigrations());
+    db.exec("DELETE FROM schema_migrations WHERE version = 38");
+    db.exec(`
+      CREATE TABLE einvoice_documents (id TEXT PRIMARY KEY);
+      CREATE TABLE peppol_participants (id TEXT PRIMARY KEY);
+      ALTER TABLE customers ADD COLUMN leitweg_id TEXT;
+      ALTER TABLE customers ADD COLUMN siren TEXT;
+    `);
+    db.run("INSERT INTO customers (id, name, leitweg_id) VALUES ('c1', 'Kunde GmbH', '99-1')");
+    db.run(
+      "INSERT INTO settings (key, value) VALUES ('einvoice_enabled', 'true'), ('peppol_sender_id', 'x'), ('company_street', 'Main'), ('company_country', 'TN')",
+    );
+
+    runWith(db, () => runMigrations());
+
+    const tables = db
+      .query(
+        "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('einvoice_documents', 'peppol_participants')",
+      )
+      .all();
+    expect(tables).toEqual([]);
+    const cols = (
+      db.query("SELECT name FROM pragma_table_info('customers')").all() as {
+        name: string;
+      }[]
+    ).map((c) => c.name);
+    expect(cols).not.toContain("leitweg_id");
+    expect(cols).not.toContain("siren");
+    expect(db.query("SELECT name FROM customers WHERE id = 'c1'").get()).toEqual({
+      name: "Kunde GmbH",
+    });
+    const keys = (db.query("SELECT key FROM settings").all() as { key: string }[]).map(
+      (r) => r.key,
+    );
+    expect(keys).toContain("company_country");
+    expect(keys).not.toContain("einvoice_enabled");
+    expect(keys).not.toContain("peppol_sender_id");
+    expect(keys).not.toContain("company_street");
   });
 
   test("the reduced-rate VAT category AA becomes S (EN 16931)", () => {

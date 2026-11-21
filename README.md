@@ -23,7 +23,6 @@ Create invoices, get paid online, track expenses, and own your data, all from a 
 - Invoices, quotes, recurring invoices and credit notes with customizable PDF templates
 - Online payments via Stripe and PayPal
 - Expenses, multi-currency and reports with CSV export
-- German and French e-invoicing (XRechnung, ZUGFeRD, Factur-X) and PEPPOL
 - Multi-user with roles, SSO (OIDC), and five languages
 - Single SQLite file, around 50 MB of RAM
 - [iOS](https://apps.apple.com/app/id6821815185) and [Android](https://play.google.com/store/apps/details?id=com.pigontech.inkvoice) apps

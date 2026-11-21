@@ -120,7 +120,7 @@ export async function sendEmail(opts: {
   from?: string;
   /** Per-send Reply-To header. */
   replyTo?: string;
-  /** Attachments (e.g. ZUGFeRD hybrid PDF or XRechnung XML). */
+  /** File attachments. */
   attachments?: Array<{ filename: string; content: Buffer | Uint8Array; contentType: string }>;
 }): Promise<MailResult> {
   try {

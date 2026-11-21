@@ -18,7 +18,6 @@ import { bankAccounts, banks, contacts } from "./routes/banking";
 import { customers } from "./routes/customers";
 import { dashboard } from "./routes/dashboard";
 import { deviceSessions } from "./routes/device-sessions";
-import { einvoices } from "./routes/einvoice";
 import { exchangeRate } from "./routes/exchange-rate";
 import { expenses } from "./routes/expenses";
 import { exportRoutes } from "./routes/export";
@@ -41,7 +40,6 @@ import { templates } from "./routes/templates";
 import { users } from "./routes/users";
 import { webhooks } from "./routes/webhooks";
 import { getEnv } from "./utils/env";
-import { initXmlProfiles } from "./xml/init";
 
 export interface CreateAppOptions {
   /** Middleware to run before all other middleware (e.g. tenant resolution) */
@@ -52,8 +50,6 @@ export interface CreateAppOptions {
 }
 
 export function createApp(options?: CreateAppOptions): Hono {
-  initXmlProfiles();
-
   const app = new Hono();
 
   // Request context (request_id, ALS for logging) — must be first.
@@ -160,7 +156,6 @@ export function createApp(options?: CreateAppOptions): Hono {
   app.route("/api/v1/bank-accounts", bankAccounts);
   app.route("/api/v1/contacts", contacts);
   app.route("/api/v1/invoices", invoices);
-  app.route("/api/v1/einvoices", einvoices);
   app.route("/api/v1/quotes", quotes);
   app.route("/api/v1/customers", customers);
   app.route("/api/v1/products", products);

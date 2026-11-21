@@ -58,7 +58,7 @@ export default function OnboardingWizard() {
         onboarding_completed: "true",
       };
       if (companyName) settingsUpdate.company_name = companyName;
-      // The business country (e-invoices need it); keep one set earlier.
+      // The business country (tax presets use it); keep one set earlier.
       if (country && !initialSettings.company_country) settingsUpdate.company_country = country;
       if (currency) settingsUpdate.currency = currency;
       if (locale) settingsUpdate.locale = locale;

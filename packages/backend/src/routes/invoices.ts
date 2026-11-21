@@ -5,14 +5,6 @@ import { deliveryInput } from "../contracts/banking";
 import { getDb } from "../database/connection";
 import { hasPermission, requirePermission } from "../middleware/auth";
 import { logActivity } from "../services/activity.service";
-import {
-  checkEinvoice,
-  deleteEinvoiceRecord,
-  emitEinvoice,
-  getEinvoicePdf,
-  getEinvoiceXml,
-  listEinvoiceRecords,
-} from "../services/einvoice.service";
 import * as invoiceService from "../services/invoice.service";
 import { deliverInvoice, listDeliveries } from "../services/invoice-delivery.service";
 import { sendInvoiceEmail } from "../services/invoice-send.service";
@@ -24,9 +16,6 @@ import { getTagsForItem, setItemTags } from "../services/tag.service";
 import type { Invoice } from "../types/invoice";
 import { buildCsv, type CsvColumn, csvHeaders } from "../utils/csv";
 import { todayIso } from "../utils/date";
-import { isDraftNumber } from "../utils/invoice-number";
-import { buildXmlInvoiceData } from "../xml/build-data";
-import { getProfile, listProfiles } from "../xml/profile-registry";
 
 const invoices = new Hono();
 
@@ -526,7 +515,6 @@ invoices.post("/:id/send", requirePermission("invoices", "publish"), async (c) =
     message: typeof body.message === "string" ? body.message : undefined,
     from: typeof body.from === "string" ? body.from : undefined,
     replyTo: typeof body.reply_to === "string" ? body.reply_to : undefined,
-    attachEinvoice: body.attach_einvoice !== false,
     origin: c.req.header("origin") || undefined,
   });
 
@@ -604,30 +592,6 @@ invoices.get("/:id/preview", requirePermission("invoices", "read"), async (c) =>
   return c.html(html);
 });
 
-// XML export endpoints
-invoices.get("/xml-profiles", requirePermission("invoices", "read"), (c) => {
-  return c.json({ success: true, data: listProfiles() });
-});
-
-invoices.get("/:id/xml/:profileId", requirePermission("invoices", "read"), (c) => {
-  const { id, profileId } = c.req.param();
-  const profile = getProfile(profileId);
-  if (!profile) return c.json({ success: false, error: "XML profile not found" }, 400);
-
-  try {
-    const data = buildXmlInvoiceData(id);
-    const xml = profile.generateXml(data);
-    c.header("Content-Type", profile.getMimeType());
-    c.header(
-      "Content-Disposition",
-      `attachment; filename="${data.invoice_number}-${profileId}.xml"`,
-    );
-    return c.body(xml);
-  } catch (err: any) {
-    return c.json({ success: false, error: err.message }, 404);
-  }
-});
-
 // Comment thread (staff side). Customer-side endpoints live under public.ts.
 invoices.get("/:id/comments", requirePermission("invoices", "read"), (c) => {
   const db = getDb();
@@ -640,91 +604,6 @@ invoices.get("/:id/comments", requirePermission("invoices", "read"), (c) => {
     )
     .all(id);
   return c.json({ success: true, data: comments });
-});
-
-// E-invoice emission (XRechnung / ZUGFeRD). Emit stores the generated XML
-// (and the ZUGFeRD hybrid PDF) in einvoice_documents for later download,
-// email delivery and archival.
-invoices.post("/:id/einvoice/emit", requirePermission("invoices", "publish"), async (c) => {
-  const id = c.req.param("id");
-  const exists = getDb()
-    .query("SELECT id, invoice_number FROM invoices WHERE id = ? AND deleted_at IS NULL")
-    .get(id) as { id: string; invoice_number: string } | null;
-  if (!exists) return c.json({ success: false, error: "Invoice not found" }, 404);
-  // A draft still has a placeholder number; the e-invoice needs the real one.
-  if (isDraftNumber(exists.invoice_number)) {
-    return c.json(
-      {
-        success: false,
-        error: "Mark the invoice as sent (or send it) first, so it has its final number.",
-      },
-      400,
-    );
-  }
-
-  try {
-    const result = await emitEinvoice(id);
-    logActivity({
-      action: "create",
-      resource_type: "einvoice",
-      resource_id: id,
-      metadata: { format: result.format },
-    });
-    return c.json({ success: true, data: result });
-  } catch (err: any) {
-    return c.json({ success: false, error: err.message }, 400);
-  }
-});
-
-// What the e-invoice would be missing, without creating one, and which file an
-// email would attach. The send dialog uses it to warn before an e-invoice with
-// errors goes out and to name the file.
-invoices.get("/:id/einvoice/check", requirePermission("invoices", "read"), (c) => {
-  const id = c.req.param("id");
-  const exists = getDb()
-    .query("SELECT id FROM invoices WHERE id = ? AND deleted_at IS NULL")
-    .get(id);
-  if (!exists) return c.json({ success: false, error: "Invoice not found" }, 404);
-  try {
-    return c.json({ success: true, data: checkEinvoice(id) });
-  } catch (err: any) {
-    return c.json({ success: false, error: err.message }, 400);
-  }
-});
-
-invoices.get("/:id/einvoices", requirePermission("invoices", "read"), (c) => {
-  const id = c.req.param("id");
-  const exists = getDb()
-    .query("SELECT id FROM invoices WHERE id = ? AND deleted_at IS NULL")
-    .get(id);
-  if (!exists) return c.json({ success: false, error: "Invoice not found" }, 404);
-  return c.json({ success: true, data: listEinvoiceRecords(id) });
-});
-
-invoices.get("/:id/einvoices/:recordId/xml", requirePermission("invoices", "read"), (c) => {
-  const { recordId } = c.req.param();
-  const xml = getEinvoiceXml(recordId);
-  if (!xml) return c.json({ success: false, error: "E-invoice not found" }, 404);
-  c.header("Content-Type", "application/xml; charset=utf-8");
-  c.header("Content-Disposition", `attachment; filename="einvoice-${recordId}.xml"`);
-  return c.body(xml);
-});
-
-invoices.get("/:id/einvoices/:recordId/pdf", requirePermission("invoices", "read"), (c) => {
-  const { recordId } = c.req.param();
-  const pdf = getEinvoicePdf(recordId);
-  if (!pdf) return c.json({ success: false, error: "E-invoice PDF not found" }, 404);
-  c.header("Content-Type", "application/pdf");
-  c.header("Content-Disposition", `attachment; filename="einvoice-${recordId}.pdf"`);
-  return c.body(new Uint8Array(pdf));
-});
-
-invoices.delete("/:id/einvoices/:recordId", requirePermission("invoices", "delete"), (c) => {
-  const { recordId } = c.req.param();
-  if (!deleteEinvoiceRecord(recordId)) {
-    return c.json({ success: false, error: "E-invoice not found" }, 404);
-  }
-  return c.json({ success: true });
 });
 
 invoices.post("/:id/comments", requirePermission("invoices", "update"), async (c) => {

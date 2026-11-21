@@ -579,24 +579,6 @@ export default function Invoices() {
                             <Eye className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                           </span>
                         )}
-                        {inv.peppol_status && (
-                          <span
-                            role="img"
-                            title={t(`peppol.status_${inv.peppol_status}`)}
-                            aria-label={t(`peppol.status_${inv.peppol_status}`)}
-                          >
-                            {inv.peppol_status === "delivered" ? (
-                              <Globe className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                            ) : inv.peppol_status === "sent" ? (
-                              <Globe className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-                            ) : inv.peppol_status === "failed" ||
-                              inv.peppol_status === "rejected" ? (
-                              <Globe className="h-3.5 w-3.5 text-red-600 dark:text-red-400" />
-                            ) : (
-                              <Globe className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                            )}
-                          </span>
-                        )}
                       </span>
                     </TableCell>
                   )}

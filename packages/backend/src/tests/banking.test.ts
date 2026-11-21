@@ -35,7 +35,6 @@ import { createQuote } from "../services/quote.service";
 import { updateSettings } from "../services/settings.service";
 import { resetEnvCache } from "../utils/env";
 import { signToken } from "../utils/jwt";
-import { buildXmlInvoiceData } from "../xml/build-data";
 
 const TEST_DB = "./data/test-banking.db";
 let customerId: string;
@@ -211,7 +210,6 @@ describe("banking contracts and snapshots", () => {
     expect(buildInvoiceContext(invoice.id)?.company.bank_details).toContain(
       "Banque &amp; associés",
     );
-    expect(buildXmlInvoiceData(invoice.id).supplier.bank_details).toContain("00123456789012345678");
     expect(
       updateInvoice(invoice.id, {
         customer_id: customerId,
@@ -319,7 +317,6 @@ describe("delivery isolation and retry safety", () => {
     const invoice = draft();
     const input = deliveryInput.parse({
       kind: "customer",
-      attach_einvoice: false,
       recipients: [
         { contact_id: manager.id, mode: "cc" },
         { contact_id: accountant.id, mode: "private" },
@@ -374,7 +371,7 @@ describe("delivery isolation and retry safety", () => {
     smtp();
     const invoice = draft();
     const key = crypto.randomUUID();
-    const input = deliveryInput.parse({ kind: "customer", attach_einvoice: false });
+    const input = deliveryInput.parse({ kind: "customer" });
     const first = deliverInvoice(invoice.id, input, key, "test", "https://invoice.example.com");
     await expect(
       deliverInvoice(invoice.id, input, key, "test", "https://invoice.example.com"),
@@ -402,7 +399,6 @@ describe("delivery isolation and retry safety", () => {
       invoice.id,
       deliveryInput.parse({
         kind: "customer",
-        attach_einvoice: false,
         recipients: [{ contact_id: c.id, mode: "cc" }],
       }),
       crypto.randomUUID(),
@@ -417,7 +413,7 @@ describe("delivery isolation and retry safety", () => {
     smtp();
     const invoice = draft();
     const key = crypto.randomUUID();
-    const input = deliveryInput.parse({ kind: "customer", attach_einvoice: false });
+    const input = deliveryInput.parse({ kind: "customer" });
     const send = spyOn(emailService, "sendEmail").mockResolvedValue({
       success: false,
       error: "Timed out",

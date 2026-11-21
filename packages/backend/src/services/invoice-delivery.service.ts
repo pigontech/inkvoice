@@ -213,7 +213,6 @@ export async function deliverInvoice(
           message: input.message,
           from: input.from,
           replyTo: input.reply_to,
-          attachEinvoice: input.attach_einvoice,
           origin: publicOrigin,
         });
       } else {

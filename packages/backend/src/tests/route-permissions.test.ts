@@ -31,7 +31,6 @@ const GUARDED_PREFIXES = [
   "/api/v1/tax-definitions",
   "/api/v1/templates",
   "/api/v1/reminder-rules",
-  "/api/v1/einvoices",
 ];
 
 /** POSTs that only render a preview, so they need nothing beyond read. */
@@ -125,7 +124,7 @@ describe("every guarded route", () => {
   test("refuses a user who holds no permission", async () => {
     const routes = guardedRoutes();
     // Guards against the walk silently finding nothing.
-    expect(routes.length).toBeGreaterThan(130);
+    expect(routes.length).toBeGreaterThan(120);
 
     const open: string[] = [];
     for (const route of routes) {

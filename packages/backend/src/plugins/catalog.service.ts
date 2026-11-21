@@ -166,11 +166,22 @@ function snapshotResult(error: CatalogErrorCode | null, syncedAt: string | null)
   };
 }
 
+/** Upstream plugins this Tunisia build drops: e-invoicing (PEPPOL, French PDP)
+ *  was removed, so their managed transports have nothing to plug into. Filtered
+ *  here rather than in the snapshot, which `sync:catalog` regenerates. */
+const EXCLUDED_PLUGIN_IDS = new Set(["peppol", "france"]);
+
+export async function getCatalog(opts: { force?: boolean } = {}): Promise<CatalogResult> {
+  const result = await loadCatalog(opts);
+  const plugins = result.catalog.plugins.filter((p) => !EXCLUDED_PLUGIN_IDS.has(p.id));
+  return { ...result, catalog: { ...result.catalog, plugins } };
+}
+
 /**
  * Resolution order: fresh cache, then remote, then stale cache, then the
  * bundled snapshot. With egress off, only the snapshot is ever consulted.
  */
-export async function getCatalog(opts: { force?: boolean } = {}): Promise<CatalogResult> {
+async function loadCatalog(opts: { force?: boolean }): Promise<CatalogResult> {
   const url = catalogUrl();
   if (url === "") return snapshotResult(null, null);
 

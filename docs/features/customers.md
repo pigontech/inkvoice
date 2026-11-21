@@ -13,13 +13,7 @@ Manage your client directory. Each customer stores contact information and billi
 | **City / State / Postal Code** | Billing address |
 | **Country** | ISO country code |
 | **Tax ID** | VAT or GST registration number |
-| **E-invoice format** | Per-customer e-invoice format override (visible when the E-Rechnung module is enabled) |
-| **Tax number (Steuernummer)** | German customer's tax number, used as buyer tax number in e-invoices |
-| **Leitweg-ID** | Official ID for public-sector (B2G) customers; forces XRechnung |
-| **Receiver ID / scheme** | E-invoice receiver identifier (XRechnung/PEPPOL), e.g. `DE:VAT`, `0204` |
 | **Notes** | Internal notes about the customer |
-
-> E-invoice fields only appear in the form when the **E-Rechnung module** is enabled in Settings. See [E-Invoicing (E-Rechnung)](/features/e-invoicing).
 
 ## Customer Detail View
 

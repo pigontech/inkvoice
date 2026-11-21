@@ -47,7 +47,6 @@ export default defineConfig({
           { text: "Reports", link: "/features/reports" },
           { text: "Accounting Export", link: "/features/accounting-export" },
           { text: "Online Payments", link: "/features/payments" },
-          { text: "E-Invoicing (E-Rechnung)", link: "/features/e-invoicing" },
         ],
       },
       {

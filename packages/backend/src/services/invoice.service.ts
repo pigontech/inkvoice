@@ -28,7 +28,6 @@ import {
   invoicePaymentDetails,
   validateInvoiceAccount,
 } from "./banking.service";
-import { maybeAutoTransmit } from "./einvoice-transport.service";
 import { getBaseCurrency } from "./exchange-rate.service";
 import { applyLateFees } from "./late-fee.service";
 import { recordPayment as recordPaymentService } from "./payment.service";
@@ -213,25 +212,6 @@ export function listInvoices(
       tags: tags.get(item.id) ?? [],
     }),
   );
-
-  // Latest PEPPOL transmission state per invoice, for the list's network icon.
-  if (items.length > 0) {
-    const placeholders = items.map(() => "?").join(",");
-    const txRows = db
-      .query(
-        `SELECT t.invoice_id, t.status FROM einvoice_transmissions t
-         JOIN (
-           SELECT invoice_id, MAX(created_at) as m
-           FROM einvoice_transmissions GROUP BY invoice_id
-         ) latest ON latest.invoice_id = t.invoice_id AND latest.m = t.created_at
-         WHERE t.invoice_id IN (${placeholders})`,
-      )
-      .all(...items.map((i) => i.id)) as { invoice_id: string; status: string }[];
-    const byInvoice = new Map(txRows.map((r) => [r.invoice_id, r.status]));
-    for (const item of taggedItems) {
-      (item as Invoice & { peppol_status?: string }).peppol_status = byInvoice.get(item.id);
-    }
-  }
 
   return {
     items: taggedItems,
@@ -827,10 +807,6 @@ export function markSent(id: string): InvoiceWithItems | null {
       // Backfilling the log is best-effort; never block the send.
     }
   }
-
-  // Automatic PEPPOL transmit when enabled and the customer is reachable.
-  // Fire-and-forget: a transport failure must never fail the invoice send.
-  maybeAutoTransmit(id);
 
   return getInvoice(id);
 }

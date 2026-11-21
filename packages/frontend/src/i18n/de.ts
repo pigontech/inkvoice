@@ -83,7 +83,6 @@ const de: TranslationKeys = {
     recurring: "Wiederkehrend",
     customers: "Kunden",
     products: "Produkte",
-    einvoices: "E-Rechnungen",
     expenses: "Ausgaben",
     reports: "Berichte",
 
@@ -420,31 +419,6 @@ const de: TranslationKeys = {
     default_currency: "Standardwährung",
     default_currency_hint: "Füllt die Währung auf neuen Rechnungen für diesen Kunden vor",
     default_currency_inherit: "Unternehmensstandard",
-    einvoice_section: "E-Rechnung",
-    einvoice_format: "E-Rechnungsformat",
-    einvoice_format_hint:
-      "Format für die E-Rechnung dieses Kunden (Leitweg-ID erzwingt XRechnung).",
-    einvoice_format_inherit: "Unternehmensstandard verwenden",
-    tax_number: "Steuernummer",
-    tax_number_hint: "Steuernummer des deutschen Kunden, z.B. 12/345/67890",
-    leitweg_id: "Leitweg-ID",
-    leitweg_id_hint:
-      "Offizielle ID für öffentliche Auftraggeber (B2G); aktiviert XRechnung automatisch",
-    einvoice_receiver_id: "Empfänger-ID",
-    einvoice_receiver_id_hint: "Empfängerkennung der E-Rechnung (XRechnung/PEPPOL)",
-    einvoice_receiver_scheme: "Empfänger-Schema",
-    einvoice_receiver_scheme_hint: "z.B. DE:VAT, 0204 (Leitweg-ID-Schema)",
-    siren: "SIREN (Frankreich)",
-    siren_hint:
-      "9-stellige französische Firmenregisternummer, verwendet für die E-Rechnungszustellung.",
-    siret: "SIRET (Frankreich, optional)",
-    siret_hint:
-      "14-stellige Betriebsnummer. Nur erforderlich, wenn der Käufer einen bestimmten Standort anspricht.",
-    france_check: "Im Annuaire prüfen",
-    france_reachable: "Für die französische E-Rechnung registriert.",
-    france_unreachable: "Im Annuaire nicht gefunden. SIREN prüfen.",
-    france_checked_at: "Zuletzt geprüft: {{date}}",
-    france_check_error: "Im Annuaire konnte nicht geprüft werden. Versuchen Sie es erneut.",
     notes_placeholder: "Interne Notizen zu diesem Kunden...",
     customer_created: "Kunde erstellt",
     customer_updated: "Kunde aktualisiert",
@@ -526,119 +500,6 @@ const de: TranslationKeys = {
   },
 
   // Ausgaben
-  einvoice: {
-    title: "E-Rechnungen",
-    emit: "Erstellen",
-    emit_success: "E-Rechnung erstellt ({{format}})",
-    emit_with_issues:
-      "E-Rechnung mit {{count}} Validierungsfehler(n) erstellt. Firmeneinstellungen prüfen.",
-    issues_title: "Vor dem Versand dieser E-Rechnung prüfen:",
-    issue: {
-      invoice_number: "Die Rechnungsnummer fehlt.",
-      issue_date: "Das Rechnungsdatum fehlt.",
-      seller_name: "Ihr Firmenname fehlt.",
-      buyer_name: "Der Name des Kunden fehlt.",
-      seller_address: "Ihre Anschrift fehlt (Straße, Ort).",
-      buyer_address: "Die Anschrift des Kunden fehlt.",
-      seller_vat_id: "Ihre USt-IdNr. fehlt (für deutsche Rechnungen empfohlen).",
-      seller_vat_format:
-        "„{{vat_id}}“ ist keine gültige deutsche USt-IdNr. (erwartetes Format: DE123456789).",
-      seller_tax_number_format:
-        "„{{tax_number}}“ sieht nicht wie eine deutsche Steuernummer aus (z. B. 12/345/67890).",
-      buyer_vat_id:
-        "Der Kunde sitzt nicht in Deutschland ({{country}}). Für innergemeinschaftliche B2B-Umsätze ist seine USt-IdNr. erforderlich (Reverse Charge, 0 % USt).",
-      buyer_vat_id_de:
-        "Die USt-IdNr. des Kunden fehlt (sie hilft dem Empfänger, die E-Rechnung zu verarbeiten).",
-      buyer_siren_fr:
-        "Die SIREN des Kunden fehlt (nötig, um E-Rechnungen an französische Unternehmen zuzustellen).",
-      kleinunternehmer_vat:
-        "Sie sind als Kleinunternehmer (§ 19 UStG) eingestellt, aber die Rechnung weist Umsatzsteuer aus.",
-      franchise_fr_vat:
-        "Sie sind als „franchise en base“ (art. 293 B CGI) eingestellt, aber die Rechnung weist Umsatzsteuer aus.",
-      reverse_charge_vat:
-        "Reverse-Charge-Rechnungen dürfen keine Umsatzsteuer berechnen (verwenden Sie den Satz 0 %).",
-      tax_category:
-        "Die Steuerkategorie „{{category}}“ ist keine gültige EN-16931-Kategorie (verwenden Sie S, AA, Z, E, AE, …).",
-      monetary_subtotal:
-        "Die Bemessungsgrundlage der Positionen passt nicht zur Zwischensumme der Rechnung.",
-      monetary_tax:
-        "Die Steueraufschlüsselung ({{breakdown}}) passt nicht zur Steuersumme der Rechnung ({{tax_total}}).",
-      monetary_total:
-        "Der Gesamtbetrag ({{total}}) entspricht nicht dem Nettobetrag plus Steuer ({{expected}}).",
-      currency: "Die Rechnungswährung fehlt.",
-      seller_country: "Ihr Land fehlt (Einstellungen → E-Rechnung). [BR-9]",
-      buyer_country: "Das Land des Kunden fehlt. [BR-11]",
-      seller_tax_registration:
-        "Tragen Sie Ihre USt-IdNr. oder Ihre Steuernummer ein (Einstellungen). [BR-S-02, BR-E-02, BR-CO-26]",
-      payment_due:
-        "Geben Sie auf der Rechnung ein Fälligkeitsdatum oder Zahlungsbedingungen an. [BR-CO-25]",
-      payment_iban:
-        "In den Einstellungen ist keine IBAN hinterlegt, daher enthält die E-Rechnung keine Bankverbindung für die Überweisung.",
-      reverse_charge_vat_ids:
-        "Reverse Charge benötigt Ihre USt-IdNr. und die USt-IdNr. des Kunden. [BR-AE-02]",
-      intra_community_vat_ids:
-        "Eine innergemeinschaftliche Lieferung (Kategorie K) benötigt Ihre USt-IdNr. und die USt-IdNr. des Kunden. [BR-IC-02]",
-      not_subject_mixed:
-        "Nicht steuerbare Positionen (Kategorie O) dürfen nicht mit anderen Steuerkategorien auf einer Rechnung stehen. Stellen Sie diese gesondert in Rechnung. [BR-O-11]",
-      not_subject_tax_number:
-        "Eine nicht steuerbare Rechnung (Kategorie O) darf Ihre USt-IdNr. nicht enthalten und benötigt daher Ihre Steuernummer (Einstellungen). [BR-O-02, BR-CO-26]",
-      intra_community_delivery:
-        "Eine innergemeinschaftliche Lieferung (Kategorie K) benötigt ein Leistungsdatum oder einen Leistungszeitraum. Als Lieferanschrift wird die Anschrift des Kunden übermittelt. [BR-IC-11]",
-      en16931_totals:
-        "Die gespeicherten Summen entsprechen nicht der Berechnung nach EN 16931 (Umsatzsteuer auf den rabattierten Betrag). Öffnen Sie die Rechnung und speichern Sie sie erneut, um sie neu zu berechnen.",
-      xr_seller_city_postcode:
-        "XRechnung benötigt Ihre Postleitzahl und Ihren Ort (Einstellungen → E-Rechnung). [BR-DE-3, BR-DE-4]",
-      xr_seller_phone: "XRechnung benötigt Ihre Telefonnummer (Einstellungen). [BR-DE-6]",
-      xr_seller_email: "XRechnung benötigt Ihre E-Mail-Adresse (Einstellungen). [BR-DE-7]",
-      xr_buyer_city_postcode:
-        "XRechnung benötigt Postleitzahl und Ort des Kunden. [BR-DE-8, BR-DE-9]",
-      xr_buyer_address:
-        "XRechnung benötigt die Leitweg-ID oder die E-Mail-Adresse des Kunden. [PEPPOL-EN16931-R010]",
-    },
-    draft_hint:
-      "Markieren Sie die Rechnung zuerst als versendet (oder senden Sie sie): Die E-Rechnung braucht die endgültige Rechnungsnummer.",
-    loading: "Lädt…",
-    no_records: "Für diese Rechnung wurden noch keine E-Rechnungen erstellt.",
-    format: "Format",
-    emitted_at: "Erstellt am",
-    download: "Download",
-    download_xml: "XML herunterladen",
-    download_pdf: "Hybrid-PDF (ZUGFeRD) herunterladen",
-    delete_record: "E-Rechnung löschen",
-    delete_record_desc:
-      "Entfernt das gespeicherte XML/PDF dieser Revision. Erstellte Rechnungen sollten für die Steueraufbewahrung (8 Jahre, §147 AO) normalerweise aufbewahrt werden.",
-    record_deleted: "E-Rechnung gelöscht",
-    inbox_title: "Posteingang (eingehende E-Rechnungen)",
-    import: "Import",
-    tab_all: "Alle",
-    tab_inbox: "Posteingang",
-    tab_processed: "Verarbeitet",
-    tab_archived: "Archiviert",
-    inbox_empty:
-      "Keine Dokumente im Posteingang. XRechnung- oder ZUGFeRD-Dateien (XML oder PDF) hier importieren.",
-    inbox_imported: "E-Rechnung importiert und geparst",
-    inbox_duplicate: "Datei ist bereits im Posteingang (Duplikat)",
-    document_number: "Rechnungs-Nr.",
-    supplier: "Lieferant",
-    issue_date: "Rechnungsdatum",
-    total: "Summe",
-    parse_status: "Parse-Status",
-    parsed_ok: "OK",
-    parsed_error: "Fehler",
-    parsed_pending: "Ausstehend",
-    download_raw: "Rohdatei herunterladen",
-    link_customer: "Kunde zuordnen",
-    link_prompt: "Kunden-ID (leer zum Entfernen):",
-    link_success: "Posteingangseintrag zugeordnet",
-    archive: "Archivieren",
-    restore: "Zurück in den Posteingang",
-    mark_processed: "Verarbeitet",
-    actions: "Aktionen",
-    source: "Quelle",
-    source_peppol: "PEPPOL",
-    source_qonto: "Qonto (Frankreich)",
-    source_upload: "Upload",
-  },
   expenses: {
     title: "Ausgaben",
     add_expense: "Ausgabe hinzufügen",
@@ -940,7 +801,6 @@ const de: TranslationKeys = {
     tab_payments: "Zahlungen",
     tab_reminders: "Erinnerungen",
     tab_products: "Produkte",
-    tab_peppol: "PEPPOL",
     tab_templates: "Vorlagen",
     tab_api: "API",
     preferences: "Voreinstellungen",
@@ -992,36 +852,6 @@ const de: TranslationKeys = {
     email_template_variables:
       "Variablen: {{customer_name}}, {{company_name}}, {{invoice_number}}, {{total}}, {{currency}}, {{due_date}}, {{public_url}}, {{custom_message}}",
     data_backup: "Daten & Sicherung",
-    einvoice_section: "E-Rechnung",
-    einvoice_enabled_label: "E-Rechnungsmodul",
-    einvoice_enabled_hint:
-      "Zeigt das E-Rechnungs-Panel auf Rechnungen, den E-Rechnungs-Posteingang in der Seitenleiste und die E-Rechnungsfelder beim Kunden. Nur für die deutsche E-Rechnung (ZUGFeRD/XRechnung/PEPPOL) erforderlich.",
-    einvoice_enabled_checkbox: "E-Rechnungsmodul aktivieren",
-    einvoice_details_hint:
-      "E-Rechnungen brauchen Ihre Anschrift in getrennten Feldern und eine Steuernummer oder USt-IdNr. Einmal ausfüllen, sie gelten für jede E-Rechnung.",
-    einvoice_street: "Straße und Hausnummer",
-    einvoice_postal_code: "PLZ",
-    einvoice_city: "Ort",
-    einvoice_country: "Land",
-    einvoice_select_country: "Land wählen",
-    einvoice_tax_number: "Steuernummer",
-    einvoice_tax_number_hint: "Vom Finanzamt. Nötig, wenn Sie keine USt-IdNr. haben.",
-    einvoice_format_label: "Standardformat",
-    einvoice_format_hint:
-      "Kunden mit Leitweg-ID erhalten immer XRechnung. Das Format lässt sich pro Kunde ändern.",
-    einvoice_format_zugferd: "ZUGFeRD (PDF mit eingebettetem XML)",
-    einvoice_format_xrechnung: "XRechnung (XML)",
-    einvoice_kleinunternehmer_label: "Kleinunternehmer (§ 19 UStG)",
-    einvoice_kleinunternehmer_checkbox: "Ich bin Kleinunternehmer und weise keine Umsatzsteuer aus",
-    tax_category: "Umsatzsteuerkategorie (E-Rechnung)",
-    tax_category_hint: "Pflichtangabe in E-Rechnungen. S gilt für 19 % und 7 %.",
-    tax_category_s: "Regelsatz oder ermäßigt (S)",
-    tax_category_z: "Nullsatz (Z)",
-    tax_category_e: "Steuerbefreit (E)",
-    tax_category_ae: "Reverse Charge, § 13b UStG (AE)",
-    tax_category_k: "Innergemeinschaftliche Lieferung (K)",
-    tax_category_g: "Ausfuhr aus der EU (G)",
-    tax_category_o: "Nicht steuerbar (O)",
 
     backup_description:
       "Laden Sie eine vollständige Sicherung Ihrer Daten herunter. JSON ist menschenlesbar und leicht zu prüfen; SQLite ist ein byteidentischer Snapshot, den Sie durch Ersetzen der Live-Datenbankdatei wiederherstellen können.",
@@ -1446,17 +1276,6 @@ const de: TranslationKeys = {
     from_hint: "Absenderadresse überschreiben (Standard: SMTP-Einstellung)",
     reply_to: "Antwort an",
     reply_to_hint: "Wohin Antworten des Kunden gehen sollen",
-    attach_einvoice: "E-Rechnung anhängen ({{format}})",
-    attach_einvoice_hint: "Wenn aktiviert, wird diese Datei an die E-Mail angehängt",
-    einvoice_file: {
-      zugferd_pdf: "ZUGFeRD-Hybrid-PDF",
-      zugferd_xml: "ZUGFeRD-XML",
-      xrechnung_xml: "XRechnung-XML",
-      peppol_xml: "PEPPOL-BIS-XML",
-    },
-    einvoice_errors_title: "Die E-Rechnung enthält Fehler",
-    einvoice_errors_hint:
-      "Ihr Kunde würde eine E-Rechnung erhalten, die die Prüfung nicht besteht. Beheben Sie zuerst die Fehler oder entfernen Sie den Haken, um die E-Mail ohne E-Rechnung zu senden.",
   },
 
   // Dialog „Zahlung erfassen“
@@ -1763,93 +1582,6 @@ const de: TranslationKeys = {
     filter_placeholder: "Nach Schlagwörtern filtern",
     remove: "Schlagwort {{tag}} entfernen",
     save_error: "Schlagwörter konnten nicht gespeichert werden",
-  },
-
-  // PEPPOL network transport
-  peppol: {
-    transmission_panel: "{{network}}-Zustellung",
-    send_via_network: "Über {{network}} senden",
-    send_via_peppol: "Über PEPPOL senden",
-    no_transmissions: "Noch nichts über {{network}} gesendet.",
-    transmit_queued: "Übertragung in die Warteschlange gestellt. Sie wird in Kürze gesendet.",
-    status_queued: "In Warteschlange",
-    status_sending: "Wird gesendet",
-    status_sent: "An das Netz gesendet",
-    status_delivered: "Zugestellt",
-    status_rejected: "Abgelehnt",
-    status_failed: "Fehlgeschlagen",
-    created_at: "Erstellt",
-    sent_at: "Gesendet",
-    delivered_at: "Zugestellt",
-    attempts: "{{count}} Versuch/Versuche",
-    retry: "Erneut versuchen",
-    cancel: "Abbrechen",
-    retry_scheduled: "Übertragung für erneuten Versuch eingereiht.",
-    cancel_done: "Übertragung abgebrochen.",
-    attempt_history: "Versuchshistorie",
-    provider_message_id: "Provider-Nachrichten-ID",
-    test_environment_banner: "TEST-Umgebung: Dokumente werden NICHT im Live-PEPPOL-Netz gesendet.",
-    master_toggle_title: "PEPPOL-Netz",
-    master_toggle: "PEPPOL-Transport aktivieren",
-    master_toggle_hint:
-      "E-Rechnungen über das PEPPOL-Netz senden und eingehende Dokumente automatisch empfangen.",
-    master_toggle_label: "PEPPOL-Modul aktivieren",
-    connection_title: "Verbindung",
-    transport_label: "Transportanbieter",
-    transport_hint: "Der Treiber, der Dokumente ins Netz bringt.",
-    credentials_status: "Zugangsdaten",
-    credentials_configured: "Konfiguriert",
-    credentials_missing:
-      "Nicht konfiguriert (Anbieterschlüssel über Umgebungsvariablen hinzufügen)",
-    environment_label: "Umgebung",
-    environment_hint: "Wechsel zu Test verhindert versehentliche Live-Sendungen.",
-    environment_test: "Test",
-    environment_live: "Live",
-    sender_title: "Absenderidentität",
-    sender_scheme: "Absenderschema (EAS)",
-    sender_scheme_hint: "EAS-Schemacode, der Ihr Unternehmen identifiziert.",
-    sender_scheme_suggested: "Für Ihr Land empfohlen: {{scheme}}",
-    sender_id: "Absenderkennung",
-    sender_id_hint: "Ihre PEPPOL-Teilnehmerkennung unter dem obigen Schema.",
-    auto_send: "Automatisch senden",
-    auto_send_hint:
-      "Automatisch übertragen, wenn eine Rechnung gesendet wird und der Empfänger erreichbar ist.",
-    receiver_title: "Rechnungen empfangen",
-    receiver_hint:
-      "Registrieren Sie Ihr Unternehmen als PEPPOL-Empfänger. Die Registrierung wird zuerst im Netz geprüft; ein Unternehmen, das bereits von einem anderen Access Point bedient wird, wird niemals übernommen.",
-    register_button: "Prüfen und registrieren",
-    registration_incomplete: "Bitte zuerst Schema, Kennung, Rechtsname und Land ausfüllen.",
-    registration_started: "Registrierung gestartet.",
-    registration_kyc_pending: "Registrierung erstellt — Verifizierung beim Anbieter abschließen.",
-    registration_conflict:
-      "Dieses Unternehmen ist bereits bei einem anderen Access Point registriert.",
-    registration_active: "Registrierung aktiv — Rechnungen werden empfangen.",
-    refresh_status: "Status aktualisieren",
-    deregister: "Abmelden",
-    deregister_confirm: "Diesen Teilnehmer abmelden? Eingehende Rechnungen werden gestoppt.",
-    deregistered: "Teilnehmer abgemeldet.",
-    participant_status_kyc_pending: "Verifizierung ausstehend",
-    participant_status_active: "Aktiv",
-    participant_status_conflict: "Konflikt",
-    participant_status_rejected: "Abgelehnt",
-    participant_status_suspended: "Gesperrt",
-    participant_status_deregistered: "Abgemeldet",
-    kyc_action_url: "Verifizierung beim Anbieter abschließen",
-    conflict_explainer:
-      "Dieses Unternehmen erhält bereits PEPPOL-Dokumente über einen anderen Access Point. Behalten Sie diese Einrichtung bei und nutzen Sie Inkvoice nur zum Senden, oder kontaktieren Sie den bisherigen Anbieter zur Abmeldung und versuchen Sie es hier erneut. Inkvoice übernimmt niemals den Teilnehmer eines anderen Access Points.",
-    receiver_scheme: "Unternehmensschema (EAS)",
-    receiver_identifier: "Unternehmenskennung",
-    receiver_legal_name: "Rechtsname",
-    receiver_country: "Ländercode",
-    receiver_contact_email: "Kontakt-E-Mail",
-    receiver_contact_hint: "Vom Anbieter für die KYC-Verifizierung verwendet.",
-    check_button: "PEPPOL prüfen",
-    lookup_reachable: "Über PEPPOL erreichbar (akzeptiert: {{types}})",
-    lookup_unreachable: "Im PEPPOL-Netz nicht gefunden.",
-    lookup_conflict: "Bereits bei einem anderen Access Point registriert.",
-    lookup_conflict_with: "Bereits bei {{name}} registriert.",
-    invoice_form_unreachable:
-      "Dieser Kunde ist im PEPPOL-Netz nicht erreichbar. Prüfen Sie seine Empfängerkennung.",
   },
 };
 

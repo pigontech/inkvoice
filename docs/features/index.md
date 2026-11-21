@@ -16,12 +16,6 @@ Inkvoice covers the full invoicing workflow for freelancers and small businesses
 - **[Online Payments](/features/payments)** — Accept Stripe and PayPal payments directly from invoice links
 - **Tax Management** — Define tax rates (VAT, GST, etc.) and apply them automatically to line items
 
-## Compliance
-
-- **[E-Invoicing (E-Rechnung)](/features/e-invoicing)** — German ZUGFeRD 2.2 / XRechnung / PEPPOL emission, hybrid PDFs, and an inbox for incoming e-invoices (opt-in module)
-- **[France E-Invoicing (Factur-X)](/features/france-e-invoicing)** — French buyer identifiers (SIREN/SIRET), franchise-en-base exemption, and PDP delivery via a registered PA on Inkvoice Cloud
-- **[PEPPOL Transport](/features/peppol-transport)** — send and receive e-invoices over the PEPPOL network (opt-in module, provider-agnostic)
-
 ## Tools
 
 - **[Templates](/features/templates)** — Customize invoice appearance with Mustache HTML templates

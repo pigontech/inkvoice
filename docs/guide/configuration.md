@@ -114,11 +114,6 @@ is discovered from `/.well-known/openid-configuration`.
 3. Existing accounts link on first SSO login only when the provider attests the email
    (`email_verified` claim). Password login stays available as the admin recovery path.
 
-## PEPPOL
-
-Optional. The `PEPPOL_SH_*` variables enable sending and receiving over the PEPPOL network.
-See [PEPPOL Transport](/features/peppol-transport#environment-variables-oss-self-hosted).
-
 ## PDF Generation
 
 Nothing to configure. Inkvoice renders invoices and quotes as HTML and the browser's print
