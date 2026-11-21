@@ -40,7 +40,6 @@ export function InvoiceDeliveryPanel(props: Props) {
   const [message, setMessage] = useState("");
   const [from, setFrom] = useState("");
   const [replyTo, setReplyTo] = useState("");
-  const [attachEinvoice, setAttachEinvoice] = useState(true);
   const [busy, setBusy] = useState(false);
   const [loadingContacts, setLoadingContacts] = useState(false);
   const [error, setError] = useState("");
@@ -122,7 +121,6 @@ export function InvoiceDeliveryPanel(props: Props) {
     setMessage("");
     setFrom("");
     setReplyTo("");
-    setAttachEinvoice(true);
   }, [props.open, props.customerEmail, retry]);
   const close = (open: boolean) => {
     if (busy) return;
@@ -151,7 +149,6 @@ export function InvoiceDeliveryPanel(props: Props) {
               contact_id,
               mode,
             })),
-            attach_einvoice: attachEinvoice,
             ...common,
           }
         : {
@@ -411,17 +408,6 @@ export function InvoiceDeliveryPanel(props: Props) {
                     onChange={(e) => setReplyTo(e.target.value)}
                   />
                 </FormField>
-                {kind === "customer" && (
-                  <label className="flex gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={attachEinvoice}
-                      disabled={busy}
-                      onChange={(e) => setAttachEinvoice(e.target.checked)}
-                    />
-                    {t("send_dialog.attach_einvoice")}
-                  </label>
-                )}
               </div>
             </details>
             {error && (

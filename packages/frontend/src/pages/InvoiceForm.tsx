@@ -16,7 +16,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Info, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "@/api/client";
@@ -251,7 +251,6 @@ export default function InvoiceForm({ onSave }: Props) {
   const [customers, setCustomers] = useState<any[]>([]);
   const [customersLoading, setCustomersLoading] = useState(false);
   const [availableCredit, setAvailableCredit] = useState<number>(0);
-  const [peppolUnreachable, setPeppolUnreachable] = useState(false);
   const [editLoaded, setEditLoaded] = useState(false);
   // Customer id to auto-select once the list contains it — set when returning
   // from the customer-create page via "Add customer" (see handleAddCustomer).
@@ -291,6 +290,10 @@ export default function InvoiceForm({ onSave }: Props) {
     invoice_number: "",
     issue_date: todayIso(),
     due_date: "",
+    // Date of supply (Leistungsdatum): one date, or a period from start to end.
+    service_date: "",
+    service_period_start: "",
+    service_period_end: "",
     payment_terms: "",
     notes: "",
     currency: "USD",
@@ -304,6 +307,9 @@ export default function InvoiceForm({ onSave }: Props) {
     prices_include_tax: false,
     tags: [] as string[],
   });
+  // Whether the service date is entered as a period instead of one date.
+  const [servicePeriod, setServicePeriod] = useState(false);
+  const servicePeriodId = useId();
 
   const baseCurrency = useSettingsStore(
     (s) => s.settings.base_currency || s.settings.currency || "USD",
@@ -352,6 +358,10 @@ export default function InvoiceForm({ onSave }: Props) {
       if (!f.issue_date) newErrors.issue_date = t("validation.issue_date_required");
       if (f.due_date && f.due_date < f.issue_date)
         newErrors.due_date = t("validation.due_date_after_issue");
+      if (!f.service_period_start !== !f.service_period_end)
+        newErrors.service_date = t("validation.service_period_incomplete");
+      else if (f.service_period_end < f.service_period_start)
+        newErrors.service_date = t("validation.service_period_order");
       itms.forEach((item, i) => {
         if (!item.description.trim())
           newErrors[`item_${i}_description`] = t("validation.description_required");
@@ -405,7 +415,10 @@ export default function InvoiceForm({ onSave }: Props) {
       // defaults fetch when restoring avoids clobbering the user's draft.)
       const draft = consumeInvoiceDraft();
       if (draft) {
-        setForm(draft.form as typeof form);
+        // Defaults first: a draft saved by an older version lacks newer fields.
+        const draftForm = draft.form as typeof form;
+        setForm((f) => ({ ...f, ...draftForm }));
+        setServicePeriod(!!(draftForm.service_period_start || draftForm.service_period_end));
         setItems((draft.items as LineItem[]).map((it) => ({ ...it, _key: genKey() })));
       } else {
         api.getSettings().then((r) => {
@@ -444,6 +457,9 @@ export default function InvoiceForm({ onSave }: Props) {
           invoice_number: inv.invoice_number,
           issue_date: inv.issue_date,
           due_date: inv.due_date || "",
+          service_date: inv.service_date || "",
+          service_period_start: inv.service_period_start || "",
+          service_period_end: inv.service_period_end || "",
           payment_terms: inv.payment_terms || "",
           notes: inv.notes || "",
           currency: inv.currency,
@@ -457,6 +473,7 @@ export default function InvoiceForm({ onSave }: Props) {
           prices_include_tax: !!inv.prices_include_tax,
           tags: inv.tags || [],
         });
+        setServicePeriod(!!(inv.service_period_start || inv.service_period_end));
         setItems(
           inv.items.map((it: any) => ({
             _key: genKey(),
@@ -495,6 +512,9 @@ export default function InvoiceForm({ onSave }: Props) {
       ...form,
       // New invoices omit invoice_number — the backend generates a draft number.
       invoice_number: isEdit ? form.invoice_number : undefined,
+      service_date: form.service_date || null,
+      service_period_start: form.service_period_start || null,
+      service_period_end: form.service_period_end || null,
       locale: form.locale || null,
       discount_type: form.discount_type || null,
       cash_discount_type: form.cash_discount_type || null,
@@ -598,6 +618,22 @@ export default function InvoiceForm({ onSave }: Props) {
     setItems(items.filter((_, i) => i !== index));
   };
 
+  // Switching between one service date and a period carries the date over.
+  const toggleServicePeriod = () => {
+    const toPeriod = !servicePeriod;
+    setServicePeriod(toPeriod);
+    setForm((f) =>
+      toPeriod
+        ? { ...f, service_date: "", service_period_start: f.service_date, service_period_end: "" }
+        : {
+            ...f,
+            service_date: f.service_period_start || f.service_period_end,
+            service_period_start: "",
+            service_period_end: "",
+          },
+    );
+  };
+
   const {
     subtotal,
     tax_total: taxTotal,
@@ -643,11 +679,9 @@ export default function InvoiceForm({ onSave }: Props) {
     if (customerId) {
       api.getCustomer(customerId).then((r) => {
         setAvailableCredit(Math.max(0, Number(r.data.available_credit) || 0));
-        setPeppolUnreachable(r.data.einvoice_receiver_id && r.data.peppol_reachable === 0);
       });
     } else {
       setAvailableCredit(0);
-      setPeppolUnreachable(false);
     }
   };
 
@@ -812,12 +846,6 @@ export default function InvoiceForm({ onSave }: Props) {
                 })}
               </div>
             )}
-            {peppolUnreachable && (
-              <div className="md:col-span-2 flex items-center gap-2 text-sm rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-amber-700 dark:text-amber-400">
-                <Info className="h-4 w-4 shrink-0" />
-                {t("peppol.invoice_form_unreachable")}
-              </div>
-            )}
             <FormField label={t("invoices.customer")} error={errors.customer_id} required>
               <div className="flex items-center gap-2">
                 <div className="min-w-0 flex-1">
@@ -913,6 +941,55 @@ export default function InvoiceForm({ onSave }: Props) {
                 onBlur={() => markTouched("due_date")}
                 aria-invalid={!!errors.due_date}
               />
+            </FormField>
+            <FormField
+              label={servicePeriod ? t("invoices.service_period") : t("invoices.service_date")}
+              error={errors.service_date}
+              hint={t("invoices.service_date_hint")}
+            >
+              <div className="space-y-1.5">
+                {servicePeriod ? (
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["service_period_start", "service_period_end"] as const).map((key) => (
+                      <div key={key} className="space-y-1">
+                        <Label
+                          htmlFor={`${servicePeriodId}-${key}`}
+                          className="text-xs text-muted-foreground"
+                        >
+                          {t(`invoices.${key}`)}
+                        </Label>
+                        <Input
+                          id={`${servicePeriodId}-${key}`}
+                          type="date"
+                          value={form[key]}
+                          min={key === "service_period_end" ? form.service_period_start : undefined}
+                          onChange={(e) => {
+                            markTouched("service_date");
+                            setForm({ ...form, [key]: e.target.value });
+                          }}
+                          aria-invalid={!!errors.service_date}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <Input
+                    type="date"
+                    aria-label={t("invoices.service_date")}
+                    value={form.service_date}
+                    onChange={(e) => setForm({ ...form, service_date: e.target.value })}
+                  />
+                )}
+                <button
+                  type="button"
+                  className="text-xs text-primary hover:underline"
+                  onClick={toggleServicePeriod}
+                >
+                  {servicePeriod
+                    ? t("invoices.service_use_date")
+                    : t("invoices.service_use_period")}
+                </button>
+              </div>
             </FormField>
             <FormField label={t("invoices.payment_terms")}>
               <PaymentTermsPicker

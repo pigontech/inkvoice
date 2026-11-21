@@ -31,7 +31,7 @@ const CATALOG_RESPONSE: CatalogResponse = {
   data: {
     plugins: [
       entry(),
-      entry({ id: "peppol", installed: false, enabled: false, blockedReason: "cloud_only" }),
+      entry({ id: "acme-sync", installed: false, enabled: false, blockedReason: "cloud_only" }),
       entry({
         id: "planned-one",
         status: "planned",
@@ -90,7 +90,7 @@ describe("plugins store on the catalog endpoint", () => {
     const s = usePluginsStore.getState();
     expect(s.loaded).toBe(true);
     expect(s.error).toBeNull();
-    expect(s.entries.map((p) => p.id)).toEqual(["time-tracker", "peppol", "planned-one"]);
+    expect(s.entries.map((p) => p.id)).toEqual(["time-tracker", "acme-sync", "planned-one"]);
     expect(s.enabled).toEqual(["time-tracker"]);
     expect(s.provenance?.source).toBe("remote");
     expect(calls[0]?.url).toContain("/api/v1/plugins/catalog");

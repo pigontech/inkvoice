@@ -26,8 +26,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { type Language, languages, useTranslation } from "@/i18n";
 import { CURRENCIES } from "@/lib/constants";
+import { COUNTRIES } from "@/lib/countries";
 import { formatApiError } from "@/lib/format-api-error";
-import { moneyDecimals } from "@/lib/utils";
+import { moneyDecimals, safeLocale } from "@/lib/utils";
 import ProductSettings from "@/pages/ProductSettings";
 import { getSettingsTabs } from "@/pages/settings-tab-registry";
 import Templates from "@/pages/Templates";
@@ -102,7 +103,12 @@ export default function Settings() {
   const [taxDefs, setTaxDefs] = useState<any[]>([]);
   const [taxDialogOpen, setTaxDialogOpen] = useState(false);
   const [editingTax, setEditingTax] = useState<any | null>(null);
-  const [taxForm, setTaxForm] = useState({ name: "", rate: "", description: "" });
+  const [taxForm, setTaxForm] = useState({
+    name: "",
+    rate: "",
+    description: "",
+    category_code: "S",
+  });
   const [deletingTaxId, setDeletingTaxId] = useState<string | null>(null);
   const [taxLoading, setTaxLoading] = useState(false);
 
@@ -291,13 +297,19 @@ export default function Settings() {
 
   const openAddTax = () => {
     setEditingTax(null);
-    setTaxForm({ name: "", rate: "", description: "" });
+    setTaxForm({ name: "", rate: "", description: "", category_code: "S" });
     setTaxDialogOpen(true);
   };
 
   const openEditTax = (tax: any) => {
     setEditingTax(tax);
-    setTaxForm({ name: tax.name, rate: String(tax.rate), description: tax.description || "" });
+    setTaxForm({
+      name: tax.name,
+      rate: String(tax.rate),
+      description: tax.description || "",
+      // "AA" was an old preset value; EN 16931 has no such category.
+      category_code: !tax.category_code || tax.category_code === "AA" ? "S" : tax.category_code,
+    });
     setTaxDialogOpen(true);
   };
 
@@ -309,6 +321,8 @@ export default function Settings() {
         name: taxForm.name,
         rate: parseFloat(taxForm.rate) || 0,
         description: taxForm.description || undefined,
+        // Always sent: the API stores "S" when it is missing.
+        category_code: taxForm.category_code,
       };
       if (editingTax) {
         await api.updateTaxDefinition(editingTax.id, payload);
@@ -485,7 +499,7 @@ export default function Settings() {
                   className="form-select"
                 >
                   {Array.from({ length: 12 }, (_, i) => {
-                    const monthName = new Intl.DateTimeFormat(settings.locale || "en-US", {
+                    const monthName = new Intl.DateTimeFormat(safeLocale(settings.locale), {
                       month: "long",
                     }).format(new Date(2000, i, 1));
                     return (
@@ -495,35 +509,6 @@ export default function Settings() {
                     );
                   })}
                 </select>
-              </FormField>
-            </CardContent>
-          </Card>
-
-          <Card className="mt-4">
-            <CardHeader>
-              <CardTitle className="text-sm">{t("settings.einvoice_section")}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <FormField
-                label={t("settings.einvoice_enabled_label")}
-                hint={t("settings.einvoice_enabled_hint")}
-              >
-                <label className="flex items-center gap-2 h-9">
-                  <input
-                    type="checkbox"
-                    checked={settings.einvoice_enabled === "true"}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        einvoice_enabled: e.target.checked ? "true" : "false",
-                      })
-                    }
-                    className="rounded"
-                  />
-                  <span className="text-sm text-muted-foreground">
-                    {t("settings.einvoice_enabled_checkbox")}
-                  </span>
-                </label>
               </FormField>
             </CardContent>
           </Card>
@@ -742,6 +727,20 @@ export default function Settings() {
                   onChange={set("company_address")}
                   rows={2}
                 />
+              </FormField>
+              <FormField label={t("settings.onboarding_country")}>
+                <select
+                  value={settings.company_country || ""}
+                  onChange={(e) => setSettings({ ...settings, company_country: e.target.value })}
+                  className="form-select"
+                >
+                  <option value="">{t("customers.select_country")}</option>
+                  {COUNTRIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {language === "tr" ? c.tr : c.en}
+                    </option>
+                  ))}
+                </select>
               </FormField>
               <FormField label={t("settings.tax_id")}>
                 <Input value={settings.company_tax_id || ""} onChange={set("company_tax_id")} />

@@ -72,8 +72,8 @@ describe("filterPlugins", () => {
     entry(),
     entry({ id: "off", name: "Data Backup", enabled: false }),
     entry({
-      id: "peppol",
-      name: "Peppol",
+      id: "acme-sync",
+      name: "Acme Sync",
       category: "compliance",
       installed: false,
       enabled: false,
@@ -101,19 +101,19 @@ describe("filterPlugins", () => {
       ),
     ).toEqual(["time-tracker"]);
     expect(
-      filterPlugins(entries, { query: "PEPPOL", category: "all", status: "all" }).map((p) => p.id),
-    ).toEqual(["peppol"]);
+      filterPlugins(entries, { query: "ACME", category: "all", status: "all" }).map((p) => p.id),
+    ).toEqual(["acme-sync"]);
     expect(
       filterPlugins(entries, { query: "compliance", category: "all", status: "all" }).map(
         (p) => p.id,
       ),
-    ).toEqual(["peppol"]);
+    ).toEqual(["acme-sync"]);
   });
 
   test("category filter matches exactly", () => {
     expect(
       filterPlugins(entries, { query: "", category: "compliance", status: "all" }).map((p) => p.id),
-    ).toEqual(["peppol"]);
+    ).toEqual(["acme-sync"]);
   });
 
   test("status chips: enabled shows enabled entries only", () => {

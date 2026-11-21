@@ -28,8 +28,6 @@ An open-source, self-hosted invoicing dashboard. Lightweight, modern, and design
 - **Rendering**: the server renders HTML; the browser's own print dialog produces the PDF.
   No headless browser, no PDF binary in the image.
 - **Templates**: Mustache (handlebars-compatible, logic-less templates)
-- **Exception**: the ZUGFeRD/Factur-X hybrid PDF is drawn server-side with `pdf-lib`
-  (`einvoice-pdf.service.ts`), the only PDF the backend generates itself.
 
 ### Build & Deploy
 - **Monorepo**: Single repo, `packages/backend` + `packages/frontend`

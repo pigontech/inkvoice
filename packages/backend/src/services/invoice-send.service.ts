@@ -1,7 +1,6 @@
 import { formatCurrency } from "../utils/currency";
 import { getEnv } from "../utils/env";
 import { logger } from "../utils/logger";
-import { emitEinvoice } from "./einvoice.service";
 import { isEmailConfigured, type MailResult, sendEmail } from "./email.service";
 import { invoiceDeliveryEmail } from "./email-templates";
 import * as invoiceService from "./invoice.service";
@@ -14,7 +13,6 @@ export interface SendInvoiceOptions {
   message?: string;
   from?: string;
   replyTo?: string;
-  attachEinvoice?: boolean;
   /** Request origin when there is one. The scheduler has no request. */
   origin?: string;
 }
@@ -82,35 +80,6 @@ export async function sendInvoiceEmail(
     custom_message: opts.message,
   });
 
-  // E-invoice delivery: attach the ZUGFeRD hybrid PDF (or XRechnung XML) when
-  // the workspace uses e-invoicing. Errors must not block the plain email.
-  const attachments: Array<{
-    filename: string;
-    content: Buffer | Uint8Array;
-    contentType: string;
-  }> = [];
-  const wantEinvoice = opts.attachEinvoice !== false && !!settings.einvoice_enabled;
-  if (wantEinvoice) {
-    try {
-      const emitted = await emitEinvoice(finalised.id);
-      if (emitted.pdf) {
-        attachments.push({
-          filename: `${finalised.invoice_number}-zugferd.pdf`,
-          content: emitted.pdf,
-          contentType: "application/pdf",
-        });
-      } else {
-        attachments.push({
-          filename: `${finalised.invoice_number}-${emitted.format}.xml`,
-          content: Buffer.from(emitted.xml, "utf-8"),
-          contentType: "application/xml",
-        });
-      }
-    } catch (err: any) {
-      logger.warn(`E-invoice emission failed for invoice ${finalised.id}: ${err.message}`);
-    }
-  }
-
   const result = await sendEmail({
     to: customerEmail,
     cc: opts.cc,
@@ -119,7 +88,6 @@ export async function sendInvoiceEmail(
     text: email.text,
     from: opts.from?.trim() || undefined,
     replyTo: opts.replyTo?.trim() || undefined,
-    attachments,
   });
 
   if (!result.success) {

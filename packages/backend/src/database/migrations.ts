@@ -1149,6 +1149,85 @@ const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    version: 35,
+    name: "builtin_template_versions",
+    up: (db) => {
+      // The SHA-256 of every HTML a boot has bundled for each built-in
+      // template. A built-in whose HTML is one of these was never edited, so
+      // the boot sync may move it to a newer bundled version (see seed.ts).
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS builtin_template_versions (
+          name TEXT NOT NULL,
+          sha256 TEXT NOT NULL,
+          created_at TEXT DEFAULT (datetime('now')),
+          PRIMARY KEY (name, sha256)
+        );
+      `);
+    },
+  },
+  {
+    version: 36,
+    name: "vat_category_reduced_rate",
+    up: (db) => {
+      // The German 7 % preset was seeded with VAT category "AA", which is not
+      // in the EN 16931 code list, so e-invoices with it failed validation
+      // (BR-CL-17/18). A reduced rate is standard rated ("S") at 7 %.
+      if (!tableExists(db, "tax_definitions")) return;
+      db.run("UPDATE tax_definitions SET category_code = 'S' WHERE category_code = 'AA'");
+    },
+  },
+  {
+    version: 37,
+    name: "invoice_service_date",
+    up: (db) => {
+      // The date of supply (Leistungsdatum, § 14 Abs. 4 Nr. 6 UStG), as ISO
+      // dates: one date (EN 16931 BT-72) or a period (BG-14, BT-73/BT-74).
+      addColumnIfMissing(db, "invoices", "service_date", "TEXT");
+      addColumnIfMissing(db, "invoices", "service_period_start", "TEXT");
+      addColumnIfMissing(db, "invoices", "service_period_end", "TEXT");
+    },
+  },
+  {
+    version: 38,
+    name: "drop_einvoicing",
+    up: (db) => {
+      // E-invoicing (XRechnung/ZUGFeRD/PEPPOL/France) was removed. Drop the
+      // schema versions 18, 24 and 25 added, and its settings rows.
+      // Children first: einvoice_transmissions references einvoice_documents.
+      db.exec(`
+        DROP TABLE IF EXISTS einvoice_transmission_attempts;
+        DROP TABLE IF EXISTS einvoice_transmissions;
+        DROP TABLE IF EXISTS einvoice_webhook_events;
+        DROP TABLE IF EXISTS peppol_participants;
+        DROP TABLE IF EXISTS einvoice_inbox;
+        DROP TABLE IF EXISTS einvoice_documents;
+      `);
+      for (const column of [
+        "einvoice_format",
+        "leitweg_id",
+        "einvoice_receiver_id",
+        "einvoice_receiver_scheme",
+        "tax_number",
+        "peppol_checked_at",
+        "peppol_reachable",
+        "siren",
+        "siret",
+        "france_checked_at",
+        "france_reachable",
+      ]) {
+        dropColumnIfExists(db, "customers", column);
+      }
+      db.run(
+        `DELETE FROM settings WHERE key LIKE 'einvoice\\_%' ESCAPE '\\'
+           OR key LIKE 'peppol\\_%' ESCAPE '\\'
+           OR key LIKE 'france\\_%' ESCAPE '\\'
+           OR key IN ('company_peppol_id', 'company_peppol_scheme', 'default_xml_profile',
+                      'pdf_embed_xml', 'company_street', 'company_city',
+                      'company_postal_code', 'company_tax_number')`,
+      );
+    },
+  },
 ];
 
 export const LATEST_MIGRATION_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
@@ -1159,6 +1238,15 @@ function addColumnIfMissing(db: Database, table: string, column: string, ddl: st
     .get(table, column) as { cnt: number };
   if (!has.cnt) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+  }
+}
+
+function dropColumnIfExists(db: Database, table: string, column: string): void {
+  const has = db
+    .query(`SELECT COUNT(*) as cnt FROM pragma_table_info(?) WHERE name = ?`)
+    .get(table, column) as { cnt: number };
+  if (has.cnt) {
+    db.exec(`ALTER TABLE ${table} DROP COLUMN ${column}`);
   }
 }
 

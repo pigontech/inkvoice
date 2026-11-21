@@ -28,11 +28,11 @@ import {
   invoicePaymentDetails,
   validateInvoiceAccount,
 } from "./banking.service";
-import { maybeAutoTransmit } from "./einvoice-transport.service";
 import { getBaseCurrency } from "./exchange-rate.service";
 import { applyLateFees } from "./late-fee.service";
 import { recordPayment as recordPaymentService } from "./payment.service";
 import { getTagsForItem, getTagsForItems, removeItemTags, setItemTags } from "./tag.service";
+import { lineTaxRate } from "./tax.service";
 
 /**
  * Rate to store on an invoice: forced to 1 when it's already in the base
@@ -68,6 +68,9 @@ interface CreateInvoiceData {
   customer_id: string;
   issue_date: string;
   due_date?: string | null;
+  service_date?: string | null;
+  service_period_start?: string | null;
+  service_period_end?: string | null;
   invoice_number?: string;
   type?: "invoice" | "credit_note";
   reference_invoice_id?: string | null;
@@ -210,25 +213,6 @@ export function listInvoices(
     }),
   );
 
-  // Latest PEPPOL transmission state per invoice, for the list's network icon.
-  if (items.length > 0) {
-    const placeholders = items.map(() => "?").join(",");
-    const txRows = db
-      .query(
-        `SELECT t.invoice_id, t.status FROM einvoice_transmissions t
-         JOIN (
-           SELECT invoice_id, MAX(created_at) as m
-           FROM einvoice_transmissions GROUP BY invoice_id
-         ) latest ON latest.invoice_id = t.invoice_id AND latest.m = t.created_at
-         WHERE t.invoice_id IN (${placeholders})`,
-      )
-      .all(...items.map((i) => i.id)) as { invoice_id: string; status: string }[];
-    const byInvoice = new Map(txRows.map((r) => [r.invoice_id, r.status]));
-    for (const item of taggedItems) {
-      (item as Invoice & { peppol_status?: string }).peppol_status = byInvoice.get(item.id);
-    }
-  }
-
   return {
     items: taggedItems,
     total: countRow.count,
@@ -330,19 +314,12 @@ export function createInvoice(data: CreateInvoiceData): InvoiceWithItems {
     // Use provided number, or generate a draft placeholder for new drafts
     const invoiceNumber = data.invoice_number || generateDraftNumber();
 
-    // Calculate totals
-    const itemInputs = data.items.map((item) => ({
+    // Totals use the same rate each line is stored with.
+    const rates = data.items.map((item) => lineTaxRate(item, "definition"));
+    const itemInputs = data.items.map((item, i) => ({
       quantity: item.quantity,
       unit_price: item.unit_price,
-      tax_rate: item.tax_id
-        ? ((
-            db.query("SELECT rate FROM tax_definitions WHERE id = ?").get(item.tax_id) as {
-              rate: number;
-            } | null
-          )?.rate ??
-          item.tax_rate ??
-          0)
-        : (item.tax_rate ?? 0),
+      tax_rate: rates[i],
     }));
     const totals = calculateInvoiceTotals(itemInputs, data.discount_type, data.discount_value, {
       currency: data.currency,
@@ -351,10 +328,11 @@ export function createInvoice(data: CreateInvoiceData): InvoiceWithItems {
 
     db.run(
       `INSERT INTO invoices (id, invoice_number, customer_id, status, type, reference_invoice_id,
-       issue_date, due_date, subtotal, tax_total, discount_type, discount_value, discount_amount,
+       issue_date, due_date, service_date, service_period_start, service_period_end,
+       subtotal, tax_total, discount_type, discount_value, discount_amount,
        cash_discount_type, cash_discount_value, cash_discount_days,
        total, notes, payment_terms, currency, exchange_rate, locale, template_id)
-       VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         invoiceId,
         invoiceNumber,
@@ -363,6 +341,9 @@ export function createInvoice(data: CreateInvoiceData): InvoiceWithItems {
         data.reference_invoice_id || null,
         data.issue_date,
         data.due_date || null,
+        data.service_date || null,
+        data.service_period_start || null,
+        data.service_period_end || null,
         totals.subtotal,
         totals.tax_total,
         data.discount_type || null,
@@ -388,9 +369,9 @@ export function createInvoice(data: CreateInvoiceData): InvoiceWithItems {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
 
-    for (const [index, item] of data.items.entries()) {
+    for (const [i, item] of data.items.entries()) {
       const itemId = crypto.randomBytes(16).toString("hex");
-      const taxRate = itemInputs[index].tax_rate;
+      const taxRate = rates[i];
       const calc = (data.prices_include_tax ? calculateLineItemTaxInclusive : calculateLineItem)(
         {
           quantity: item.quantity,
@@ -436,7 +417,8 @@ export function updateInvoice(id: string, data: CreateInvoiceData): InvoiceWithI
   const db = getDb();
   const existing = db
     .query(
-      "SELECT id, status, cash_discount_type, cash_discount_value, cash_discount_days FROM invoices WHERE id = ?",
+      `SELECT id, status, cash_discount_type, cash_discount_value, cash_discount_days,
+       service_date, service_period_start, service_period_end FROM invoices WHERE id = ?`,
     )
     .get(id) as {
     id: string;
@@ -444,6 +426,9 @@ export function updateInvoice(id: string, data: CreateInvoiceData): InvoiceWithI
     cash_discount_type: string | null;
     cash_discount_value: number;
     cash_discount_days: number;
+    service_date: string | null;
+    service_period_start: string | null;
+    service_period_end: string | null;
   } | null;
   if (!existing || existing.status !== "draft") return null;
 
@@ -453,6 +438,15 @@ export function updateInvoice(id: string, data: CreateInvoiceData): InvoiceWithI
   const accountId =
     data.bank_account_id === undefined ? previousAccount.bank_account_id : data.bank_account_id;
   validateInvoiceAccount(accountId, data.currency || "USD");
+  // The service date fields are replaced together: a body without any of them
+  // keeps the stored ones (older clients and the mobile app do not send them),
+  // a body with any of them sets all three (a missing one becomes null).
+  const service =
+    data.service_date === undefined &&
+    data.service_period_start === undefined &&
+    data.service_period_end === undefined
+      ? existing
+      : data;
 
   // Cash-discount fields are optional on update: a field the client leaves
   // out keeps its stored value (older clients and the mobile app do not send
@@ -472,18 +466,12 @@ export function updateInvoice(id: string, data: CreateInvoiceData): InvoiceWithI
 
   // Wrap in transaction for atomicity
   db.transaction(() => {
-    const itemInputs = data.items.map((item) => ({
+    // Totals use the same rate each line is stored with.
+    const rates = data.items.map((item) => lineTaxRate(item, "line"));
+    const itemInputs = data.items.map((item, i) => ({
       quantity: item.quantity,
       unit_price: item.unit_price,
-      tax_rate: item.tax_id
-        ? ((
-            db.query("SELECT rate FROM tax_definitions WHERE id = ?").get(item.tax_id) as {
-              rate: number;
-            } | null
-          )?.rate ??
-          item.tax_rate ??
-          0)
-        : (item.tax_rate ?? 0),
+      tax_rate: rates[i],
     }));
     const totals = calculateInvoiceTotals(itemInputs, data.discount_type, data.discount_value, {
       currency: data.currency,
@@ -492,6 +480,7 @@ export function updateInvoice(id: string, data: CreateInvoiceData): InvoiceWithI
 
     db.run(
       `UPDATE invoices SET customer_id = ?, issue_date = ?, due_date = ?,
+       service_date = ?, service_period_start = ?, service_period_end = ?,
        subtotal = ?, tax_total = ?, discount_type = ?, discount_value = ?,
        discount_amount = ?, cash_discount_type = ?, cash_discount_value = ?,
        cash_discount_days = ?, total = ?, notes = ?, payment_terms = ?,
@@ -500,6 +489,9 @@ export function updateInvoice(id: string, data: CreateInvoiceData): InvoiceWithI
         data.customer_id,
         data.issue_date,
         data.due_date || null,
+        service.service_date || null,
+        service.service_period_start || null,
+        service.service_period_end || null,
         totals.subtotal,
         totals.tax_total,
         data.discount_type || null,
@@ -527,9 +519,9 @@ export function updateInvoice(id: string, data: CreateInvoiceData): InvoiceWithI
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
 
-    for (const [index, item] of data.items.entries()) {
+    for (const [i, item] of data.items.entries()) {
       const itemId = crypto.randomBytes(16).toString("hex");
-      const taxRate = itemInputs[index].tax_rate;
+      const taxRate = rates[i];
       const calc = (data.prices_include_tax ? calculateLineItemTaxInclusive : calculateLineItem)(
         {
           quantity: item.quantity,
@@ -816,10 +808,6 @@ export function markSent(id: string): InvoiceWithItems | null {
     }
   }
 
-  // Automatic PEPPOL transmit when enabled and the customer is reachable.
-  // Fire-and-forget: a transport failure must never fail the invoice send.
-  maybeAutoTransmit(id);
-
   return getInvoice(id);
 }
 
@@ -827,6 +815,7 @@ export function duplicateInvoice(id: string): InvoiceWithItems | null {
   const existing = getInvoice(id);
   if (!existing) return null;
 
+  // The service date is not copied: a duplicate bills a new supply.
   return createInvoice({
     customer_id: existing.customer_id,
     type: "invoice",
@@ -1069,6 +1058,10 @@ export function createCreditNote(
     invoice_number: generateCreditNoteNumber(),
     issue_date: todayIso(),
     due_date: null,
+    // The credit note corrects the same supply, so it keeps its date.
+    service_date: source.service_date,
+    service_period_start: source.service_period_start,
+    service_period_end: source.service_period_end,
     notes: `Credit note for invoice ${source.invoice_number}`,
     currency: source.currency,
     prices_include_tax: source.prices_include_tax === 1,

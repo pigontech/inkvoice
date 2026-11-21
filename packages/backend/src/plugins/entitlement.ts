@@ -8,7 +8,7 @@
 // The two must agree. A plugin whose gate denies at request time while this
 // says yes would render an enable switch that produces a 402.
 
-/** Receives a plugin's `feature` id (for example "peppol"), not a plan name. */
+/** Receives a plugin's `feature` id (for example "time-tracker"), not a plan name. */
 export type PluginEntitlementCheck = (feature: string) => boolean;
 
 let entitlementCheck: PluginEntitlementCheck | null = null;

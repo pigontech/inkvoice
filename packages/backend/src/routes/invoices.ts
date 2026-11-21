@@ -5,13 +5,6 @@ import { deliveryInput } from "../contracts/banking";
 import { getDb } from "../database/connection";
 import { hasPermission, requirePermission } from "../middleware/auth";
 import { logActivity } from "../services/activity.service";
-import {
-  deleteEinvoiceRecord,
-  emitEinvoice,
-  getEinvoicePdf,
-  getEinvoiceXml,
-  listEinvoiceRecords,
-} from "../services/einvoice.service";
 import * as invoiceService from "../services/invoice.service";
 import { deliverInvoice, listDeliveries } from "../services/invoice-delivery.service";
 import { sendInvoiceEmail } from "../services/invoice-send.service";
@@ -23,8 +16,6 @@ import { getTagsForItem, setItemTags } from "../services/tag.service";
 import type { Invoice } from "../types/invoice";
 import { buildCsv, type CsvColumn, csvHeaders } from "../utils/csv";
 import { todayIso } from "../utils/date";
-import { buildXmlInvoiceData } from "../xml/build-data";
-import { getProfile, listProfiles } from "../xml/profile-registry";
 
 const invoices = new Hono();
 
@@ -241,11 +232,21 @@ const itemSchema = z.object({
   sort_order: z.number().optional(),
 });
 
-const invoiceSchema = z.object({
+// An ISO date (YYYY-MM-DD); "" clears it like null.
+const optionalIsoDate = z
+  .preprocess((v) => (v === "" ? null : v), z.iso.date().nullable())
+  .optional();
+
+const invoiceFields = z.object({
   bank_account_id: z.string().min(1).nullable().optional(),
   customer_id: z.string().min(1),
   issue_date: z.string().min(1),
   due_date: z.string().optional().nullable(),
+  // Date of supply (Leistungsdatum): one date, a period, or both. On update,
+  // a body without any of the three keeps the stored values.
+  service_date: optionalIsoDate,
+  service_period_start: optionalIsoDate,
+  service_period_end: optionalIsoDate,
   invoice_number: z.string().optional(),
   notes: z.string().max(2000).optional().nullable(),
   payment_terms: z.string().max(500).optional().nullable(),
@@ -263,6 +264,25 @@ const invoiceSchema = z.object({
   template_id: z.string().optional().nullable(),
   tags: z.array(z.string().trim().min(1).max(50)).max(30).optional(),
   items: z.array(itemSchema).min(1),
+});
+
+// A service period needs both dates, and may not end before it starts.
+const invoiceSchema = invoiceFields.superRefine((v, ctx) => {
+  const start = v.service_period_start;
+  const end = v.service_period_end;
+  if (!start !== !end) {
+    ctx.addIssue({
+      code: "custom",
+      path: [start ? "service_period_end" : "service_period_start"],
+      message: "A service period needs a start and an end date",
+    });
+  } else if (start && end && end < start) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["service_period_end"],
+      message: "The service period must not end before it starts",
+    });
+  }
 });
 
 const tagListSchema = z.object({
@@ -495,7 +515,6 @@ invoices.post("/:id/send", requirePermission("invoices", "publish"), async (c) =
     message: typeof body.message === "string" ? body.message : undefined,
     from: typeof body.from === "string" ? body.from : undefined,
     replyTo: typeof body.reply_to === "string" ? body.reply_to : undefined,
-    attachEinvoice: body.attach_einvoice !== false,
     origin: c.req.header("origin") || undefined,
   });
 
@@ -573,30 +592,6 @@ invoices.get("/:id/preview", requirePermission("invoices", "read"), async (c) =>
   return c.html(html);
 });
 
-// XML export endpoints
-invoices.get("/xml-profiles", requirePermission("invoices", "read"), (c) => {
-  return c.json({ success: true, data: listProfiles() });
-});
-
-invoices.get("/:id/xml/:profileId", requirePermission("invoices", "read"), (c) => {
-  const { id, profileId } = c.req.param();
-  const profile = getProfile(profileId);
-  if (!profile) return c.json({ success: false, error: "XML profile not found" }, 400);
-
-  try {
-    const data = buildXmlInvoiceData(id);
-    const xml = profile.generateXml(data);
-    c.header("Content-Type", profile.getMimeType());
-    c.header(
-      "Content-Disposition",
-      `attachment; filename="${data.invoice_number}-${profileId}.xml"`,
-    );
-    return c.body(xml);
-  } catch (err: any) {
-    return c.json({ success: false, error: err.message }, 404);
-  }
-});
-
 // Comment thread (staff side). Customer-side endpoints live under public.ts.
 invoices.get("/:id/comments", requirePermission("invoices", "read"), (c) => {
   const db = getDb();
@@ -609,65 +604,6 @@ invoices.get("/:id/comments", requirePermission("invoices", "read"), (c) => {
     )
     .all(id);
   return c.json({ success: true, data: comments });
-});
-
-// E-invoice emission (XRechnung / ZUGFeRD). Emit stores the generated XML
-// (and the ZUGFeRD hybrid PDF) in einvoice_documents for later download,
-// email delivery and archival.
-invoices.post("/:id/einvoice/emit", requirePermission("invoices", "publish"), async (c) => {
-  const id = c.req.param("id");
-  const exists = getDb()
-    .query("SELECT id FROM invoices WHERE id = ? AND deleted_at IS NULL")
-    .get(id);
-  if (!exists) return c.json({ success: false, error: "Invoice not found" }, 404);
-
-  try {
-    const result = await emitEinvoice(id);
-    logActivity({
-      action: "create",
-      resource_type: "einvoice",
-      resource_id: id,
-      metadata: { format: result.format },
-    });
-    return c.json({ success: true, data: result });
-  } catch (err: any) {
-    return c.json({ success: false, error: err.message }, 400);
-  }
-});
-
-invoices.get("/:id/einvoices", requirePermission("invoices", "read"), (c) => {
-  const id = c.req.param("id");
-  const exists = getDb()
-    .query("SELECT id FROM invoices WHERE id = ? AND deleted_at IS NULL")
-    .get(id);
-  if (!exists) return c.json({ success: false, error: "Invoice not found" }, 404);
-  return c.json({ success: true, data: listEinvoiceRecords(id) });
-});
-
-invoices.get("/:id/einvoices/:recordId/xml", requirePermission("invoices", "read"), (c) => {
-  const { recordId } = c.req.param();
-  const xml = getEinvoiceXml(recordId);
-  if (!xml) return c.json({ success: false, error: "E-invoice not found" }, 404);
-  c.header("Content-Type", "application/xml; charset=utf-8");
-  c.header("Content-Disposition", `attachment; filename="einvoice-${recordId}.xml"`);
-  return c.body(xml);
-});
-
-invoices.get("/:id/einvoices/:recordId/pdf", requirePermission("invoices", "read"), (c) => {
-  const { recordId } = c.req.param();
-  const pdf = getEinvoicePdf(recordId);
-  if (!pdf) return c.json({ success: false, error: "E-invoice PDF not found" }, 404);
-  c.header("Content-Type", "application/pdf");
-  c.header("Content-Disposition", `attachment; filename="einvoice-${recordId}.pdf"`);
-  return c.body(new Uint8Array(pdf));
-});
-
-invoices.delete("/:id/einvoices/:recordId", requirePermission("invoices", "delete"), (c) => {
-  const { recordId } = c.req.param();
-  if (!deleteEinvoiceRecord(recordId)) {
-    return c.json({ success: false, error: "E-invoice not found" }, 404);
-  }
-  return c.json({ success: true });
 });
 
 invoices.post("/:id/comments", requirePermission("invoices", "update"), async (c) => {

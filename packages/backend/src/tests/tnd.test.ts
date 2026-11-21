@@ -29,9 +29,6 @@ import { formatCurrency } from "../utils/currency";
 import { resetEnvCache } from "../utils/env";
 import { minorUnits, roundMoney } from "../utils/money";
 import { calculateInvoiceTotals, calculateLineItemTaxInclusive } from "../utils/tax-calculator";
-import { buildXmlInvoiceData } from "../xml/build-data";
-import { getProfile, listProfiles } from "../xml/profile-registry";
-import "../xml/init";
 
 const dir = mkdtempSync(join(tmpdir(), "inkvoice-tnd-"));
 let customerId: string;
@@ -84,7 +81,7 @@ test("create, reload, edit, tax definition, PDF and CSV preserve 1.234", () => {
     issue_date: inv.issue_date,
     currency: "TND",
     prices_include_tax: true,
-    items: [{ ...item, unit_price: 1.469, tax_id: "tnd-tax" }],
+    items: [{ ...item, unit_price: 1.469, tax_id: "tnd-tax", tax_rate: 19 }],
   })!;
   expect(updated.total).toBe(1.469);
   expect(updated.items[0].tax_amount).toBe(0.235);
@@ -175,9 +172,6 @@ test("instalments reconcile to the last millime", () => {
 
 test("structured exports and online gateways reject TND before external work", async () => {
   const inv = draft();
-  const xmlData = buildXmlInvoiceData(inv.id);
-  for (const profile of listProfiles())
-    expect(() => getProfile(profile.id)!.generateXml(xmlData)).toThrow("TND");
   expect(() =>
     buildCsv([{ amount: 1.234, currency: "TND" } as any], getPaymentLayout("xero").columns),
   ).toThrow("TND");

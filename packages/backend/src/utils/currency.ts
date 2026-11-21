@@ -1,5 +1,6 @@
 import { HttpError } from "./http-error";
 import { logger } from "./logger";
+import { moneyDecimals } from "./money";
 
 function getLocaleForNumberFormat(numberFormat?: string): string {
   switch (numberFormat) {
@@ -53,4 +54,33 @@ export function requireTwoDecimalCurrency(currency: string, integration: string)
       "VALIDATION_FAILED",
     );
   }
+}
+
+/**
+ * Decimal places a payment in this currency can carry, from ISO 4217 via Intl
+ * (JPY 0, USD 2). Capped at the stored precision (moneyDecimals: millimes for
+ * TND, cents otherwise). An unknown or malformed code counts as 2.
+ */
+export function currencyDecimals(currency: string): number {
+  try {
+    const { maximumFractionDigits } = new Intl.NumberFormat("en", {
+      style: "currency",
+      currency,
+    }).resolvedOptions();
+    return Math.min(maximumFractionDigits ?? 2, moneyDecimals(currency));
+  } catch {
+    return 2;
+  }
+}
+
+/**
+ * What is still owed on an invoice. Totals are computed to cents in every
+ * currency, so a JPY total can carry a fractional yen (for example from a
+ * percentage tax). A remainder of at most half the currency's smallest unit
+ * cannot be paid in that currency, so it counts as nothing owed.
+ */
+export function outstandingBalance(total: number, paid: number, currency: string): number {
+  const balance = total - paid;
+  const halfUnit = 0.5 * 10 ** -currencyDecimals(currency);
+  return balance <= halfUnit + 1e-9 ? 0 : balance;
 }

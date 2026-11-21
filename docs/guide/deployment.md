@@ -31,11 +31,12 @@ openssl rand -base64 48
 
 ## Coolify
 
-1. Create a new resource and select **Docker Compose** or **Dockerfile**
-2. Connect your GitHub repository
-3. Set the environment variables (same as above)
-4. Add a persistent storage volume mapped to `/app/data`
-5. Deploy
+1. Create a new resource from a **Public Repository** and paste this repo's URL
+2. Pick the **Dockerfile** build pack (the repo root `Dockerfile`) and set the port to `3000`
+3. Add a persistent storage volume on `/app/data` (without it, every deploy wipes the database)
+4. Set at least `JWT_SECRET` (32+ chars), `ADMIN_PASS` and `COOKIE_SECURE=true`
+5. Attach a domain so Coolify issues a Let's Encrypt certificate, then set `ENABLE_HSTS=true`
+6. Point the health check at `/health` and deploy
 
 ## Plain Docker
 

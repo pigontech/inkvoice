@@ -178,7 +178,7 @@ describe("CC recipients", () => {
       const response = await createApp().request(`/api/v1/${resource}/${draft.id}/send`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ cc, attach_einvoice: false }),
+        body: JSON.stringify({ cc }),
       });
       return { draft, response };
     }

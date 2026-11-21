@@ -11,11 +11,10 @@ import {
 import * as quoteService from "../services/quote.service";
 import { getAllSettings, getSetting } from "../services/settings.service";
 import { isStripeConfigured } from "../services/stripe.service";
+import { outstandingBalance } from "../utils/currency";
 import { DEMO_ADMIN_PASS, DEMO_ADMIN_USER, getEnv } from "../utils/env";
 import { isLikelyBot } from "../utils/user-agent";
 import { APP_VERSION } from "../utils/version";
-import { buildXmlInvoiceData } from "../xml/build-data";
-import { getProfile } from "../xml/profile-registry";
 
 const publicRoutes = new Hono();
 
@@ -167,7 +166,7 @@ publicRoutes.post("/invoices/:shareToken/pay", async (c) => {
   if (invoice.status === "voided")
     return c.json({ success: false, error: "Invoice is voided" }, 400);
 
-  const balanceDue = invoice.total - (invoice.amount_paid || 0);
+  const balanceDue = outstandingBalance(invoice.total, invoice.amount_paid || 0, invoice.currency);
   if (balanceDue <= 0) return c.json({ success: false, error: "No balance due" }, 400);
 
   const origin = c.req.header("origin") || "";
@@ -294,29 +293,6 @@ publicRoutes.get("/quotes/:shareToken/preview", async (c) => {
   );
   c.header("X-Frame-Options", "SAMEORIGIN");
   return c.html(html);
-});
-
-// Public XML export
-publicRoutes.get("/invoices/:shareToken/xml/:profileId", (c) => {
-  const { shareToken, profileId } = c.req.param();
-  const profile = getProfile(profileId);
-  if (!profile) return c.json({ success: false, error: "XML profile not found" }, 400);
-
-  const invoice = invoiceService.getInvoiceByShareToken(shareToken);
-  if (!invoice) return c.json({ success: false, error: "Invoice not found" }, 404);
-
-  try {
-    const data = buildXmlInvoiceData(invoice.id);
-    const xml = profile.generateXml(data);
-    c.header("Content-Type", profile.getMimeType());
-    c.header(
-      "Content-Disposition",
-      `attachment; filename="${data.invoice_number}-${profileId}.xml"`,
-    );
-    return c.body(xml);
-  } catch (err: any) {
-    return c.json({ success: false, error: err.message }, 500);
-  }
 });
 
 // --- Client Portal (per-customer portal via token) ---

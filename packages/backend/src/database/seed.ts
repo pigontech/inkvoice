@@ -1,5 +1,10 @@
 import crypto from "node:crypto";
-import { BUILTIN_TEMPLATES, readTemplateFile } from "../services/builtin-templates";
+import { BUNDLED_TEMPLATE_HISTORY } from "../services/builtin-template-history";
+import {
+  BUILTIN_TEMPLATES,
+  hashTemplateHtml,
+  readTemplateFile,
+} from "../services/builtin-templates";
 import { updateSettings } from "../services/settings.service";
 import { toIsoDate } from "../utils/date";
 import { getEnv } from "../utils/env";
@@ -22,9 +27,6 @@ const DEMO_SETTINGS: Record<string, string> = {
   company_email: "billing@northwindstudio.com",
   company_phone: "+1-555-0142",
   company_address: "1200 Harbor View Drive\nSuite 300\nSeattle, WA 98101\nUnited States",
-  company_street: "1200 Harbor View Drive, Suite 300",
-  company_city: "Seattle",
-  company_postal_code: "98101",
   company_country: "US",
   company_tax_id: "88-1234567",
   company_bank_details: "Cascade Bank\nAccount: 0042 1188 0031\nSWIFT: CASCUS33",
@@ -34,23 +36,48 @@ const DEMO_SETTINGS: Record<string, string> = {
   default_notes: "Thank you for your business. Payment is due within 30 days.",
 };
 
+/** Whether `html` is exactly a version of built-in `name` that some release bundled. */
+function isBundledVersion(name: string, html: string): boolean {
+  const hash = hashTemplateHtml(html);
+  if (BUNDLED_TEMPLATE_HISTORY[name]?.includes(hash)) return true;
+  return !!getDb()
+    .query("SELECT 1 FROM builtin_template_versions WHERE name = ? AND sha256 = ?")
+    .get(name, hash);
+}
+
+/**
+ * Brings the built-in templates in line with the bundled files on every boot.
+ * Missing ones are inserted. An existing one moves to the bundled HTML only
+ * while its HTML is a version some release bundled: the template editor saves
+ * edits to built-ins, and an edit must survive upgrades. "Reset to default"
+ * saves the bundled HTML, so a reset template counts as unedited again.
+ */
 function seedBuiltinTemplates(): void {
   const db = getDb();
 
   for (const tmpl of BUILTIN_TEMPLATES) {
     const html = readTemplateFile(tmpl.file);
+    // Recorded even when the edit below is kept: a user who later resets the
+    // template gets this HTML, and the next release must still recognize it.
+    db.run("INSERT OR IGNORE INTO builtin_template_versions (name, sha256) VALUES (?, ?)", [
+      tmpl.name,
+      hashTemplateHtml(html),
+    ]);
     const existing = db
       .query("SELECT id, html_content FROM templates WHERE type = 'builtin' AND name = ?")
       .get(tmpl.name) as { id: string; html_content: string } | null;
 
     if (existing) {
-      // Update HTML content if changed
       if (existing.html_content !== html) {
-        db.run(
-          "UPDATE templates SET html_content = ?, description = ?, updated_at = datetime('now') WHERE id = ?",
-          [html, tmpl.description, existing.id],
-        );
-        logger.info({ template: tmpl.name }, "Updated builtin template");
+        if (isBundledVersion(tmpl.name, existing.html_content)) {
+          db.run(
+            "UPDATE templates SET html_content = ?, updated_at = datetime('now') WHERE id = ?",
+            [html, existing.id],
+          );
+          logger.info({ template: tmpl.name }, "Updated builtin template");
+        } else {
+          logger.info({ template: tmpl.name }, "Kept edited builtin template");
+        }
       }
     } else {
       const id = crypto.randomBytes(16).toString("hex");
@@ -146,11 +173,6 @@ export async function seed(): Promise<void> {
       ["pdf_qr_code_enabled", "false"],
       ["pdf_epc_qr_enabled", "false"],
       ["company_country", ""],
-      ["einvoice_format", "zugferd"],
-      ["einvoice_enabled", "false"],
-      ["einvoice_attach_pdf", "true"],
-      ["einvoice_kleinunternehmer", "false"],
-      ["company_peppol_scheme", "0208"],
     ];
     const stmt = db.prepare("INSERT INTO settings (key, value) VALUES (?, ?)");
     for (const [key, value] of defaults) {
@@ -164,11 +186,6 @@ export async function seed(): Promise<void> {
       ["pdf_qr_code_enabled", "false"],
       ["pdf_epc_qr_enabled", "false"],
       ["company_country", ""],
-      ["einvoice_format", "zugferd"],
-      ["einvoice_enabled", "false"],
-      ["einvoice_attach_pdf", "true"],
-      ["einvoice_kleinunternehmer", "false"],
-      ["company_peppol_scheme", "0208"],
       ["quote_number_pattern", "QT-{YYYY}-{SEQ4}"],
       ["credit_note_number_pattern", "CN-{YYYY}-{SEQ4}"],
     ];
@@ -212,7 +229,7 @@ export async function seed(): Promise<void> {
     if (german) {
       const presets: [string, number, string, string, number][] = [
         ["Umsatzsteuer 19% (Standard)", 19, "S", "Umsatzsteuer regelsatz", 1],
-        ["Umsatzsteuer 7 % (ermäßigt)", 7, "AA", "Ermäßigter Steuersatz (z. B. Lebensmittel)", 0],
+        ["Umsatzsteuer 7 % (ermäßigt)", 7, "S", "Ermäßigter Steuersatz (z. B. Lebensmittel)", 0],
         ["Umsatzsteuer 0 %", 0, "Z", "Steuerfreie Lieferungen (z. B. innergemeinschaftlich)", 0],
         ["Steuerbefreit (§ 4 UStG)", 0, "E", "Steuerbefreite Leistungen", 0],
       ];
@@ -286,8 +303,6 @@ export function seedDemoData(): void {
       phone: "+46-8-1234",
       city: "Stockholm",
       country: "SE",
-      einvoice_receiver_scheme: "0007",
-      einvoice_receiver_id: "5566778899",
     },
     {
       name: "Berlin Consulting GmbH",
@@ -295,8 +310,6 @@ export function seedDemoData(): void {
       phone: "+49-30-5678",
       city: "Berlin",
       country: "DE",
-      einvoice_receiver_scheme: "9930",
-      einvoice_receiver_id: "DE123456789",
     },
     {
       name: "Tokyo Digital Co",
@@ -312,18 +325,9 @@ export function seedDemoData(): void {
     const id = crypto.randomBytes(16).toString("hex");
     customerIds.push(id);
     db.run(
-      `INSERT INTO customers (id, name, email, phone, city, country, einvoice_receiver_scheme, einvoice_receiver_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        id,
-        c.name,
-        c.email,
-        c.phone,
-        c.city,
-        c.country,
-        c.einvoice_receiver_scheme ?? null,
-        c.einvoice_receiver_id ?? null,
-      ],
+      `INSERT INTO customers (id, name, email, phone, city, country)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, c.name, c.email, c.phone, c.city, c.country],
     );
   }
 

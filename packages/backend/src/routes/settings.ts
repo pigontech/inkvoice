@@ -34,12 +34,8 @@ const ALLOWED_SETTINGS = new Set([
   "company_email",
   "company_phone",
   "company_address",
-  "company_street",
-  "company_city",
-  "company_postal_code",
   "company_country",
   "company_tax_id",
-  "company_tax_number",
   "company_bank_details",
   "company_logo",
   "currency",
@@ -79,31 +75,10 @@ const ALLOWED_SETTINGS = new Set([
   "tax_rounding_mode",
   "default_tax_rate",
   "prices_include_tax",
-  "peppol_endpoint_id",
-  "peppol_scheme_id",
-  "default_xml_profile",
-  "pdf_embed_xml",
-  "einvoice_format",
-  "einvoice_enabled",
-  "einvoice_attach_pdf",
-  "einvoice_kleinunternehmer",
-  "einvoice_franchise_fr",
-  "company_peppol_id",
-  "company_peppol_scheme",
   "fiscal_year_start_month",
   "watermark_image",
   "watermark_enabled",
   "onboarding_completed",
-  "peppol_enabled",
-  "peppol_transport",
-  "peppol_sender_scheme",
-  "peppol_sender_id",
-  "peppol_auto_send",
-  "peppol_environment",
-  "peppol_company_id",
-  "france_enabled",
-  "france_transport",
-  "france_sender_siren",
   "plugin_catalog_url",
 ]);
 
@@ -120,7 +95,7 @@ const PATTERN_COUNTER_TOKEN = /\{SEQ\d*\}|\{RAND4\}/;
 
 settings.put("/", async (c) => {
   const raw = await c.req.json().catch(() => null);
-  const parsed = z.record(z.unknown()).safeParse(raw);
+  const parsed = z.record(z.string(), z.unknown()).safeParse(raw);
   if (!parsed.success || raw === null || typeof raw !== "object") {
     return c.json({ success: false, error: "Invalid JSON body" }, 400);
   }

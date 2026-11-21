@@ -165,6 +165,28 @@ describe("Templates CRUD", () => {
     expect(data.data.name).toBe("Updated Template");
   });
 
+  test("setting an unknown template as default keeps the current default", async () => {
+    const defaults = async () => {
+      const list = (await (await authed("/api/v1/templates")).json()) as {
+        data: { id: string; is_default: number }[];
+      };
+      return list.data.filter((t) => t.is_default === 1).map((t) => t.id);
+    };
+    const before = await defaults();
+    expect(before.length).toBe(1);
+
+    const res = await authed("/api/v1/templates/no-such-template/default", { method: "PUT" });
+    expect(res.status).toBe(404);
+    expect(await defaults()).toEqual(before);
+
+    // A known id still moves the default, and back.
+    const moved = await authed(`/api/v1/templates/${templateId}/default`, { method: "PUT" });
+    expect(moved.status).toBe(200);
+    expect(await defaults()).toEqual([templateId]);
+    await authed(`/api/v1/templates/${before[0]}/default`, { method: "PUT" });
+    expect(await defaults()).toEqual(before);
+  });
+
   test("delete template", async () => {
     const res = await authed(`/api/v1/templates/${templateId}`, { method: "DELETE" });
     expect(res.status).toBe(200);

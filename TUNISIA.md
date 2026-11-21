@@ -5,7 +5,7 @@ Select TND in the existing currency selector; monetary amounts retain three
 fractional digits (millimes). Company defaults and historical records are not
 changed automatically. Exchange rates can be entered manually.
 
-Online payment gateways and structured e-invoice/accounting exports are disabled
+Online payment gateways and structured accounting exports are disabled
 for TND because those integrations currently assume two decimal places. Standard
 invoice PDFs, ordinary CSV exports, and manually recorded payments support TND.
 This fork does not implement Tunisian statutory reporting or tax rules.

@@ -22,13 +22,12 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "@/api/client";
 import { ConsolidateInvoiceDialog } from "@/components/invoices/ConsolidateInvoiceDialog";
-import { EinvoicePanel } from "@/components/invoices/EinvoicePanel";
 import { InvoiceDeliveryPanel } from "@/components/invoices/InvoiceDeliveryDialog";
 import { PaymentHistory } from "@/components/invoices/PaymentHistory";
 import { RecordPaymentDialog } from "@/components/invoices/RecordPaymentDialog";
-import { TransmissionPanel } from "@/components/invoices/TransmissionPanel";
 import { Breadcrumbs } from "@/components/shared/Breadcrumbs";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { paymentTermsLabel } from "@/components/shared/PaymentTermsPicker";
 import { TagInput } from "@/components/shared/TagInput";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,7 +55,6 @@ import { isInvoiceFormEditable, STATUS_COLORS } from "@/lib/constants";
 import { formatApiError } from "@/lib/format-api-error";
 import { pushRecentlyViewed } from "@/lib/recently-viewed";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { useSettingsStore } from "@/stores/settings.store";
 
 interface Props {
   onBack: () => void;
@@ -64,9 +62,6 @@ interface Props {
 
 export default function InvoiceView({ onBack }: Props) {
   const { t } = useTranslation();
-  const einvoiceEnabled = useSettingsStore((s) => s.settings.einvoice_enabled === "true");
-  const peppolEnabled = useSettingsStore((s) => s.settings.peppol_enabled === "true");
-  const franceEnabled = useSettingsStore((s) => s.settings.france_enabled === "true");
   const can = useCan();
   const { id } = useParams();
   const navigate = useNavigate();
@@ -591,6 +586,23 @@ export default function InvoiceView({ onBack }: Props) {
                 <span>{formatDate(invoice.due_date)}</span>
               </div>
             )}
+            {invoice.service_date && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t("invoices.service_date")}</span>
+                <span>{formatDate(invoice.service_date)}</span>
+              </div>
+            )}
+            {invoice.service_period_start && invoice.service_period_end && (
+              <div className="flex justify-between gap-4">
+                <span className="text-muted-foreground">{t("invoices.service_period")}</span>
+                <span className="text-right">
+                  {t("invoices.service_period_range", {
+                    start: formatDate(invoice.service_period_start),
+                    end: formatDate(invoice.service_period_end),
+                  })}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-muted-foreground">{t("invoices.currency")}</span>
               <span>{invoice.currency}</span>
@@ -598,7 +610,7 @@ export default function InvoiceView({ onBack }: Props) {
             {invoice.payment_terms && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t("invoices.payment_terms")}</span>
-                <span>{invoice.payment_terms}</span>
+                <span>{paymentTermsLabel(invoice.payment_terms, t)}</span>
               </div>
             )}
           </CardContent>
@@ -700,12 +712,6 @@ export default function InvoiceView({ onBack }: Props) {
         currency={invoice.currency}
         onPaymentDeleted={fetchInvoice}
       />
-
-      {/* E-invoice (XRechnung / ZUGFeRD) */}
-      {einvoiceEnabled && <EinvoicePanel invoiceId={id!} />}
-
-      {/* E-invoice transport (send + delivery state) */}
-      {(peppolEnabled || franceEnabled) && <TransmissionPanel invoiceId={id!} />}
 
       {/* Record Payment Dialog */}
       <RecordPaymentDialog

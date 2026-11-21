@@ -31,7 +31,7 @@ These tokens are available to anything rendered by `pdf.service.ts` (the PDF rou
 | `{{document_title}}`   | string          | `Quote` for quotes; absent for invoices (defaults handled in template).                     |
 | `{{is_quote}}`         | boolean         | True only on quotes — handy for `{{#is_quote}}…{{/is_quote}}`.                              |
 | `{{currency}}`         | string          | ISO 4217 code (`USD`, `EUR`, …).                                                            |
-| `{{payment_terms}}`    | string \| null  | Free-form (e.g. `NET 30`).                                                                  |
+| `{{payment_terms}}`    | string \| null  | Free-form. Presets (`Net 30`, `Due on receipt`) print in the invoice's language.            |
 | `{{notes}}`            | string \| null  | Free-form footer notes.                                                                     |
 
 ### Money totals

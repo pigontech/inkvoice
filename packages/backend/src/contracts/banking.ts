@@ -72,7 +72,6 @@ export const deliveryInput = z.discriminatedUnion("kind", [
       .array(z.object({ contact_id: z.string().min(1), mode: z.enum(["cc", "private"]) }))
       .max(50)
       .default([]),
-    attach_einvoice: z.boolean().default(true),
     ...emailOptions,
   }),
   z.object({

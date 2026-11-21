@@ -9,16 +9,3 @@
 // up its registration modules and the plugin framework.
 
 import "@/plugins";
-import { PeppolSettings } from "@/components/settings/PeppolSettings";
-import { registerSettingsTab } from "@/pages/settings-tab-registry";
-import { useSettingsStore } from "@/stores/settings.store";
-
-// PEPPOL transport settings. Hidden until the master toggle is on, so a
-// freelancer in Turkey or the US never sees a PEPPOL tab.
-registerSettingsTab({
-  id: "peppol",
-  label: "settings.tab_peppol",
-  content: <PeppolSettings />,
-  hideSave: true,
-  hidden: () => useSettingsStore.getState().settings.peppol_enabled !== "true",
-});
