@@ -43,6 +43,8 @@ All `formatted_*` values are pre-formatted with the active locale, currency, and
 | `{{formatted_subtotal}}`    | string  | Sum of line totals before tax/discount.                                |
 | `{{has_discount}}`          | boolean | Use to gate the discount row.                                          |
 | `{{formatted_discount}}`    | string  | Pre-formatted discount amount.                                         |
+| `{{has_subtotal_after_discount}}` | boolean | True when a document discount is present.                        |
+| `{{formatted_subtotal_after_discount}}` | string | Net after discount (the taxable base).                   |
 | `{{#tax_summary}}`          | section | One entry per distinct tax rate. Inside: `{{name}}`, `{{rate}}`, `{{formatted_amount}}`. |
 | `{{formatted_total}}`       | string  | Grand total.                                                           |
 

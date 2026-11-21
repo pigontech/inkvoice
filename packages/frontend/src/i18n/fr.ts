@@ -295,6 +295,7 @@ const fr: TranslationKeys = {
     notes_placeholder: "Notes pour le client...",
     subtotal: "Sous-total",
     discount: "Remise",
+    subtotal_after_discount: "Sous-total après remise",
     save_as_draft: "Enregistrer comme brouillon",
     update_invoice: "Mettre à jour la facture",
     // Unités
@@ -742,6 +743,7 @@ const fr: TranslationKeys = {
     notes: "Notes",
     subtotal: "Sous-total",
     discount: "Remise",
+    subtotal_after_discount: "Sous-total après remise",
     add_item: "Ajouter une ligne",
     // Actions de la vue
     accept: "Accepter",

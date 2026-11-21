@@ -417,6 +417,12 @@
         <span class="value">+{{formatted_discount}}</span>
       </div>
       {{/has_credit_discount}}
+      {{#has_subtotal_after_discount}}
+      <div class="row">
+        <span class="label">Subtotal after discount</span>
+        <span class="value">{{formatted_subtotal_after_discount}}</span>
+      </div>
+      {{/has_subtotal_after_discount}}
       {{#tax_summary}}
       <div class="row">
         <span class="label">{{name}} ({{rate}}%)</span>

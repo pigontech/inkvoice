@@ -290,6 +290,7 @@ const tr: TranslationKeys = {
     notes_placeholder: "Müşteri için notlar...",
     subtotal: "Ara Toplam",
     discount: "İndirim",
+    subtotal_after_discount: "İndirim sonrası ara toplam",
     save_as_draft: "Taslak Olarak Kaydet",
     update_invoice: "Faturayı Güncelle",
     // Birimler
@@ -726,6 +727,7 @@ const tr: TranslationKeys = {
     notes: "Notlar",
     subtotal: "Ara Toplam",
     discount: "İndirim",
+    subtotal_after_discount: "İndirim sonrası ara toplam",
     add_item: "Kalem Ekle",
     accept: "Kabul Et",
     reject: "Reddet",

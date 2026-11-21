@@ -223,6 +223,7 @@ export async function buildEinvoicePdf(input: EinvoicePdfInput): Promise<Einvoic
             "Rabatt",
             discountText(data.discount_amount, currency, localeOverride, numberFormat),
           ] as [string, string],
+          ["Netto nach Rabatt", money(data.subtotal - data.discount_amount)] as [string, string],
         ]
       : []),
     ...taxRows,

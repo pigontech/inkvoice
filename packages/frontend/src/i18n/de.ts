@@ -304,6 +304,7 @@ const de: TranslationKeys = {
     notes_placeholder: "Anmerkungen für den Kunden...",
     subtotal: "Zwischensumme",
     discount: "Rabatt",
+    subtotal_after_discount: "Netto nach Rabatt",
     save_as_draft: "Als Entwurf speichern",
     update_invoice: "Rechnung aktualisieren",
     // Einheiten
@@ -752,6 +753,7 @@ const de: TranslationKeys = {
     notes: "Anmerkungen",
     subtotal: "Zwischensumme",
     discount: "Rabatt",
+    subtotal_after_discount: "Netto nach Rabatt",
     add_item: "Position hinzufügen",
     // Aktionen in der Ansicht
     accept: "Annehmen",

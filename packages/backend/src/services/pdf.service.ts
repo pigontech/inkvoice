@@ -269,6 +269,14 @@ export function buildInvoiceContext(invoiceId: string) {
       numberFormat,
       localeOverride,
     ),
+    // Net after the document discount — the taxable base VAT is calculated on.
+    has_subtotal_after_discount: invoice.discount_amount !== 0,
+    formatted_subtotal_after_discount: formatCurrency(
+      invoice.subtotal - invoice.discount_amount,
+      currency,
+      numberFormat,
+      localeOverride,
+    ),
     tax_summary: Array.from(taxMap.values()).map((t) => ({
       name: t.name,
       rate: t.rate,
@@ -447,6 +455,13 @@ export function buildQuoteContext(quoteId: string) {
     has_discount: quote.discount_amount > 0,
     formatted_discount: formatCurrency(
       quote.discount_amount,
+      currency,
+      numberFormat,
+      localeOverride,
+    ),
+    has_subtotal_after_discount: quote.discount_amount !== 0,
+    formatted_subtotal_after_discount: formatCurrency(
+      quote.subtotal - quote.discount_amount,
       currency,
       numberFormat,
       localeOverride,
