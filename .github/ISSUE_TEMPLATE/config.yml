@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/pigontech/inkvoice/security/advisories/new
+    about: Please report security problems privately, never in a public issue.
+  - name: Question or help with setup
+    url: https://github.com/pigontech/inkvoice/discussions
+    about: Ask usage and self-hosting questions in Discussions.
+  - name: Documentation
+    url: https://docs.inkvoice.app
+    about: Guides for installation, configuration and deployment.

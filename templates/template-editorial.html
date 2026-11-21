@@ -448,6 +448,12 @@
           <span class="t-value">&minus;{{formatted_discount}}</span>
         </div>
         {{/has_discount}}
+        {{#has_credit_discount}}
+        <div class="totals-row discount">
+          <span class="t-label">Discount</span>
+          <span class="t-value">+{{formatted_discount}}</span>
+        </div>
+        {{/has_credit_discount}}
         {{#tax_summary}}
         <div class="totals-row">
           <span class="t-label">{{name}} ({{rate}}%)</span>

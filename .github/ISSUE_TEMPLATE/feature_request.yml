@@ -1,0 +1,33 @@
+name: Feature request
+description: Suggest an idea or improvement for Inkvoice.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Inkvoice deliberately stays small, so we lean toward the simplest thing that solves a real problem. Starting from the use case helps a lot.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Use case
+      description: What are you trying to do, and what makes it hard today?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How would you like it to work?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you use now, or other ways this could be solved (a plugin, a setting, an API call).
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I'd be willing to open a pull request for this.

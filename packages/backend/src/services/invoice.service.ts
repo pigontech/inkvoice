@@ -268,11 +268,16 @@ export function getInvoice(id: string): InvoiceWithItems | null {
   const db = getDb();
   const invoice = db
     .query(
-      `SELECT i.*, c.name as customer_name, c.email as customer_email, c.id as cust_id
+      `SELECT i.*, c.name as customer_name, c.email as customer_email, c.language as customer_language, c.id as cust_id
      FROM invoices i LEFT JOIN customers c ON i.customer_id = c.id WHERE i.id = ?`,
     )
     .get(id) as
-    | (Invoice & { customer_name: string; customer_email: string | null; cust_id: string })
+    | (Invoice & {
+        customer_name: string;
+        customer_email: string | null;
+        customer_language: string | null;
+        cust_id: string;
+      })
     | null;
 
   if (!invoice) return null;
@@ -296,6 +301,7 @@ export function getInvoice(id: string): InvoiceWithItems | null {
       id: invoice.cust_id,
       name: invoice.customer_name,
       email: invoice.customer_email,
+      language: invoice.customer_language,
     },
   };
 }
@@ -1065,6 +1071,11 @@ export function createCreditNote(
     notes: `Credit note for invoice ${source.invoice_number}`,
     currency: source.currency,
     prices_include_tax: source.prices_include_tax === 1,
+    // Same rate and document discount as the invoice, so the credit note
+    // reverses exactly what was charged.
+    exchange_rate: source.exchange_rate,
+    discount_type: source.discount_type,
+    discount_value: source.discount_value,
     locale: source.locale,
     template_id: source.template_id,
     items: source.items.map((item) => ({

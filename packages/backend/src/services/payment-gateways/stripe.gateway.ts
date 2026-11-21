@@ -48,9 +48,9 @@ export const stripeGateway: PaymentGateway = {
     const event = await constructWebhookEvent(rawBody, signature);
     if (event.type === "checkout.session.completed") {
       const session = event.data.object as Stripe.Checkout.Session;
-      handlePaymentSuccess(session as never);
+      const recorded = handlePaymentSuccess(session as never);
       await saveMethodFromCheckoutSession(session);
-      return { handled: true, recorded: true };
+      return { handled: true, recorded };
     }
     return { handled: false, recorded: false };
   },

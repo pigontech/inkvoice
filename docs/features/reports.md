@@ -37,7 +37,7 @@ Breaks down total revenue by product or service. Shows which offerings generate 
 The main dashboard provides at-a-glance metrics:
 
 - **Total revenue** — Sum of all paid invoices
-- **Outstanding** — Sum of unpaid sent invoices
+- **Outstanding** — Amount still due (total minus payments received) on sent, partially paid and overdue invoices
 - **Overdue** — Sum of overdue invoices
 - **Invoice counts** — By status
 - **Revenue chart** — Monthly revenue over time

@@ -116,6 +116,21 @@ describe("calculateInvoiceTotals", () => {
     expect(result.total).toBe(0);
   });
 
+  test("fixed discount on negative lines (credit note) keeps their sign", () => {
+    const items = [{ quantity: 1, unit_price: -1000, tax_rate: 20 }];
+    const result = calculateInvoiceTotals(items, "amount", 100);
+    expect(result.discount_amount).toBe(-100);
+    expect(result.tax_total).toBe(-180);
+    expect(result.total).toBe(-1080);
+  });
+
+  test("fixed discount on negative lines is capped at their size", () => {
+    const items = [{ quantity: 1, unit_price: -50, tax_rate: 0 }];
+    const result = calculateInvoiceTotals(items, "amount", 999);
+    expect(result.discount_amount).toBe(-50);
+    expect(result.total).toBe(0);
+  });
+
   test("empty items", () => {
     const result = calculateInvoiceTotals([]);
     expect(result.subtotal).toBe(0);

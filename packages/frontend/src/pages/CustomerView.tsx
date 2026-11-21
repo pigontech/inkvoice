@@ -22,6 +22,7 @@ import { useCan } from "@/hooks/use-can";
 import { useTranslation } from "@/i18n";
 import { STATUS_COLORS } from "@/lib/constants";
 import { formatApiError } from "@/lib/format-api-error";
+import { sumOutstanding } from "@/lib/outstanding";
 import { pushRecentlyViewed } from "@/lib/recently-viewed";
 import { formatCurrency, formatDate } from "@/lib/utils";
 
@@ -81,9 +82,7 @@ export default function CustomerView() {
     );
   }
 
-  const outstanding = invoices
-    .filter((inv: any) => inv.status === "sent" || inv.status === "overdue")
-    .reduce((sum: number, inv: any) => sum + inv.total, 0);
+  const outstanding = sumOutstanding(invoices);
 
   const addressParts = [
     customer.address_line1,

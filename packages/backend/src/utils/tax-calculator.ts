@@ -129,7 +129,10 @@ export function calculateInvoiceTotals(
   if (discountType === "percentage" && discountValue) {
     discountAmount = round(subtotal * (Math.min(discountValue, 100) / 100));
   } else if (discountType === "amount" && discountValue) {
-    discountAmount = round(Math.min(discountValue, subtotal));
+    // Capped at the size of the subtotal and signed like it, so a credit note
+    // (negative lines) reverses a fixed discount instead of taking it again.
+    const capped = Math.min(Math.abs(discountValue), Math.abs(subtotal));
+    discountAmount = round(subtotal < 0 ? -capped : capped);
   }
 
   // A document discount lowers the taxable amount, so the VAT on each rate's
