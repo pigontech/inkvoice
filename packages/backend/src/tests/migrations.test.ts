@@ -243,8 +243,8 @@ describe("schema migration runner", () => {
     expect(db.query("SELECT * FROM contacts WHERE id = 'contact-1'").get()).toEqual(row);
   });
 
-  test("migrations reach version 38", () => {
-    expect(LATEST_MIGRATION_VERSION).toBe(38);
+  test("migrations reach version 39", () => {
+    expect(LATEST_MIGRATION_VERSION).toBe(39);
   });
 
   test("version 37 adds the service date columns to an existing invoice", () => {
@@ -275,7 +275,7 @@ describe("schema migration runner", () => {
 
   test("version 38 drops the e-invoicing schema and settings", () => {
     runWith(db, () => runMigrations());
-    db.exec("DELETE FROM schema_migrations WHERE version = 38");
+    db.exec("DELETE FROM schema_migrations WHERE version >= 38");
     db.exec(`
       CREATE TABLE einvoice_documents (id TEXT PRIMARY KEY);
       CREATE TABLE peppol_participants (id TEXT PRIMARY KEY);

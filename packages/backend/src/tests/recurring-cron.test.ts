@@ -107,6 +107,48 @@ describe("recurring invoice scheduler", () => {
     expect(new Date(after.next_run_date).getTime()).toBeGreaterThan(Date.now());
   });
 
+  test("a schedule billing in arrears states the month before its run date", async () => {
+    const schedule = createRecurring({
+      customer_id: customerId,
+      template_invoice_id: makeTemplateInvoice(),
+      frequency: "monthly",
+      next_run_date: "2026-12-01",
+      service_period_mode: "previous",
+    });
+    const first = getInvoice((await generateInvoice(schedule.id))!)!;
+    expect(first.service_period_start).toBe("2026-11-01");
+    expect(first.service_period_end).toBe("2026-11-30");
+    expect(first.service_date).toBeNull();
+
+    const second = getInvoice((await generateInvoice(schedule.id))!)!;
+    expect(second.service_period_start).toBe("2026-12-01");
+    expect(second.service_period_end).toBe("2026-12-31");
+  });
+
+  test("a daily schedule states a single service date; none states nothing", async () => {
+    const daily = createRecurring({
+      customer_id: customerId,
+      template_invoice_id: makeTemplateInvoice(),
+      frequency: "daily",
+      next_run_date: "2026-12-02",
+      service_period_mode: "previous",
+    });
+    const inv = getInvoice((await generateInvoice(daily.id))!)!;
+    expect(inv.service_date).toBe("2026-12-01");
+    expect(inv.service_period_start).toBeNull();
+
+    const none = createRecurring({
+      customer_id: customerId,
+      template_invoice_id: makeTemplateInvoice(),
+      frequency: "monthly",
+      next_run_date: "2026-12-01",
+    });
+    expect(none.service_period_mode).toBe("none");
+    const plain = getInvoice((await generateInvoice(none.id))!)!;
+    expect(plain.service_date).toBeNull();
+    expect(plain.service_period_start).toBeNull();
+  });
+
   test("processAllDue fires for active schedules whose next_run_date is past", async () => {
     const templateId = makeTemplateInvoice();
     const sch1 = createRecurring({

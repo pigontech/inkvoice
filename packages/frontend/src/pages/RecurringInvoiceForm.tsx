@@ -11,6 +11,12 @@ import { NumberInput } from "@/components/ui/number-input";
 import { useTranslation } from "@/i18n";
 import { todayIso } from "@/lib/date";
 import { formatApiError } from "@/lib/format-api-error";
+import { formatDate } from "@/lib/utils";
+import {
+  advanceDate,
+  type ServicePeriodMode,
+  servicePeriodFor,
+} from "../../../backend/src/utils/recurring-period";
 
 export default function RecurringInvoiceForm() {
   const navigate = useNavigate();
@@ -27,13 +33,29 @@ export default function RecurringInvoiceForm() {
   const [endDate, setEndDate] = useState("");
   const [autoSend, setAutoSend] = useState(false);
   const [autoBill, setAutoBill] = useState(false);
+  const [servicePeriodMode, setServicePeriodMode] = useState<ServicePeriodMode>("previous");
   const [hasSavedMethod, setHasSavedMethod] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     api.listCustomers({ limit: "200" }).then((r) => setCustomers(r.data.items));
-    api.listInvoices({ limit: "200" }).then((r) => setInvoices(r.data.items));
   }, []);
+
+  // Only this customer's invoices can be copied; the list API caps a page at
+  // 100, so an unfiltered list would hide older invoices of most customers.
+  useEffect(() => {
+    if (!customerId) {
+      setInvoices([]);
+      return;
+    }
+    let cancelled = false;
+    api.listInvoices({ customer_id: customerId, limit: "100" }).then((r) => {
+      if (!cancelled) setInvoices(r.data.items);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [customerId]);
 
   // Auto-bill needs a saved card on the selected customer. Re-check whenever
   // the customer changes, and drop the toggle back off if the new customer
@@ -74,12 +96,28 @@ export default function RecurringInvoiceForm() {
         setEndDate(s.end_date || "");
         setAutoSend(!!s.auto_send);
         setAutoBill(!!s.auto_bill);
+        setServicePeriodMode(s.service_period_mode ?? "none");
+        setServicePeriodMode(s.service_period_mode ?? "none");
       })
       .catch((err: unknown) => {
         toast.error(formatApiError(err, t));
         navigate("/recurring/all", { replace: true });
       });
   }, [id, navigate, t]);
+
+  // The next three runs and the period each will state, from the same maths
+  // the generator uses.
+  const upcoming: { runDate: string; period: { start: string; end: string } | null }[] = [];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(nextRunDate) && intervalValue >= 1) {
+    let runDate = nextRunDate;
+    while (upcoming.length < 3 && (!endDate || runDate <= endDate)) {
+      upcoming.push({
+        runDate,
+        period: servicePeriodFor(runDate, frequency, intervalValue, servicePeriodMode),
+      });
+      runDate = advanceDate(runDate, frequency, intervalValue);
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,6 +140,7 @@ export default function RecurringInvoiceForm() {
         end_date: endDate || null,
         auto_send: autoSend,
         auto_bill: autoBill,
+        service_period_mode: servicePeriodMode,
       };
       if (isEdit) {
         await api.updateRecurring(id!, payload);
@@ -164,7 +203,11 @@ export default function RecurringInvoiceForm() {
           <FormField label={t("recurring.customer")}>
             <select
               value={customerId}
-              onChange={(e) => setCustomerId(e.target.value)}
+              onChange={(e) => {
+                setCustomerId(e.target.value);
+                // Another customer's invoice would copy the wrong lines.
+                setTemplateInvoiceId("");
+              }}
               className="form-select"
             >
               <option value="">{t("recurring.select_customer")}</option>
@@ -185,7 +228,9 @@ export default function RecurringInvoiceForm() {
               onChange={(e) => setTemplateInvoiceId(e.target.value)}
               className="form-select"
             >
-              <option value="">{t("recurring.select_invoice")}</option>
+              <option value="">
+                {customerId ? t("recurring.select_invoice") : t("recurring.select_customer_first")}
+              </option>
               {invoices.map((inv: any) => (
                 <option key={inv.id} value={inv.id}>
                   {inv.invoice_number} — {inv.customer_name}
@@ -213,7 +258,7 @@ export default function RecurringInvoiceForm() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <FormField label={t("recurring.start_date")}>
+            <FormField label={t("recurring.start_date")} hint={t("recurring.start_date_hint")}>
               <Input
                 type="date"
                 value={nextRunDate}
@@ -224,6 +269,41 @@ export default function RecurringInvoiceForm() {
               <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
             </FormField>
           </div>
+
+          <FormField
+            label={t("recurring.service_period")}
+            hint={t("recurring.service_period_hint")}
+          >
+            <select
+              value={servicePeriodMode}
+              onChange={(e) => setServicePeriodMode(e.target.value as ServicePeriodMode)}
+              className="form-select"
+            >
+              <option value="previous">{t("recurring.service_period_previous")}</option>
+              <option value="current">{t("recurring.service_period_current")}</option>
+              <option value="none">{t("recurring.service_period_none")}</option>
+            </select>
+          </FormField>
+
+          {upcoming.length > 0 && (
+            <div className="rounded-md border border-border p-3 text-sm">
+              <p className="font-medium">{t("recurring.preview_title")}</p>
+              <ul className="mt-1 space-y-0.5 text-muted-foreground">
+                {upcoming.map(({ runDate, period }) => (
+                  <li key={runDate}>
+                    <span className="text-foreground">{formatDate(runDate)}</span>
+                    {period &&
+                      ` · ${t("recurring.preview_covers", {
+                        period:
+                          period.start === period.end
+                            ? formatDate(period.start)
+                            : `${formatDate(period.start)} – ${formatDate(period.end)}`,
+                      })}`}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           <label className="flex items-center gap-2 text-sm">
             <input

@@ -1,7 +1,8 @@
 import crypto from "node:crypto";
 import { getDb } from "../database/connection";
-import { todayIso, toIsoDate } from "../utils/date";
+import { todayIso } from "../utils/date";
 import { logger } from "../utils/logger";
+import { advanceDate, type ServicePeriodMode, servicePeriodFor } from "../utils/recurring-period";
 import { createInvoice, finaliseForSending, getInvoice } from "./invoice.service";
 import { sendInvoiceEmail } from "./invoice-send.service";
 
@@ -16,6 +17,7 @@ export interface RecurringInvoice {
   status: string;
   auto_send: number;
   auto_bill: number;
+  service_period_mode: ServicePeriodMode;
   total_generated: number;
   last_generated_at: string | null;
   created_at: string;
@@ -31,6 +33,7 @@ interface CreateRecurringData {
   end_date?: string | null;
   auto_send?: boolean;
   auto_bill?: boolean;
+  service_period_mode?: ServicePeriodMode;
 }
 
 export function listRecurring(params?: {
@@ -72,8 +75,8 @@ export function createRecurring(
   const id = crypto.randomBytes(16).toString("hex");
 
   db.run(
-    `INSERT INTO recurring_invoices (id, customer_id, template_invoice_id, frequency, interval_value, next_run_date, end_date, auto_send, auto_bill)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO recurring_invoices (id, customer_id, template_invoice_id, frequency, interval_value, next_run_date, end_date, auto_send, auto_bill, service_period_mode)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id,
       data.customer_id,
@@ -84,6 +87,7 @@ export function createRecurring(
       data.end_date || null,
       data.auto_send ? 1 : 0,
       data.auto_bill ? 1 : 0,
+      data.service_period_mode ?? "none",
     ],
   );
 
@@ -106,6 +110,7 @@ export function updateRecurring(
        end_date = COALESCE(?, end_date),
        auto_send = COALESCE(?, auto_send),
        auto_bill = COALESCE(?, auto_bill),
+       service_period_mode = COALESCE(?, service_period_mode),
        updated_at = datetime('now')
      WHERE id = ?`,
     [
@@ -115,6 +120,7 @@ export function updateRecurring(
       data.end_date !== undefined ? data.end_date || null : null,
       data.auto_send !== undefined ? (data.auto_send ? 1 : 0) : null,
       data.auto_bill !== undefined ? (data.auto_bill ? 1 : 0) : null,
+      data.service_period_mode ?? null,
       id,
     ],
   );
@@ -169,25 +175,6 @@ export function deleteRecurring(id: string): { success: boolean; error?: string 
   return { success: true };
 }
 
-function advanceDate(dateStr: string, frequency: string, interval: number): string {
-  const d = new Date(dateStr);
-  switch (frequency) {
-    case "daily":
-      d.setDate(d.getDate() + interval);
-      break;
-    case "weekly":
-      d.setDate(d.getDate() + 7 * interval);
-      break;
-    case "monthly":
-      d.setMonth(d.getMonth() + interval);
-      break;
-    case "yearly":
-      d.setFullYear(d.getFullYear() + interval);
-      break;
-  }
-  return toIsoDate(d);
-}
-
 /**
  * Optional plan-limit hook registered by a downstream overlay. When set, the
  * scheduler calls it before generating a recurring invoice so a free tenant
@@ -219,6 +206,15 @@ export async function generateInvoice(recurringId: string): Promise<string | nul
   }
 
   const today = todayIso();
+  // From the scheduled date, not today: a late tick or "Generate now" still
+  // bills the period this run was meant for.
+  const period = servicePeriodFor(
+    recurring.next_run_date,
+    recurring.frequency,
+    recurring.interval_value,
+    recurring.service_period_mode,
+  );
+  const singleDay = period && period.start === period.end;
 
   const newInvoice = createInvoice({
     customer_id: recurring.customer_id,
@@ -226,6 +222,9 @@ export async function generateInvoice(recurringId: string): Promise<string | nul
     due_date: template.due_date
       ? advanceDate(today, "daily", dateDiffDays(template.issue_date, template.due_date))
       : null,
+    service_date: singleDay ? period.start : null,
+    service_period_start: period && !singleDay ? period.start : null,
+    service_period_end: period && !singleDay ? period.end : null,
     notes: template.notes,
     payment_terms: template.payment_terms,
     currency: template.currency,

@@ -1228,6 +1228,22 @@ const MIGRATIONS: Migration[] = [
       );
     },
   },
+  {
+    version: 39,
+    name: "recurring_service_period",
+    up: (db) => {
+      // Which service period each generated invoice states: none, the period
+      // before the run date (in arrears) or the one starting on it (in
+      // advance). Existing schedules keep stating none.
+      if (!tableExists(db, "recurring_invoices")) return;
+      addColumnIfMissing(
+        db,
+        "recurring_invoices",
+        "service_period_mode",
+        "TEXT NOT NULL DEFAULT 'none'",
+      );
+    },
+  },
 ];
 
 export const LATEST_MIGRATION_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

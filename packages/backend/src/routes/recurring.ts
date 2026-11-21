@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { requirePermission } from "../middleware/auth";
 import * as recurringService from "../services/recurring.service";
+import { SERVICE_PERIOD_MODES } from "../utils/recurring-period";
 
 const recurring = new Hono();
 
@@ -26,6 +27,7 @@ const createSchema = z.object({
   end_date: z.string().optional().nullable(),
   auto_send: z.boolean().optional(),
   auto_bill: z.boolean().optional(),
+  service_period_mode: z.enum(SERVICE_PERIOD_MODES).optional(),
 });
 
 recurring.post("/", requirePermission("invoices", "create"), async (c) => {
