@@ -61,6 +61,9 @@ export function CommandPalette() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const isAdmin = useAuthStore((s) => s.user?.is_admin ?? false);
+  const can = useCan();
+  // Every report is built from invoices, expenses or both.
+  const canSeeReports = can("invoices", "read") || can("expenses", "read");
 
   const [search, setSearch] = useState("");
   const [results, setResults] = useState<SearchResults>(EMPTY_RESULTS);
@@ -139,7 +142,7 @@ export function CommandPalette() {
       { icon: Repeat, label: t("nav.recurring"), to: "/recurring" },
       { icon: Users, label: t("nav.customers"), to: "/customers" },
       { icon: Package, label: t("nav.products"), to: "/products" },
-      { icon: BarChart3, label: t("nav.reports"), to: "/reports" },
+      ...(canSeeReports ? [{ icon: BarChart3, label: t("nav.reports"), to: "/reports" }] : []),
       ...(isAdmin
         ? [
             { icon: Settings, label: t("nav.settings"), to: "/settings" },
@@ -148,10 +151,9 @@ export function CommandPalette() {
           ]
         : []),
     ],
-    [t, isAdmin],
+    [t, isAdmin, canSeeReports],
   );
 
-  const can = useCan();
   const createItems = useMemo(
     () =>
       [

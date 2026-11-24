@@ -32,6 +32,10 @@ const GUARDED_PREFIXES = [
   "/api/v1/templates",
   "/api/v1/reminder-rules",
   "/api/v1/einvoices",
+  "/api/v1/reports",
+  "/api/v1/dashboard",
+  "/api/v1/search",
+  "/api/v1/tags",
 ];
 
 /** POSTs that only render a preview, so they need nothing beyond read. */
@@ -272,6 +276,158 @@ describe("roles that may write", () => {
 
 // The app hides what a user may not do from `access`, so it must say exactly
 // what the guards above enforce, no more and no less.
+describe("reports follow the records behind them", () => {
+  test("a user who may only read expenses gets expense reports and nothing else", async () => {
+    const db = getDb();
+    db.run(
+      "INSERT INTO users (id, username, password_hash, is_admin, is_active, role) VALUES ('spender-1', 'spender-1', 'x', 0, 1, NULL)",
+    );
+    db.run(
+      "INSERT INTO user_permissions (id, user_id, resource, action) VALUES ('perm-2', 'spender-1', 'expenses', 'read')",
+    );
+    const spender = await signToken({ sub: "spender-1", username: "spender-1", is_admin: false });
+    const status = async (path: string) => (await call(spender, "GET", path)).status;
+
+    expect(await status("/api/v1/reports/expenses-by-category")).toBe(200);
+    // Read is not export.
+    expect(await status("/api/v1/reports/expenses-by-category/csv")).toBe(403);
+    // Profit and loss shows revenue too.
+    expect(await status("/api/v1/reports/profit-loss")).toBe(403);
+    expect(await status("/api/v1/reports/tax-summary")).toBe(403);
+    expect(await status("/api/v1/reports/aging")).toBe(403);
+    expect(await status("/api/v1/reports/accounting-export/csv?dataset=expenses")).toBe(403);
+  });
+
+  test("the accounting export checks the dataset it was asked for", async () => {
+    const db = getDb();
+    db.run(
+      "INSERT INTO users (id, username, password_hash, is_admin, is_active, role) VALUES ('exporter-1', 'exporter-1', 'x', 0, 1, NULL)",
+    );
+    db.run(
+      "INSERT INTO user_permissions (id, user_id, resource, action) VALUES ('perm-3', 'exporter-1', 'expenses', 'export')",
+    );
+    const exporter = await signToken({
+      sub: "exporter-1",
+      username: "exporter-1",
+      is_admin: false,
+    });
+    const status = async (dataset: string) =>
+      (await call(exporter, "GET", `/api/v1/reports/accounting-export/csv?dataset=${dataset}`))
+        .status;
+
+    expect(await status("expenses")).toBe(200);
+    expect(await status("invoices")).toBe(403);
+    expect(await status("payments")).toBe(403);
+  });
+});
+
+describe("the dashboard and search", () => {
+  test("dashboard figures leave expenses out for a user who may not read them", async () => {
+    const db = getDb();
+    db.run(
+      "INSERT INTO users (id, username, password_hash, is_admin, is_active, role) VALUES ('biller-1', 'biller-1', 'x', 0, 1, NULL)",
+    );
+    db.run(
+      "INSERT INTO user_permissions (id, user_id, resource, action) VALUES ('perm-4', 'biller-1', 'invoices', 'read')",
+    );
+    const biller = await signToken({ sub: "biller-1", username: "biller-1", is_admin: false });
+    const stats = async (bearer: string) =>
+      ((await (await call(bearer, "GET", "/api/v1/dashboard/stats")).json()) as any).data;
+
+    const limited = await stats(biller);
+    expect(limited.total_expenses).toBeNull();
+    expect(limited.net_income).toBeNull();
+    expect(typeof limited.total_revenue).toBe("number");
+    expect(typeof (await stats(token.viewer)).net_income).toBe("number");
+  });
+
+  test("search returns only the kinds of record the user may read", async () => {
+    await call(token.admin, "POST", "/api/v1/customers", { name: "Zebrafinch Ltd" });
+    await call(token.admin, "POST", "/api/v1/products", { name: "Zebrafinch seed", unit_price: 5 });
+    const kinds = async (bearer: string) => {
+      const res = await call(bearer, "GET", "/api/v1/search?q=zebrafinch");
+      const body = (await res.json()) as { data: { hits: { kind: string }[] } };
+      return [...new Set(body.data.hits.map((h) => h.kind))].sort();
+    };
+
+    expect(await kinds(token.admin)).toEqual(["customer", "product"]);
+
+    const db = getDb();
+    db.run(
+      "INSERT INTO users (id, username, password_hash, is_admin, is_active, role) VALUES ('stock-1', 'stock-1', 'x', 0, 1, NULL)",
+    );
+    db.run(
+      "INSERT INTO user_permissions (id, user_id, resource, action) VALUES ('perm-5', 'stock-1', 'products', 'read')",
+    );
+    const stock = await signToken({ sub: "stock-1", username: "stock-1", is_admin: false });
+    expect(await kinds(stock)).toEqual(["product"]);
+    // Naming the hidden kind does not bring it back.
+    const res = await call(stock, "GET", "/api/v1/search?q=zebrafinch&kind=customer");
+    expect(((await res.json()) as any).data.hits).toEqual([]);
+  });
+});
+
+describe("the activity log", () => {
+  type Page = { data: { items: { resource_type: string; action: string }[]; total: number } };
+  const list = async (bearer: string, query = "") =>
+    (await (await call(bearer, "GET", `/api/v1/activity?limit=200${query}`)).json()) as Page;
+
+  beforeAll(() => {
+    const db = getDb();
+    const add = (id: string, type: string, action: string) =>
+      db.run(
+        "INSERT INTO activity_log (id, user_name, action, resource_type, resource_id, metadata) VALUES (?, 'admin', ?, ?, 'r-1', ?)",
+        [id, action, type, JSON.stringify({ target_username: "viewer-1" })],
+      );
+    add("act-1", "invoice", "sent");
+    add("act-2", "expense", "created");
+    add("act-3", "user", "update_permissions");
+    add("act-4", "user", "login");
+    add("act-5", "peppol_participant", "peppol_registration");
+    add("act-6", "something_new", "created");
+  });
+
+  test("an admin sees every entry", async () => {
+    const types = new Set((await list(token.admin)).data.items.map((i) => i.resource_type));
+    for (const type of ["invoice", "expense", "user", "peppol_participant", "something_new"]) {
+      expect(types.has(type)).toBe(true);
+    }
+  });
+
+  test("a Viewer sees record activity but no account, login or unlisted entries", async () => {
+    const page = await list(token.viewer);
+    const types = new Set(page.data.items.map((i) => i.resource_type));
+    expect(types.has("invoice")).toBe(true);
+    expect(types.has("expense")).toBe(true);
+    expect(types.has("user")).toBe(false);
+    expect(types.has("peppol_participant")).toBe(false);
+    expect(types.has("something_new")).toBe(false);
+    expect(page.data.total).toBe(page.data.items.length);
+
+    // Asking for the hidden type by name gets nothing either.
+    const users = await list(token.viewer, "&resource_type=user");
+    expect(users.data.items).toEqual([]);
+    expect(users.data.total).toBe(0);
+  });
+
+  test("a user with no permission gets an empty log", async () => {
+    const page = await list(token.nobody);
+    expect(page.data.items).toEqual([]);
+    expect(page.data.total).toBe(0);
+  });
+
+  test("one record's history needs read access to that kind of record", async () => {
+    const status = async (bearer: string, type: string) =>
+      (await call(bearer, "GET", `/api/v1/activity/resource/${type}/r-1`)).status;
+
+    expect(await status(token.viewer, "invoice")).toBe(200);
+    expect(await status(token.viewer, "user")).toBe(403);
+    expect(await status(token.viewer, "something_new")).toBe(403);
+    expect(await status(token.nobody, "invoice")).toBe(403);
+    expect(await status(token.admin, "user")).toBe(200);
+  });
+});
+
 describe("the access map the app is given", () => {
   test("matches requirePermission for every role, resource and action", async () => {
     const users = [

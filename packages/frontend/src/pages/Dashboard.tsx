@@ -266,71 +266,78 @@ export default function Dashboard() {
 
       {/* Stat Cards */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        {statCards.map((sc) => {
-          const value = sc.isCurrency
-            ? formatCurrency(stats?.[sc.key] ?? 0, stats?.base_currency)
-            : (stats?.[sc.key] ?? 0);
-          const trend: number[] = stats?.trends?.[sc.key] ?? [];
-          const delta: number | null = stats?.deltas?.[sc.key] ?? null;
-          const positive = (delta ?? 0) >= 0;
-          // For "outstanding" a decrease is good — invert the color cue.
-          const isGoodWhenDown = sc.key === "total_outstanding";
-          const goodNews = isGoodWhenDown ? !positive : positive;
-          return (
-            <Card
-              key={sc.key}
-              role="button"
-              tabIndex={0}
-              className="group cursor-pointer py-0 transition-all duration-200 hover:-translate-y-0.5 hover:border-black/[0.16] dark:hover:border-white/[0.14]"
-              onClick={() => navigate(sc.to)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  navigate(sc.to);
-                }
-              }}
-            >
-              <div className="relative p-4">
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/80 truncate">
-                      {sc.label}
-                    </span>
+        {statCards
+          // The server sends null for a figure this user may not see.
+          .filter((sc) => stats?.[sc.key] !== null)
+          .map((sc) => {
+            const value = sc.isCurrency
+              ? formatCurrency(stats?.[sc.key] ?? 0, stats?.base_currency)
+              : (stats?.[sc.key] ?? 0);
+            const trend: number[] = stats?.trends?.[sc.key] ?? [];
+            const delta: number | null = stats?.deltas?.[sc.key] ?? null;
+            const positive = (delta ?? 0) >= 0;
+            // For "outstanding" a decrease is good — invert the color cue.
+            const isGoodWhenDown = sc.key === "total_outstanding";
+            const goodNews = isGoodWhenDown ? !positive : positive;
+            return (
+              <Card
+                key={sc.key}
+                role="button"
+                tabIndex={0}
+                className="group cursor-pointer py-0 transition-all duration-200 hover:-translate-y-0.5 hover:border-black/[0.16] dark:hover:border-white/[0.14]"
+                onClick={() => navigate(sc.to)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    navigate(sc.to);
+                  }
+                }}
+              >
+                <div className="relative p-4">
+                  <div className="flex items-start justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground/80 truncate">
+                        {sc.label}
+                      </span>
+                    </div>
+                    <Sparkline data={trend} color={sc.color} />
                   </div>
-                  <Sparkline data={trend} color={sc.color} />
+                  <div className="flex items-end justify-between gap-3">
+                    <div className="font-mono text-[26px] font-semibold tabular-nums tracking-tight leading-none">
+                      {value}
+                    </div>
+                    <div
+                      className="flex items-center justify-center h-7 w-7 rounded-md border border-border/80 bg-background/40"
+                      style={{ color: sc.color }}
+                    >
+                      <sc.icon className="h-3.5 w-3.5" />
+                    </div>
+                  </div>
+                  {delta !== null ? (
+                    <div
+                      className={`mt-3 flex items-center gap-1 font-mono text-[11px] tabular-nums ${
+                        goodNews
+                          ? "text-emerald-500 dark:text-emerald-400"
+                          : "text-red-500 dark:text-red-400"
+                      }`}
+                    >
+                      {positive ? (
+                        <ArrowUp className="h-3 w-3" />
+                      ) : (
+                        <ArrowDown className="h-3 w-3" />
+                      )}
+                      <span>{Math.abs(delta).toFixed(1)}%</span>
+                      <span className="text-muted-foreground/70 ml-1">
+                        {t("dashboard.vs_last_month")}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="mt-3 h-[15px]" aria-hidden />
+                  )}
                 </div>
-                <div className="flex items-end justify-between gap-3">
-                  <div className="font-mono text-[26px] font-semibold tabular-nums tracking-tight leading-none">
-                    {value}
-                  </div>
-                  <div
-                    className="flex items-center justify-center h-7 w-7 rounded-md border border-border/80 bg-background/40"
-                    style={{ color: sc.color }}
-                  >
-                    <sc.icon className="h-3.5 w-3.5" />
-                  </div>
-                </div>
-                {delta !== null ? (
-                  <div
-                    className={`mt-3 flex items-center gap-1 font-mono text-[11px] tabular-nums ${
-                      goodNews
-                        ? "text-emerald-500 dark:text-emerald-400"
-                        : "text-red-500 dark:text-red-400"
-                    }`}
-                  >
-                    {positive ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                    <span>{Math.abs(delta).toFixed(1)}%</span>
-                    <span className="text-muted-foreground/70 ml-1">
-                      {t("dashboard.vs_last_month")}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="mt-3 h-[15px]" aria-hidden />
-                )}
-              </div>
-            </Card>
-          );
-        })}
+              </Card>
+            );
+          })}
       </div>
 
       {/* Main grid: Chart + Recent Invoices */}

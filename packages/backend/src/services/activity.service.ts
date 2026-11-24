@@ -47,12 +47,22 @@ export function listActivity(params: {
   action?: string;
   date_from?: string;
   date_to?: string;
+  /** Only these resource types are returned. Omit for no restriction. */
+  resource_types?: string[];
   page: number;
   limit: number;
 }): PaginatedResponse<ActivityEntry> {
   const db = getDb();
   const conditions: string[] = [];
   const queryParams: string[] = [];
+
+  if (params.resource_types) {
+    if (params.resource_types.length === 0) {
+      return { items: [], total: 0, page: params.page, limit: params.limit, totalPages: 0 };
+    }
+    conditions.push(`resource_type IN (${params.resource_types.map(() => "?").join(", ")})`);
+    queryParams.push(...params.resource_types);
+  }
 
   if (params.user_id) {
     conditions.push("user_id = ?");

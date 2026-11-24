@@ -24,7 +24,7 @@ export interface SearchHit {
  */
 export function search(
   query: string,
-  options: { kind?: SearchKind; limit?: number } = {},
+  options: { kind?: SearchKind; kinds?: readonly SearchKind[]; limit?: number } = {},
 ): SearchHit[] {
   const db = getDb();
   const limit = Math.min(Math.max(1, options.limit ?? 20), 100);
@@ -52,6 +52,12 @@ export function search(
   if (options.kind) {
     conditions.push("kind = ?");
     params.push(options.kind);
+  }
+  // The kinds the caller may see at all. Omit for no restriction.
+  if (options.kinds) {
+    if (options.kinds.length === 0) return [];
+    conditions.push(`kind IN (${options.kinds.map(() => "?").join(", ")})`);
+    params.push(...options.kinds);
   }
 
   const rows = db

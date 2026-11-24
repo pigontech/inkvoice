@@ -1,10 +1,18 @@
 import { Hono } from "hono";
+import { hasPermission, requirePermission } from "../middleware/auth";
 import * as dashboardService from "../services/dashboard.service";
 
 const dashboard = new Hono();
 
+// The dashboard is a summary of invoices, so it needs read access to them.
+dashboard.use("*", requirePermission("invoices", "read"));
+
 dashboard.get("/stats", (c) => {
-  const data = dashboardService.getStats();
+  const stats = dashboardService.getStats();
+  // Net income gives total expenses away, so both go without expense access.
+  const data = hasPermission(c.get("user"), "expenses", "read")
+    ? stats
+    : { ...stats, total_expenses: null, net_income: null };
   return c.json({ success: true, data });
 });
 

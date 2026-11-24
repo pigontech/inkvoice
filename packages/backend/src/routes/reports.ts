@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { hasPermission, requirePermission } from "../middleware/auth";
 import {
   EXPORT_DATASETS,
   EXPORT_FORMATS,
@@ -15,7 +16,15 @@ import { todayIso } from "../utils/date";
 
 const reports = new Hono();
 
-reports.get("/tax-summary", (c) => {
+// A report is a summary of the books, so it needs the same permission as the
+// records behind it: invoices for revenue, tax and receivables, expenses for
+// spending, both for profit and loss. A CSV download is an export.
+const invoicesRead = requirePermission("invoices", "read");
+const invoicesExport = requirePermission("invoices", "export");
+const expensesRead = requirePermission("expenses", "read");
+const expensesExport = requirePermission("expenses", "export");
+
+reports.get("/tax-summary", invoicesRead, (c) => {
   const data = reportService.getTaxSummary({
     date_from: c.req.query("date_from"),
     date_to: c.req.query("date_to"),
@@ -23,7 +32,7 @@ reports.get("/tax-summary", (c) => {
   return c.json({ success: true, data });
 });
 
-reports.get("/tax-summary/csv", (c) => {
+reports.get("/tax-summary/csv", invoicesExport, (c) => {
   const data = reportService.getTaxSummary({
     date_from: c.req.query("date_from"),
     date_to: c.req.query("date_to"),
@@ -40,12 +49,12 @@ reports.get("/tax-summary/csv", (c) => {
   return c.body(buildCsv(data.rows, cols));
 });
 
-reports.get("/aging", (c) => {
+reports.get("/aging", invoicesRead, (c) => {
   const data = reportService.getAgingReport();
   return c.json({ success: true, data });
 });
 
-reports.get("/aging/csv", (c) => {
+reports.get("/aging/csv", invoicesExport, (c) => {
   const buckets = reportService.getAgingReport();
   type Row = {
     bucket: string;
@@ -85,7 +94,7 @@ reports.get("/aging/csv", (c) => {
   return c.body(buildCsv(rows, cols));
 });
 
-reports.get("/revenue-by-customer", (c) => {
+reports.get("/revenue-by-customer", invoicesRead, (c) => {
   const data = reportService.getRevenueByCustomer({
     date_from: c.req.query("date_from"),
     date_to: c.req.query("date_to"),
@@ -93,7 +102,7 @@ reports.get("/revenue-by-customer", (c) => {
   return c.json({ success: true, data });
 });
 
-reports.get("/revenue-by-customer/csv", (c) => {
+reports.get("/revenue-by-customer/csv", invoicesExport, (c) => {
   const data = reportService.getRevenueByCustomer({
     date_from: c.req.query("date_from"),
     date_to: c.req.query("date_to"),
@@ -110,7 +119,7 @@ reports.get("/revenue-by-customer/csv", (c) => {
   return c.body(buildCsv(data, cols));
 });
 
-reports.get("/revenue-by-product", (c) => {
+reports.get("/revenue-by-product", invoicesRead, (c) => {
   const data = reportService.getRevenueByProduct({
     date_from: c.req.query("date_from"),
     date_to: c.req.query("date_to"),
@@ -118,7 +127,7 @@ reports.get("/revenue-by-product", (c) => {
   return c.json({ success: true, data });
 });
 
-reports.get("/revenue-by-product/csv", (c) => {
+reports.get("/revenue-by-product/csv", invoicesExport, (c) => {
   const data = reportService.getRevenueByProduct({
     date_from: c.req.query("date_from"),
     date_to: c.req.query("date_to"),
@@ -142,7 +151,7 @@ reports.get("/revenue-by-product/csv", (c) => {
   return c.body(buildCsv(data.rows as Row[], cols));
 });
 
-reports.get("/expenses-by-category", (c) => {
+reports.get("/expenses-by-category", expensesRead, (c) => {
   const data = reportService.getExpensesByCategory({
     date_from: c.req.query("date_from"),
     date_to: c.req.query("date_to"),
@@ -150,7 +159,7 @@ reports.get("/expenses-by-category", (c) => {
   return c.json({ success: true, data });
 });
 
-reports.get("/expenses-by-category/csv", (c) => {
+reports.get("/expenses-by-category/csv", expensesExport, (c) => {
   const data = reportService.getExpensesByCategory({
     date_from: c.req.query("date_from"),
     date_to: c.req.query("date_to"),
@@ -166,7 +175,7 @@ reports.get("/expenses-by-category/csv", (c) => {
   return c.body(buildCsv(data.rows, cols));
 });
 
-reports.get("/profit-loss", (c) => {
+reports.get("/profit-loss", invoicesRead, expensesRead, (c) => {
   const data = reportService.getProfitAndLoss({
     date_from: c.req.query("date_from"),
     date_to: c.req.query("date_to"),
@@ -174,7 +183,7 @@ reports.get("/profit-loss", (c) => {
   return c.json({ success: true, data });
 });
 
-reports.get("/profit-loss/csv", (c) => {
+reports.get("/profit-loss/csv", invoicesExport, expensesExport, (c) => {
   const data = reportService.getProfitAndLoss({
     date_from: c.req.query("date_from"),
     date_to: c.req.query("date_to"),
@@ -191,7 +200,7 @@ reports.get("/profit-loss/csv", (c) => {
   return c.body(buildCsv(data.months, cols));
 });
 
-reports.get("/currency-breakdown", (c) => {
+reports.get("/currency-breakdown", invoicesRead, (c) => {
   const data = reportService.getCurrencyBreakdown({
     date_from: c.req.query("date_from"),
     date_to: c.req.query("date_to"),
@@ -199,7 +208,7 @@ reports.get("/currency-breakdown", (c) => {
   return c.json({ success: true, data });
 });
 
-reports.get("/currency-breakdown/csv", (c) => {
+reports.get("/currency-breakdown/csv", invoicesExport, (c) => {
   const data = reportService.getCurrencyBreakdown({
     date_from: c.req.query("date_from"),
     date_to: c.req.query("date_to"),
@@ -217,14 +226,14 @@ reports.get("/currency-breakdown/csv", (c) => {
   return c.body(buildCsv(data.rows, cols));
 });
 
-reports.get("/cash-flow-forecast", (c) => {
+reports.get("/cash-flow-forecast", invoicesRead, (c) => {
   const monthsParam = parseInt(c.req.query("months") || "6", 10);
   const months = Math.min(Math.max(Number.isFinite(monthsParam) ? monthsParam : 6, 1), 24);
   const data = reportService.getCashFlowForecast(months);
   return c.json({ success: true, data });
 });
 
-reports.get("/cash-flow-forecast/csv", (c) => {
+reports.get("/cash-flow-forecast/csv", invoicesExport, (c) => {
   const monthsParam = parseInt(c.req.query("months") || "6", 10);
   const months = Math.min(Math.max(Number.isFinite(monthsParam) ? monthsParam : 6, 1), 24);
   const data = reportService.getCashFlowForecast(months);
@@ -252,6 +261,12 @@ reports.get("/accounting-export/csv", (c) => {
   const dataset: ExportDataset = EXPORT_DATASETS.includes(datasetParam as ExportDataset)
     ? (datasetParam as ExportDataset)
     : "invoices";
+
+  // The dataset picks the records, so it picks the permission too.
+  const resource = dataset === "expenses" ? "expenses" : "invoices";
+  if (!hasPermission(c.get("user"), resource, "export")) {
+    return c.json({ success: false, error: "Forbidden" }, 403);
+  }
 
   const range = {
     date_from: c.req.query("date_from"),

@@ -25,6 +25,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useCan } from "@/hooks/use-can";
 import { type Theme, useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -60,6 +61,10 @@ export function Sidebar({ collapsed }: { collapsed?: boolean }) {
 
   const initial = (user?.display_name || user?.username || "?").charAt(0).toUpperCase();
 
+  // Every report is built from invoices, expenses or both.
+  const can = useCan();
+  const canSeeReports = can("invoices", "read") || can("expenses", "read");
+
   const navSections = [
     {
       label: t("nav.main"),
@@ -79,7 +84,7 @@ export function Sidebar({ collapsed }: { collapsed?: boolean }) {
         ...(einvoiceEnabled
           ? [{ to: "/einvoices", icon: FileCheck2, label: t("nav.einvoices") }]
           : []),
-        { to: "/reports", icon: BarChart3, label: t("nav.reports") },
+        ...(canSeeReports ? [{ to: "/reports", icon: BarChart3, label: t("nav.reports") }] : []),
       ],
     },
   ];
