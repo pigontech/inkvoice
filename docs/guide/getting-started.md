@@ -55,7 +55,7 @@ Putting this on the public internet? Terminate TLS in front of it, then switch t
 :::
 
 The `latest` tag tracks `main`. For a stable deployment, pin a release tag such as
-`ghcr.io/pigontech/inkvoice:0.3.7`.
+`ghcr.io/pigontech/inkvoice:0.3.8`.
 
 ## Manual Setup
 
