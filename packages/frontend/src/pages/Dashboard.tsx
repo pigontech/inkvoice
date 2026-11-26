@@ -238,6 +238,8 @@ export default function Dashboard() {
   const chartData = chart.map((row: any, i: number) => ({
     ...row,
     revenue_fill: i === lastIndex ? "var(--chart-now)" : "var(--chart-bar)",
+    // The current month keeps a hairline edge: a pale fill needs it to read on paper.
+    revenue_edge: i === lastIndex ? "var(--chart-now-edge)" : "none",
     previous_revenue_fill: "var(--chart-bar-2)",
   }));
   const seriesNames = {
@@ -487,7 +489,7 @@ export default function Dashboard() {
                     isAnimationActive={false}
                   >
                     {chartData.map((row: any) => (
-                      <Cell key={row.month} fill={row.revenue_fill} />
+                      <Cell key={row.month} fill={row.revenue_fill} stroke={row.revenue_edge} />
                     ))}
                     {!compareYoy && (
                       <LabelList

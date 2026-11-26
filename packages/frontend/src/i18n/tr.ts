@@ -97,6 +97,9 @@ const tr: TranslationKeys = {
     theme_light: "Açık",
     theme_dark: "Koyu",
     theme_auto: "Otomatik",
+    theme: "Tema",
+    palette_default: "Varsayılan",
+    palette_highlighter: "Highlighter",
   },
 
   // Update check (sidebar)

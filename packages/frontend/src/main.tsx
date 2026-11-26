@@ -6,6 +6,7 @@ import "./styles/globals.css";
 // overlay overrides @/registrations via the build's overlay resolver.
 import "@/registrations";
 import App from "./App";
+import { initPalette } from "./hooks/use-palette";
 import { I18nProvider } from "./i18n/I18nProvider";
 
 // Optional Sentry wiring — only loads if VITE_SENTRY_DSN is set at build time.
@@ -27,6 +28,8 @@ if (sentryDsn) {
     });
   });
 }
+
+initPalette();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

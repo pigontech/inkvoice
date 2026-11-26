@@ -27,10 +27,16 @@ import { InkvoiceIcon, InkvoiceLogo } from "@/components/InkvoiceLogo";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useCan } from "@/hooks/use-can";
+import { PALETTES, type Palette, usePalette } from "@/hooks/use-palette";
 import { type Theme, useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
 import { type UpdateCheck, updateIndicator } from "@/lib/update-check";
@@ -50,6 +56,7 @@ export function Sidebar({ collapsed }: { collapsed?: boolean }) {
   const { user, logout } = useAuthStore();
   const { t } = useTranslation();
   const { theme, setTheme } = useTheme();
+  const { palette, setPalette } = usePalette();
   const navigate = useNavigate();
   const einvoiceEnabled = useSettingsStore((s) => s.settings.einvoice_enabled === "true");
 
@@ -232,7 +239,28 @@ export function Sidebar({ collapsed }: { collapsed?: boolean }) {
               </>
             )}
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" side="top">
+          <DropdownMenuContent align="start" side="top" className="min-w-48">
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>{t("header.theme")}</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={palette}
+                onValueChange={(value) => setPalette(value as Palette)}
+              >
+                {PALETTES.map((p) => (
+                  <DropdownMenuRadioItem key={p.id} value={p.id} closeOnClick={false}>
+                    <span
+                      aria-hidden="true"
+                      className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border border-border-strong"
+                      style={{ background: p.swatch[0] }}
+                    >
+                      <span className="h-2 w-2 rounded-[2px]" style={{ background: p.swatch[1] }} />
+                    </span>
+                    {t(p.labelKey)}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout}>
               <LogOut className="h-4 w-4 mr-2" />
               {t("header.logout")}

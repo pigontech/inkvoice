@@ -102,6 +102,9 @@ const de: TranslationKeys = {
     theme_light: "Hell",
     theme_dark: "Dunkel",
     theme_auto: "Automatisch",
+    theme: "Design",
+    palette_default: "Standard",
+    palette_highlighter: "Highlighter",
   },
 
   // Update check (sidebar)

@@ -45,6 +45,7 @@
     --color-brand: var(--brand);
     --color-brand-foreground: var(--brand-foreground);
     --color-brand-hover: var(--brand-hover);
+    --color-brand-edge: var(--brand-edge);
     --color-brand-soft: var(--brand-soft);
     --color-brand-tint: var(--brand-tint);
     --color-border-strong: var(--border-strong);
@@ -92,6 +93,7 @@
   --brand: #2571ec;
   --brand-foreground: #ffffff;
   --brand-hover: #1664de;
+  --brand-edge: #1664de;
   --brand-soft: #e8f1ff;
   --brand-tint: #ccdffe;
   --secondary: #f1f3f8;
@@ -122,6 +124,7 @@
   --chart-bar: #768096;
   --chart-bar-2: #bdc4d3;
   --chart-now: #2571ec;
+  --chart-now-edge: #1664de;
   --chart-grid: #e5e8ed;
   --chart-axis: #adb1b9;
   --radius: 0.375rem;
@@ -149,6 +152,7 @@
   --brand: #2571ec;
   --brand-foreground: #ffffff;
   --brand-hover: #3480fc;
+  --brand-edge: #3480fc;
   --brand-soft: #05193a;
   --brand-tint: #0b2b5f;
   --secondary: #0b101c;
@@ -179,6 +183,7 @@
   --chart-bar: #6a758a;
   --chart-bar-2: #353d4d;
   --chart-now: #5896fd;
+  --chart-now-edge: #5896fd;
   --chart-grid: #0b101c;
   --chart-axis: #373d49;
   --sidebar: #010309;
@@ -189,6 +194,114 @@
   --sidebar-accent-foreground: #dbdee5;
   --sidebar-border: #1a1f2a;
   --sidebar-ring: #5896fd;
+}
+
+/* Highlighter theme, light: graphite on paper with one marker yellow. Yellow
+   cannot carry text on paper, so --primary (text and tints) is ink here and
+   only --brand is yellow. Picked per browser; see hooks/use-palette.ts. */
+:root[data-palette="highlighter"] {
+  --background: #f3f2ef;
+  --foreground: #181715;
+  --card: #fdfdfb;
+  --card-foreground: #181715;
+  --popover: #fdfdfb;
+  --popover-foreground: #181715;
+  --primary: #181715;
+  --primary-foreground: #fdfdfb;
+  --brand: #fad622;
+  --brand-foreground: #181715;
+  --brand-hover: #f2c50e;
+  --brand-edge: #dbb318;
+  --brand-soft: #fdf2b0;
+  --brand-tint: #fae685;
+  --secondary: #eeede9;
+  --secondary-foreground: #494844;
+  --muted: #eeede9;
+  --muted-foreground: #676662;
+  --accent: #e4e3de;
+  --accent-foreground: #181715;
+  --destructive: #b7191c;
+  --destructive-soft: #ffe6e4;
+  --success: #09672e;
+  --success-soft: #d9f6dd;
+  --warning: #964d09;
+  --warning-soft: #ffe6d3;
+  --info: #035da1;
+  --info-soft: #e0efff;
+  --done: #634590;
+  --done-soft: #f0e9ff;
+  --border: #d7d6d1;
+  --border-strong: #acaba6;
+  --input: #acaba6;
+  --ring: #181715;
+  --chart-1: #3e3d3a;
+  --chart-bar: #3e3d3a;
+  --chart-bar-2: #a6a5a0;
+  --chart-now: #fad622;
+  --chart-now-edge: #dbb318;
+  --chart-grid: #e4e3de;
+  --chart-axis: #acaba6;
+  --sidebar: #eae9e6;
+  --sidebar-foreground: #181715;
+  --sidebar-primary: #fad622;
+  --sidebar-primary-foreground: #181715;
+  --sidebar-accent: #e4e3de;
+  --sidebar-accent-foreground: #181715;
+  --sidebar-border: #d7d6d1;
+  --sidebar-ring: #181715;
+}
+
+/* Highlighter theme, dark */
+.dark[data-palette="highlighter"] {
+  --background: #131311;
+  --foreground: #eae9e6;
+  --card: #1c1c1a;
+  --card-foreground: #eae9e6;
+  --popover: #252421;
+  --popover-foreground: #eae9e6;
+  --primary: #fad622;
+  --primary-foreground: #181715;
+  --brand: #fad622;
+  --brand-foreground: #181715;
+  --brand-hover: #fee568;
+  --brand-edge: #fad622;
+  --brand-soft: #3f350a;
+  --brand-tint: #554704;
+  --secondary: #252421;
+  --secondary-foreground: #b2b1ad;
+  --muted: #252421;
+  --muted-foreground: #8d8c89;
+  --accent: #2e2e2b;
+  --accent-foreground: #eae9e6;
+  --destructive: #fe8b83;
+  --destructive-soft: #421c19;
+  --success: #6ed889;
+  --success-soft: #15301b;
+  --warning: #fba962;
+  --warning-soft: #3d250f;
+  --info: #7cb9f8;
+  --info-soft: #142a41;
+  --done: #c2a7f4;
+  --done-soft: #2d233e;
+  --border: #302f2c;
+  --border-strong: #494844;
+  --input: #494844;
+  --ring: #fad622;
+  --chart-1: #878683;
+  --chart-bar: #878683;
+  --chart-bar-2: #555451;
+  --chart-now: #fad622;
+  --chart-now-edge: #fad622;
+  --chart-grid: #252421;
+  --chart-axis: #494844;
+  --sidebar: #0f0e0c;
+  --sidebar-foreground: #eae9e6;
+  --sidebar-primary: #fad622;
+  --sidebar-primary-foreground: #181715;
+  --sidebar-accent: #2e2e2b;
+  --sidebar-accent-foreground: #eae9e6;
+  --sidebar-border: #302f2c;
+  --sidebar-ring: #fad622;
 }
 
 @layer base {

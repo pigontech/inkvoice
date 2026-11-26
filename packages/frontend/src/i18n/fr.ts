@@ -98,6 +98,9 @@ const fr: TranslationKeys = {
     theme_light: "Clair",
     theme_dark: "Sombre",
     theme_auto: "Auto",
+    theme: "Thème",
+    palette_default: "Par défaut",
+    palette_highlighter: "Highlighter",
   },
 
   // Update check (sidebar)

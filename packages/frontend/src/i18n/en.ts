@@ -95,6 +95,9 @@ const en = {
     theme_light: "Light",
     theme_dark: "Dark",
     theme_auto: "Auto",
+    theme: "Theme",
+    palette_default: "Default",
+    palette_highlighter: "Highlighter",
   },
 
   // Update check (sidebar)
