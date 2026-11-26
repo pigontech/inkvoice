@@ -125,6 +125,21 @@ Nothing to configure. Inkvoice renders invoices and quotes as HTML and the brows
 dialog turns them into PDFs, so there is no Chrome or Chromium to install, bundle or point
 at. The `CHROME_PATH` variable used by older versions is gone and is ignored if still set.
 
+## Update Check
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `UPDATE_CHECK` | `true` | Show admins in the sidebar whether a newer Inkvoice release exists |
+
+When enabled, the server asks the GitHub API for the latest release of
+`pigontech/inkvoice` at most once every 6 hours (once an hour after a failed
+attempt) and caches the answer. Browsers never contact GitHub, and the request
+carries nothing about your install except the Inkvoice version in the
+`User-Agent` header. Owners and admins then see either "Latest" next to the
+version in the sidebar or an "Update available" link to the release on GitHub.
+Prereleases are ignored. Set `UPDATE_CHECK=false` to switch the request off;
+the sidebar then shows only the installed version.
+
 ## Demo Mode
 
 | Variable | Default | Description |

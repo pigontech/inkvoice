@@ -9,6 +9,7 @@ import {
   stripInternalSettings,
   updateSettings,
 } from "../services/settings.service";
+import { getUpdateCheck } from "../services/update-check.service";
 import { getEnv } from "../utils/env";
 import { isSepaIban, isValidBic, normalizeBic, normalizeIban } from "../utils/epc-qr";
 import { isDestructiveDbOpsEnabled } from "./export";
@@ -290,6 +291,12 @@ settings.post("/test-email", async (c) => {
     return c.json({ success: false, error: result.error }, 400);
   }
   return c.json({ success: true, data: { message: "Test email sent" } });
+});
+
+// Whether this install runs the latest open-source release. Admin-only like the
+// rest of /settings; cached server-side, so calling it on every page load is fine.
+settings.get("/update-check", async (c) => {
+  return c.json({ success: true, data: await getUpdateCheck() });
 });
 
 // Reset the database to seeded demo state. Only available when DEMO_MODE=true

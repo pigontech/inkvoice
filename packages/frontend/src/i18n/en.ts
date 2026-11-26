@@ -97,6 +97,14 @@ const en = {
     theme_auto: "Auto",
   },
 
+  // Update check (sidebar)
+  update: {
+    available: "Update available",
+    view_on_github: "View v{{version}} on GitHub",
+    latest: "Latest",
+    up_to_date: "Up to date",
+  },
+
   // Command palette
   command: {
     title: "Command Palette",

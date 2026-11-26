@@ -15,6 +15,7 @@ export interface Env {
   RATE_LIMIT_WINDOW: number;
   DEMO_MODE: boolean;
   DEMO_RESET_INTERVAL: number;
+  UPDATE_CHECK: boolean;
   ALLOWED_ORIGINS: string[];
   SMTP_HOST: string;
   SMTP_PORT: number;
@@ -102,6 +103,7 @@ export function getEnv(): Env {
     RATE_LIMIT_WINDOW: parseInt(process.env.RATE_LIMIT_WINDOW || "900", 10),
     DEMO_MODE: demoMode,
     DEMO_RESET_INTERVAL: parseInt(process.env.DEMO_RESET_INTERVAL || "86400000", 10),
+    UPDATE_CHECK: process.env.UPDATE_CHECK !== "false",
     ALLOWED_ORIGINS: (process.env.ALLOWED_ORIGINS || "http://localhost:5173,http://localhost:3000")
       .split(",")
       .map((s) => s.trim()),

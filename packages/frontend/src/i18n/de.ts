@@ -104,6 +104,14 @@ const de: TranslationKeys = {
     theme_auto: "Automatisch",
   },
 
+  // Update check (sidebar)
+  update: {
+    available: "Update verfügbar",
+    view_on_github: "Zu v{{version}} auf GitHub",
+    latest: "Aktuell",
+    up_to_date: "Auf dem neuesten Stand",
+  },
+
   // Befehlspalette
   command: {
     title: "Befehlspalette",

@@ -35,6 +35,32 @@ PUT /api/v1/settings
 }
 ```
 
+## Update Check
+
+```
+GET /api/v1/settings/update-check
+```
+
+Admin only. Reports whether a newer Inkvoice release exists. The server caches
+the lookup for 6 hours, so this never waits on GitHub more than once per period.
+
+```json
+{
+  "success": true,
+  "data": {
+    "enabled": true,
+    "current": "0.3.8",
+    "latest": "0.3.9",
+    "update_available": true,
+    "release_url": "https://github.com/pigontech/inkvoice/releases/latest",
+    "checked_at": "2026-11-26T09:00:00.000Z"
+  }
+}
+```
+
+`latest` is `null` when the release could not be read, and `enabled` is `false`
+(with `latest: null`) when `UPDATE_CHECK=false`.
+
 ## Upload Logo
 
 ```

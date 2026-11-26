@@ -13,6 +13,8 @@ const INTERNAL_SETTINGS = new Set([
   // server; handing it to a browser would let anyone mint another install's
   // vote identities.
   "plugin_vote_secret",
+  // Update-check bookkeeping (see update-check.service.ts).
+  "update_check_cache",
 ]);
 
 export function isInternalSetting(key: string): boolean {

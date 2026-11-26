@@ -1,4 +1,5 @@
 import type { EinvoiceIssue } from "@/lib/einvoice-issues";
+import type { UpdateCheck } from "@/lib/update-check";
 
 const API_BASE = "/api/v1";
 
@@ -150,6 +151,9 @@ export const api = {
         permissions: { resource: string; action: string }[];
       };
     }>("/auth/me"),
+
+  // Whether a newer release exists (admin only; cached server-side)
+  getUpdateCheck: () => request<{ success: boolean; data: UpdateCheck }>("/settings/update-check"),
 
   // Dashboard
   getDashboardStats: () => request<{ success: boolean; data: any }>("/dashboard/stats"),

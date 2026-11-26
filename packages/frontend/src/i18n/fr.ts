@@ -100,6 +100,14 @@ const fr: TranslationKeys = {
     theme_auto: "Auto",
   },
 
+  // Update check (sidebar)
+  update: {
+    available: "Mise à jour disponible",
+    view_on_github: "Voir v{{version}} sur GitHub",
+    latest: "À jour",
+    up_to_date: "À jour",
+  },
+
   // Palette de commandes
   command: {
     title: "Palette de commandes",

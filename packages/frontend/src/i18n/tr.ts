@@ -99,6 +99,14 @@ const tr: TranslationKeys = {
     theme_auto: "Otomatik",
   },
 
+  // Update check (sidebar)
+  update: {
+    available: "Güncelleme var",
+    view_on_github: "v{{version}}: GitHub'da gör",
+    latest: "Güncel",
+    up_to_date: "Güncel",
+  },
+
   // Komut paleti
   command: {
     title: "Komut Paleti",

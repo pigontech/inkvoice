@@ -1,5 +1,8 @@
 import {
+  ArrowUp,
+  ArrowUpRight,
   BarChart3,
+  Check,
   ChevronsUpDown,
   ClipboardList,
   FileCheck2,
@@ -17,8 +20,9 @@ import {
   UserCog,
   Users,
 } from "lucide-react";
-import type { ComponentType } from "react";
+import { type ComponentType, useEffect, useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
+import { api } from "@/api/client";
 import { InkvoiceIcon, InkvoiceLogo } from "@/components/InkvoiceLogo";
 import {
   DropdownMenu,
@@ -29,6 +33,7 @@ import {
 import { useCan } from "@/hooks/use-can";
 import { type Theme, useTheme } from "@/hooks/use-theme";
 import { useTranslation } from "@/i18n";
+import { type UpdateCheck, updateIndicator } from "@/lib/update-check";
 import { cn } from "@/lib/utils";
 import { APP_VERSION } from "@/lib/version";
 import { getNavItems, useNavGate } from "@/nav-registry";
@@ -59,6 +64,29 @@ export function Sidebar({ collapsed }: { collapsed?: boolean }) {
     await logout();
     navigate("/login");
   };
+
+  // Admins see whether a newer release exists. The server caches the lookup,
+  // and any failure simply leaves the plain version on screen.
+  const isAdmin = !!user?.is_admin;
+  const [update, setUpdate] = useState<UpdateCheck | null>(null);
+  useEffect(() => {
+    if (!isAdmin) return;
+    let cancelled = false;
+    api
+      .getUpdateCheck()
+      .then((res) => {
+        if (!cancelled) setUpdate(res.data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isAdmin]);
+  const indicator = isAdmin ? updateIndicator(update) : "none";
+  const updateLabel =
+    indicator === "available"
+      ? `${t("update.available")}. ${t("update.view_on_github", { version: update?.latest ?? "" })}`
+      : "";
 
   const initial = (user?.display_name || user?.username || "?").charAt(0).toUpperCase();
 
@@ -221,6 +249,18 @@ export function Sidebar({ collapsed }: { collapsed?: boolean }) {
             <ThemeIcon className="h-3.5 w-3.5" />
           </button>
         )}
+        {collapsed && indicator === "available" && (
+          <a
+            href={update?.release_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={updateLabel}
+            aria-label={updateLabel}
+            className="mx-auto flex h-5 w-5 items-center justify-center rounded-[4px] bg-brand text-brand-foreground transition-colors hover:bg-brand-hover"
+          >
+            <ArrowUp className="h-3 w-3" />
+          </a>
+        )}
         {!collapsed && (
           <div className="flex items-center justify-between gap-2 px-1 pb-0.5">
             <div className="inline-flex overflow-hidden rounded-md border border-border-strong">
@@ -246,10 +286,48 @@ export function Sidebar({ collapsed }: { collapsed?: boolean }) {
                 );
               })}
             </div>
-            <span className="text-[11px] leading-[14px] whitespace-nowrap text-muted-foreground">
-              v{APP_VERSION}
-            </span>
+            {indicator === "latest" ? (
+              <span
+                title={t("update.up_to_date")}
+                className="inline-flex items-center gap-1 text-[11px] leading-[14px] whitespace-nowrap text-muted-foreground"
+              >
+                <Check className="h-3 w-3 shrink-0 text-success" aria-hidden="true" />v{APP_VERSION}{" "}
+                · {t("update.latest")}
+              </span>
+            ) : (
+              <span className="text-[11px] leading-[14px] whitespace-nowrap text-muted-foreground">
+                v{APP_VERSION}
+              </span>
+            )}
           </div>
+        )}
+        {!collapsed && indicator === "available" && (
+          <a
+            href={update?.release_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={updateLabel}
+            className="flex items-center gap-2 rounded-md border border-brand-tint bg-brand-soft px-2 py-1.5 text-foreground transition-colors hover:bg-brand-tint"
+          >
+            <span
+              aria-hidden="true"
+              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] bg-brand text-brand-foreground"
+            >
+              <ArrowUp className="h-3 w-3" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-xs leading-4 font-semibold">
+                {t("update.available")}
+              </span>
+              <span className="block truncate text-[11px] leading-[14px] text-secondary-foreground">
+                {t("update.view_on_github", { version: update?.latest ?? "" })}
+              </span>
+            </span>
+            <ArrowUpRight
+              className="h-[13px] w-[13px] shrink-0 text-secondary-foreground"
+              aria-hidden="true"
+            />
+          </a>
         )}
       </div>
     </aside>
