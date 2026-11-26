@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "sonner";
 import { api } from "@/api/client";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -12,12 +12,6 @@ import { useCan } from "@/hooks/use-can";
 import { useTranslation } from "@/i18n";
 import { formatApiError } from "@/lib/format-api-error";
 import { formatDate } from "@/lib/utils";
-
-const STATUS_COLORS: Record<string, string> = {
-  active: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  paused: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  completed: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
-};
 
 const RECURRING_TAB_SEGMENTS = new Set(["all", "active", "paused", "completed"]);
 
@@ -108,7 +102,9 @@ export default function RecurringInvoices() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">{t("recurring.title")}</h1>
+        <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em]">
+          {t("recurring.title")}
+        </h1>
         {canGenerate && (
           <Button onClick={() => navigate("/recurring/new")}>
             <Plus className="h-4 w-4 mr-2" /> {t("recurring.new_schedule")}
@@ -125,7 +121,7 @@ export default function RecurringInvoices() {
         </TabsList>
       </Tabs>
 
-      <div className="glass-table-wrapper">
+      <div className="table-panel">
         <Table>
           <TableHeader>
             <TableRow>
@@ -183,9 +179,9 @@ export default function RecurringInvoices() {
                 </TableCell>
                 <TableCell className="text-right tabular-nums">{item.total_generated}</TableCell>
                 <TableCell>
-                  <Badge variant="secondary" className={STATUS_COLORS[item.status]}>
+                  <StatusBadge status={item.status} className="capitalize">
                     {item.status}
-                  </Badge>
+                  </StatusBadge>
                 </TableCell>
                 {hasActions && (
                   <TableCell>

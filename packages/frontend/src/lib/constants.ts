@@ -4,13 +4,22 @@ export function isInvoiceFormEditable(status: string): boolean {
 }
 
 export const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
-  sent: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  paid: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  partially_paid: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  overdue: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  voided: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
-  complete: "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400",
+  draft: "border-dashed border-border-strong bg-transparent text-secondary-foreground",
+  sent: "bg-info-soft text-info",
+  paid: "bg-success-soft text-success",
+  partially_paid: "bg-warning-soft text-warning",
+  overdue: "bg-destructive-soft text-destructive",
+  voided: "bg-muted text-muted-foreground line-through",
+  complete: "bg-done-soft text-done",
+  // quotes
+  accepted: "bg-success-soft text-success",
+  rejected: "bg-destructive-soft text-destructive",
+  expired: "bg-warning-soft text-warning",
+  converted: "bg-done-soft text-done",
+  // recurring invoices
+  active: "bg-success-soft text-success",
+  paused: "bg-muted text-secondary-foreground",
+  completed: "bg-done-soft text-done",
 };
 
 export interface Currency {

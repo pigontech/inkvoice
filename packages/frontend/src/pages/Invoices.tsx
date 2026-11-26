@@ -27,6 +27,7 @@ import {
   type SortState,
   sortData,
 } from "@/components/shared/SortableColumnHeader";
+import { StatusBadge } from "@/components/shared/StatusBadge";
 import { TagInput } from "@/components/shared/TagInput";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,7 +38,6 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useCan } from "@/hooks/use-can";
 import { useNewEntityShortcut } from "@/hooks/use-new-entity-shortcut";
 import { useTranslation } from "@/i18n";
-import { STATUS_COLORS } from "@/lib/constants";
 import { formatApiError } from "@/lib/format-api-error";
 import { consumeRowHighlight } from "@/lib/highlight-row";
 import { isRecordId } from "@/lib/record-id";
@@ -257,7 +257,7 @@ export default function Invoices() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">
+        <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em]">
           {isTrash ? t("invoices.trash") : t("invoices.title")}
         </h1>
         {!isTrash && (
@@ -441,7 +441,7 @@ export default function Invoices() {
         </BatchActionToolbar>
       )}
 
-      <div className="glass-table-wrapper">
+      <div className="table-panel">
         <Table stickyFirstColumn>
           <TableHeader>
             <TableRow>
@@ -619,9 +619,9 @@ export default function Invoices() {
                   {isColVisible("status") && (
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className={STATUS_COLORS[inv.status]}>
+                        <StatusBadge status={inv.status}>
                           {t(`invoices.status_${inv.status}`)}
-                        </Badge>
+                        </StatusBadge>
                         {isOverdue && daysOverdue > 0 && (
                           <span className="text-[11px] text-red-600 dark:text-red-400 tabular-nums">
                             {t("invoices.days_overdue", { count: String(daysOverdue) })}

@@ -815,7 +815,7 @@ export default function InvoiceForm({ onSave }: Props) {
             ]}
           />
           <div className="flex items-center gap-4 mt-2">
-            <h1 className="text-2xl font-semibold tracking-tight">
+            <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em]">
               {isEdit ? t("invoices.edit_invoice") : t("invoices.new_invoice")}
             </h1>
             {isEdit && <SaveStatusIndicator status={saveStatus} lastSavedAt={lastSavedAt} />}

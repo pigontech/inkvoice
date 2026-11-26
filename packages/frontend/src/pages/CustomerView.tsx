@@ -7,7 +7,7 @@ import { CustomerStatementDialog } from "@/components/customers/CustomerStatemen
 import { PaymentMethodList, type PaymentMethodListItem } from "@/components/PaymentMethodList";
 import { Breadcrumbs } from "@/components/shared/Breadcrumbs";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/table";
 import { useCan } from "@/hooks/use-can";
 import { useTranslation } from "@/i18n";
-import { STATUS_COLORS } from "@/lib/constants";
 import { formatApiError } from "@/lib/format-api-error";
 import { sumOutstanding } from "@/lib/outstanding";
 import { pushRecentlyViewed } from "@/lib/recently-viewed";
@@ -109,7 +108,9 @@ export default function CustomerView() {
               { label: customer.name },
             ]}
           />
-          <h1 className="text-2xl font-semibold tracking-tight mt-2">{customer.name}</h1>
+          <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em] mt-2">
+            {customer.name}
+          </h1>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => navigate("/customers")}>
@@ -187,9 +188,7 @@ export default function CustomerView() {
               <CardContent className="pt-4 pb-3">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
                   <DollarSign className="h-3.5 w-3.5" />
-                  <span className="text-xs font-medium uppercase tracking-wide">
-                    {t("customers.total_revenue")}
-                  </span>
+                  <span className="text-xs font-medium">{t("customers.total_revenue")}</span>
                 </div>
                 <p className="text-lg font-semibold tabular-nums">
                   {formatCurrency(customer.total_revenue || 0)}
@@ -200,9 +199,7 @@ export default function CustomerView() {
               <CardContent className="pt-4 pb-3">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
                   <DollarSign className="h-3.5 w-3.5" />
-                  <span className="text-xs font-medium uppercase tracking-wide">
-                    {t("dashboard.outstanding")}
-                  </span>
+                  <span className="text-xs font-medium">{t("dashboard.outstanding")}</span>
                 </div>
                 <p className="text-lg font-semibold tabular-nums">{formatCurrency(outstanding)}</p>
               </CardContent>
@@ -211,9 +208,7 @@ export default function CustomerView() {
               <CardContent className="pt-4 pb-3">
                 <div className="flex items-center gap-2 text-muted-foreground mb-1">
                   <FileText className="h-3.5 w-3.5" />
-                  <span className="text-xs font-medium uppercase tracking-wide">
-                    {t("nav.invoices")}
-                  </span>
+                  <span className="text-xs font-medium">{t("nav.invoices")}</span>
                 </div>
                 <p className="text-lg font-semibold tabular-nums">{customer.invoice_count || 0}</p>
               </CardContent>
@@ -254,9 +249,9 @@ export default function CustomerView() {
                           {formatCurrency(inv.total, inv.currency)}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="secondary" className={STATUS_COLORS[inv.status]}>
+                          <StatusBadge status={inv.status}>
                             {t(`invoices.status_${inv.status}`)}
-                          </Badge>
+                          </StatusBadge>
                         </TableCell>
                       </TableRow>
                     ))}

@@ -252,7 +252,9 @@ export default function Reports() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">{t("reports.title")}</h1>
+        <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em]">
+          {t("reports.title")}
+        </h1>
         {tab !== "accounting-export" && (
           <Button variant="outline" onClick={exportCsv}>
             <Download className="h-4 w-4 mr-2" /> {t("common.export_csv")}

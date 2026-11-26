@@ -32,10 +32,7 @@ export function FormField({ label, error, required, children, className, hint }:
     <div className={cn("space-y-1.5", className)}>
       <Label
         htmlFor={inputId}
-        className={cn(
-          "text-xs font-medium tracking-wide uppercase text-muted-foreground",
-          error && "text-destructive",
-        )}
+        className={cn("text-xs font-semibold text-foreground", error && "text-destructive")}
       >
         {label}
         {required && <span className="text-destructive ml-0.5">*</span>}

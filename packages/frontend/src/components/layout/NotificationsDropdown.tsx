@@ -109,14 +109,14 @@ export function NotificationsDropdown() {
       }}
     >
       <DropdownMenuTrigger
-        className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-border/80 bg-background/40 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors relative"
+        className="inline-flex items-center justify-center gap-1.5 h-8 min-w-8 px-[7px] rounded-md border border-border-strong bg-card text-secondary-foreground hover:text-foreground hover:bg-muted transition-colors"
         aria-label={t("notifications.aria_label")}
       >
-        <Bell className="h-3.5 w-3.5" />
+        <Bell className="h-4 w-4" />
         {unreadCount > 0 && (
           <span
             role="status"
-            className="absolute -top-1 -right-1 inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-full bg-rose-500 text-white text-[10px] font-medium"
+            className="inline-flex items-center justify-center h-4 min-w-4 px-1 rounded-[3px] bg-brand text-brand-foreground text-[11px] leading-4 font-semibold"
             aria-label={t("notifications.unread_count", { count: String(unreadCount) })}
           >
             {unreadCount > 9 ? "9+" : unreadCount}
@@ -125,7 +125,7 @@ export function NotificationsDropdown() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80">
         <div className="px-2 py-1 flex items-center justify-between">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <span className="text-xs font-medium text-muted-foreground">
             {t("notifications.title")}
           </span>
           {items.length > 0 && (
@@ -156,7 +156,7 @@ export function NotificationsDropdown() {
               >
                 <span
                   className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${
-                    isUnread ? "bg-rose-500" : "bg-transparent"
+                    isUnread ? "bg-brand" : "bg-transparent"
                   }`}
                 />
                 <div className="flex-1 min-w-0">

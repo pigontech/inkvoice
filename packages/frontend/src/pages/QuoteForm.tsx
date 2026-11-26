@@ -415,7 +415,7 @@ export default function QuoteForm() {
             ]}
           />
           <div className="flex items-center gap-4 mt-2">
-            <h1 className="text-2xl font-semibold tracking-tight">
+            <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em]">
               {isEdit ? t("quotes.edit_quote") : t("quotes.new_quote")}
             </h1>
             {isEdit && <SaveStatusIndicator status={saveStatus} lastSavedAt={lastSavedAt} />}

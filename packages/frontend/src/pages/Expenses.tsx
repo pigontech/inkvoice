@@ -166,7 +166,9 @@ export default function Expenses() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">{t("expenses.title")}</h1>
+        <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em]">
+          {t("expenses.title")}
+        </h1>
         <div className="flex items-center gap-2">
           {canCreate && (
             <Button variant="outline" onClick={() => setImportOpen(true)}>
@@ -234,7 +236,7 @@ export default function Expenses() {
         </Button>
       </BatchActionToolbar>
 
-      <div className="glass-table-wrapper">
+      <div className="table-panel">
         <Table stickyFirstColumn>
           <TableHeader>
             <TableRow>

@@ -48,7 +48,7 @@ export function FeedbackButton() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label={t("feedback.button")}
-        className="fixed bottom-4 right-4 z-40 h-10 gap-2 rounded-md shadow-[0_10px_30px_-10px_var(--primary)] hover:shadow-[0_14px_36px_-8px_var(--primary)] hover:-translate-y-0.5 transition-all"
+        className="fixed bottom-4 right-4 z-40 h-10 gap-2 rounded-md shadow-md"
       >
         <MessageSquare className="h-4 w-4" />
         {t("feedback.button")}

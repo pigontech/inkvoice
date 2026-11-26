@@ -193,6 +193,8 @@ const de: TranslationKeys = {
     compare_yoy: "ggü. Vorjahr",
     previous_year: "Vorjahr",
     this_year: "Dieses Jahr",
+    after_expenses: "Nach {{amount}} Ausgaben",
+    share_of_revenue: "Umsatzanteil",
   },
 
   // Rechnungen

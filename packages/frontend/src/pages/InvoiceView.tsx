@@ -30,6 +30,7 @@ import { TransmissionPanel } from "@/components/invoices/TransmissionPanel";
 import { Breadcrumbs } from "@/components/shared/Breadcrumbs";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { paymentTermsLabel } from "@/components/shared/PaymentTermsPicker";
+import { StatusBadge } from "@/components/shared/StatusBadge";
 import { TagInput } from "@/components/shared/TagInput";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,7 +54,7 @@ import {
 } from "@/components/ui/table";
 import { useCan } from "@/hooks/use-can";
 import { useTranslation } from "@/i18n";
-import { isInvoiceFormEditable, STATUS_COLORS } from "@/lib/constants";
+import { isInvoiceFormEditable } from "@/lib/constants";
 import { formatApiError } from "@/lib/format-api-error";
 import { pushRecentlyViewed } from "@/lib/recently-viewed";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -302,16 +303,16 @@ export default function InvoiceView({ onBack }: Props) {
       {/* Header */}
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-3 min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight truncate">
+          <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em] truncate">
             {invoice.invoice_number.startsWith("DRAFT-") ? (
               <span className="text-muted-foreground">{invoice.invoice_number}</span>
             ) : (
               invoice.invoice_number
             )}
           </h1>
-          <Badge variant="secondary" className={STATUS_COLORS[invoice.status]}>
+          <StatusBadge status={invoice.status}>
             {t(`invoices.status_${invoice.status}`)}
-          </Badge>
+          </StatusBadge>
           {invoice.first_viewed_at && (
             <Badge
               variant="secondary"
@@ -491,7 +492,7 @@ export default function InvoiceView({ onBack }: Props) {
       {/* Tags (editable on any status, read-only without update rights) */}
       {(can("invoices", "update") || tags.length > 0) && (
         <div className="flex items-start gap-2 rounded-lg border bg-muted/30 px-3 py-2">
-          <span className="mt-2 shrink-0 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          <span className="mt-2 shrink-0 text-xs font-medium text-muted-foreground">
             {t("tags.title")}
           </span>
           {can("invoices", "update") ? (
@@ -519,7 +520,7 @@ export default function InvoiceView({ onBack }: Props) {
       {!!invoice.is_published && invoice.share_token && (
         <div className="flex items-center gap-3 rounded-lg border border-emerald-200/60 dark:border-emerald-900/30 bg-emerald-50/40 dark:bg-emerald-950/20 px-3 py-2 text-sm">
           <Globe className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
-          <span className="text-emerald-800 dark:text-emerald-300 text-[11px] font-semibold uppercase tracking-wider shrink-0">
+          <span className="text-emerald-800 dark:text-emerald-300 text-[11px] font-semibold shrink-0">
             {t("invoices.share_link")}
           </span>
           <code className="flex-1 truncate text-xs font-mono text-muted-foreground select-all">
@@ -779,9 +780,9 @@ export default function InvoiceView({ onBack }: Props) {
                   <div className="flex items-center gap-3">
                     <FileText className="h-4 w-4 text-muted-foreground" />
                     <span className="font-medium text-sm">{cn.invoice_number}</span>
-                    <Badge variant="secondary" className={STATUS_COLORS[cn.status]}>
+                    <StatusBadge status={cn.status}>
                       {t(`invoices.status_${cn.status}`)}
-                    </Badge>
+                    </StatusBadge>
                   </div>
                   <span className="text-sm font-medium tabular-nums text-red-600">
                     {formatCurrency(cn.total, cn.currency)}

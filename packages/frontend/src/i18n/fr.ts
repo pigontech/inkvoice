@@ -186,6 +186,8 @@ const fr: TranslationKeys = {
     compare_yoy: "vs année dernière",
     previous_year: "Année précédente",
     this_year: "Cette année",
+    after_expenses: "Après {{amount}} de dépenses",
+    share_of_revenue: "Part du chiffre d'affaires",
   },
 
   // Factures

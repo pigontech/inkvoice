@@ -17,7 +17,7 @@ export function safeLocale(locale: string | null | undefined, fallback = "en-US"
   }
 }
 
-function getCurrentLocale(): string {
+export function getCurrentLocale(): string {
   try {
     const lang = localStorage.getItem("inkvoice-lang") || "en";
     const localeMap: Record<string, string> = { en: "en-US", tr: "tr-TR" };

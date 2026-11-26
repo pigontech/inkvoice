@@ -42,8 +42,8 @@ function DropdownMenuContent({
           // No enter/exit animation: a stalled animation clock (throttled or
           // reduced-motion environments) freezes the popup mid zoom/fade,
           // letting page content (e.g. the share-bar button) paint through
-          // half-rendered menus. backdrop-blur matches the glass surfaces.
-          className={cn("z-50 max-h-(--available-height) w-(--anchor-width) min-w-32 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover backdrop-blur-md p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-none", className )}
+          // half-rendered menus.
+          className={cn("z-50 max-h-(--available-height) w-(--anchor-width) min-w-32 origin-(--transform-origin) overflow-x-hidden overflow-y-auto rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 outline-none", className )}
           {...props}
         />
       </MenuPrimitive.Positioner>

@@ -156,12 +156,12 @@ export function OutgoingWebhooksCard() {
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium truncate">{w.name}</span>
                           {w.preset === "slack" && (
-                            <span className="text-[10px] uppercase tracking-wider rounded bg-purple-500/10 text-purple-600 dark:text-purple-300 px-1.5 py-0.5">
+                            <span className="text-[11px] rounded bg-purple-500/10 text-purple-600 dark:text-purple-300 px-1.5 py-0.5">
                               Slack
                             </span>
                           )}
                           {!w.is_active && (
-                            <span className="text-[10px] uppercase tracking-wider text-muted-foreground border border-border rounded px-1 py-0.5">
+                            <span className="text-[11px] text-muted-foreground border border-border rounded px-1 py-0.5">
                               {t("common.inactive")}
                             </span>
                           )}
@@ -267,7 +267,7 @@ function DeliveryList({ webhookId }: { webhookId: string }) {
 
   return (
     <div className="border-t border-border bg-muted/30 p-3 max-h-72 overflow-auto">
-      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+      <div className="text-xs font-medium text-muted-foreground mb-2">
         {t("webhooks.recent_deliveries")}
       </div>
       {loading ? (

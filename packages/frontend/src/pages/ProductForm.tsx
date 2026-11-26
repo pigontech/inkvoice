@@ -136,7 +136,7 @@ export default function ProductForm({ onSave }: Props) {
               },
             ]}
           />
-          <h1 className="text-2xl font-semibold tracking-tight mt-2">
+          <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em] mt-2">
             {readOnly ? form.name : isEdit ? t("products.edit_product") : t("products.new_product")}
           </h1>
         </div>

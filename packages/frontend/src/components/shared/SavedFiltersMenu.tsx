@@ -170,7 +170,7 @@ export function SavedFiltersMenu({ storageKey, current, onApply }: Props) {
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger className="inline-flex items-center gap-1.5 h-8 px-3 rounded-md border border-input bg-background hover:bg-accent text-sm font-medium transition-colors">
+        <DropdownMenuTrigger className="inline-flex shrink-0 items-center gap-1.5 h-8 px-3 rounded-md border border-border-strong bg-card hover:bg-muted text-sm font-medium whitespace-nowrap transition-colors">
           <Bookmark className="h-3.5 w-3.5" />
           {t("saved_filters.button")}
         </DropdownMenuTrigger>

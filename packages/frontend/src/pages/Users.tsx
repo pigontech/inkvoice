@@ -104,7 +104,9 @@ export default function Users() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">{t("users.title")}</h1>
+        <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em]">
+          {t("users.title")}
+        </h1>
         <Button onClick={() => setCreating(true)}>
           <Plus className="h-4 w-4 mr-2" /> {t("users.add_user")}
         </Button>
@@ -134,7 +136,7 @@ export default function Users() {
         </Button>
       </BatchActionToolbar>
 
-      <div className="glass-table-wrapper">
+      <div className="table-panel">
         <Table>
           <TableHeader>
             <TableRow>

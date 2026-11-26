@@ -358,7 +358,9 @@ export default function Settings() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold tracking-tight">{t("settings.title")}</h1>
+      <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em]">
+        {t("settings.title")}
+      </h1>
 
       <Tabs value={tab} onValueChange={(v) => navigate(`/settings/${v}`)}>
         <TabsList>

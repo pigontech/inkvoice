@@ -180,6 +180,8 @@ const en = {
     compare_yoy: "vs Last Year",
     previous_year: "Previous Year",
     this_year: "This Year",
+    after_expenses: "After {{amount}} in expenses",
+    share_of_revenue: "Share of revenue",
   },
 
   // Invoices

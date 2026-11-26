@@ -182,6 +182,8 @@ const tr: TranslationKeys = {
     compare_yoy: "geçen yıla göre",
     previous_year: "Önceki Yıl",
     this_year: "Bu Yıl",
+    after_expenses: "{{amount}} gider sonrası",
+    share_of_revenue: "Gelir payı",
   },
 
   // Faturalar

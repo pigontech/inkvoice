@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { api } from "@/api/client";
 import { Breadcrumbs } from "@/components/shared/Breadcrumbs";
 import { FormField } from "@/components/shared/FormField";
+import { StatusBadge } from "@/components/shared/StatusBadge";
 import { TagInput } from "@/components/shared/TagInput";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { isEmail, maxLength, required, useFormValidation } from "@/hooks/use-form-validation";
 import { useTranslation } from "@/i18n";
-import { STATUS_COLORS } from "@/lib/constants";
 import { COUNTRIES } from "@/lib/countries";
 import { formatApiError } from "@/lib/format-api-error";
 import { markRowHighlight } from "@/lib/highlight-row";
@@ -227,7 +227,7 @@ export default function CustomerForm({ onSave }: Props) {
               },
             ]}
           />
-          <h1 className="text-2xl font-semibold tracking-tight mt-2">
+          <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em] mt-2">
             {isEdit ? t("customers.edit_customer") : t("customers.new_customer")}
           </h1>
         </div>
@@ -674,9 +674,7 @@ export default function CustomerForm({ onSave }: Props) {
                 <CardContent className="pt-4 pb-3">
                   <div className="flex items-center gap-2 text-muted-foreground mb-1">
                     <DollarSign className="h-3.5 w-3.5" />
-                    <span className="text-xs font-medium uppercase tracking-wide">
-                      {t("dashboard.revenue")}
-                    </span>
+                    <span className="text-xs font-medium">{t("dashboard.revenue")}</span>
                   </div>
                   <p className="text-lg font-semibold tabular-nums">
                     {formatCurrency(stats.total_revenue)}
@@ -687,9 +685,7 @@ export default function CustomerForm({ onSave }: Props) {
                 <CardContent className="pt-4 pb-3">
                   <div className="flex items-center gap-2 text-muted-foreground mb-1">
                     <Clock className="h-3.5 w-3.5" />
-                    <span className="text-xs font-medium uppercase tracking-wide">
-                      {t("dashboard.outstanding")}
-                    </span>
+                    <span className="text-xs font-medium">{t("dashboard.outstanding")}</span>
                   </div>
                   <p className="text-lg font-semibold tabular-nums">
                     {formatCurrency(outstanding)}
@@ -700,9 +696,7 @@ export default function CustomerForm({ onSave }: Props) {
                 <CardContent className="pt-4 pb-3">
                   <div className="flex items-center gap-2 text-muted-foreground mb-1">
                     <FileText className="h-3.5 w-3.5" />
-                    <span className="text-xs font-medium uppercase tracking-wide">
-                      {t("nav.invoices")}
-                    </span>
+                    <span className="text-xs font-medium">{t("nav.invoices")}</span>
                   </div>
                   <p className="text-lg font-semibold tabular-nums">{stats.invoice_count}</p>
                 </CardContent>
@@ -744,9 +738,9 @@ export default function CustomerForm({ onSave }: Props) {
                             {formatCurrency(inv.total, inv.currency)}
                           </TableCell>
                           <TableCell>
-                            <Badge variant="secondary" className={STATUS_COLORS[inv.status]}>
+                            <StatusBadge status={inv.status}>
                               {t(`invoices.status_${inv.status}`)}
-                            </Badge>
+                            </StatusBadge>
                           </TableCell>
                         </TableRow>
                       ))}

@@ -4,7 +4,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { api } from "@/api/client";
 import { DateRangeFilter } from "@/components/shared/DateRangeFilter";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
@@ -14,15 +14,6 @@ import { useNewEntityShortcut } from "@/hooks/use-new-entity-shortcut";
 import { useTranslation } from "@/i18n";
 import { consumeRowHighlight } from "@/lib/highlight-row";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
-
-const QUOTE_STATUS_COLORS: Record<string, string> = {
-  draft: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
-  sent: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  accepted: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  rejected: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  expired: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  converted: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-};
 
 const QUOTE_TAB_SEGMENTS = new Set(["all", "draft", "sent", "accepted", "rejected", "converted"]);
 
@@ -83,7 +74,9 @@ export default function Quotes() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">{t("quotes.title")}</h1>
+        <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em]">
+          {t("quotes.title")}
+        </h1>
         {canCreate && (
           <Button onClick={() => navigate("/quotes/new")} title={`${t("quotes.new_quote")} (N)`}>
             <Plus className="h-4 w-4 mr-2" /> {t("quotes.new_quote")}
@@ -126,7 +119,7 @@ export default function Quotes() {
         </div>
       </div>
 
-      <div className="glass-table-wrapper">
+      <div className="table-panel">
         <Table stickyFirstColumn>
           <TableHeader>
             <TableRow>
@@ -183,9 +176,9 @@ export default function Quotes() {
                   {formatCurrency(q.total, q.currency)}
                 </TableCell>
                 <TableCell>
-                  <Badge variant="secondary" className={QUOTE_STATUS_COLORS[q.status]}>
-                    {q.status}
-                  </Badge>
+                  <StatusBadge status={q.status}>
+                    {t(`quotes.status_${q.status}` as any)}
+                  </StatusBadge>
                 </TableCell>
               </TableRow>
             ))}

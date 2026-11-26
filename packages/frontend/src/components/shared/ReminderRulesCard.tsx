@@ -117,7 +117,7 @@ export function ReminderRulesCard() {
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium truncate">{rule.name}</span>
                       {!rule.is_active && (
-                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground border border-border rounded px-1 py-0.5">
+                        <span className="text-[11px] text-muted-foreground border border-border rounded px-1 py-0.5">
                           {t("common.inactive")}
                         </span>
                       )}

@@ -195,7 +195,7 @@ export default function ExpenseForm({ onSave }: Props) {
               },
             ]}
           />
-          <h1 className="text-2xl font-semibold tracking-tight mt-2">
+          <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em] mt-2">
             {readOnly
               ? form.vendor || t("expenses.expense_info")
               : isEdit

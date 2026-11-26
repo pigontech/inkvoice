@@ -85,7 +85,9 @@ export default function ActivityLog() {
   if (loadError && !loading) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl font-bold tracking-tight">{t("activity.title")}</h1>
+        <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em]">
+          {t("activity.title")}
+        </h1>
         <div className="flex flex-col items-center justify-center gap-4 min-h-[40vh] px-4">
           <p className="text-muted-foreground text-center max-w-md">{loadError}</p>
           <Button type="button" onClick={() => fetchActivity()}>
@@ -99,7 +101,9 @@ export default function ActivityLog() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">{t("activity.title")}</h1>
+        <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em]">
+          {t("activity.title")}
+        </h1>
       </div>
 
       <div className="flex gap-2">

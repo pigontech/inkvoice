@@ -131,7 +131,7 @@ export default function RecurringInvoiceForm() {
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em]">
             {isEdit ? t("recurring.edit_schedule") : t("recurring.new_schedule")}
           </h1>
         </div>

@@ -20,7 +20,7 @@ import { api } from "@/api/client";
 import { SendInvoiceDialog } from "@/components/invoices/SendInvoiceDialog";
 import { Breadcrumbs } from "@/components/shared/Breadcrumbs";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/shared/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -47,15 +47,6 @@ import { useTranslation } from "@/i18n";
 import { formatApiError } from "@/lib/format-api-error";
 import { pushRecentlyViewed } from "@/lib/recently-viewed";
 import { formatCurrency, formatDate } from "@/lib/utils";
-
-const STATUS_COLORS: Record<string, string> = {
-  draft: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300",
-  sent: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  accepted: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
-  rejected: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
-  expired: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-  converted: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-};
 
 interface InstalmentRow {
   unit: "percent" | "amount";
@@ -310,10 +301,12 @@ export default function QuoteView() {
 
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-3 min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight truncate">{quote.quote_number}</h1>
-          <Badge variant="secondary" className={STATUS_COLORS[quote.status]}>
+          <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em] truncate">
+            {quote.quote_number}
+          </h1>
+          <StatusBadge status={quote.status}>
             {t(`quotes.status_${quote.status}` as any)}
-          </Badge>
+          </StatusBadge>
           <span className="text-sm text-muted-foreground truncate">{quote.customer?.name}</span>
         </div>
 
@@ -431,7 +424,7 @@ export default function QuoteView() {
       {!!quote.is_published && quote.share_token && (
         <div className="flex items-center gap-3 rounded-lg border border-emerald-200/60 dark:border-emerald-900/30 bg-emerald-50/40 dark:bg-emerald-950/20 px-3 py-2 text-sm">
           <Globe className="h-3.5 w-3.5 text-emerald-700 dark:text-emerald-400 shrink-0" />
-          <span className="text-emerald-800 dark:text-emerald-300 text-[11px] font-semibold uppercase tracking-wider shrink-0">
+          <span className="text-emerald-800 dark:text-emerald-300 text-[11px] font-semibold shrink-0">
             {t("invoices.share_link")}
           </span>
           <code className="flex-1 truncate text-xs font-mono text-muted-foreground select-all">
@@ -475,9 +468,9 @@ export default function QuoteView() {
                     <span className="tabular-nums">
                       {formatCurrency(inst.total, quote.currency)}
                     </span>
-                    <Badge variant="secondary" className={STATUS_COLORS[inst.status]}>
+                    <StatusBadge status={inst.status}>
                       {t(`invoices.status_${inst.status}` as any)}
-                    </Badge>
+                    </StatusBadge>
                   </div>
                 </div>
               ))}

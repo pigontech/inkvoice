@@ -209,7 +209,9 @@ export default function Templates() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">{t("templates.title")}</h1>
+        <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em]">
+          {t("templates.title")}
+        </h1>
         <Button onClick={() => navigate("/settings/templates/new")}>
           <Plus className="h-4 w-4 mr-2" /> {t("templates.new_template")}
         </Button>
@@ -648,7 +650,7 @@ function TemplateEditor({
           <Button variant="ghost" size="icon" aria-label={t("common.back")} onClick={onCancel}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em]">
             {template ? t("templates.edit_template") : t("templates.new_template")}
           </h1>
         </div>
@@ -723,7 +725,7 @@ function TemplateEditor({
         {/* Editor side */}
         <div className="flex flex-col min-h-0">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <span className="text-xs font-medium text-muted-foreground">
               {t("templates.html_mustache")}
             </span>
 
@@ -863,7 +865,7 @@ function TemplateEditor({
         <div className="flex flex-col min-h-0">
           <div className="flex items-center gap-2 h-8 mb-2">
             <Eye className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <span className="text-xs font-medium text-muted-foreground">
               {t("templates.live_preview")}
             </span>
             {previewLoading && (

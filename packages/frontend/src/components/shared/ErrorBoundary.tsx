@@ -30,7 +30,9 @@ export class ErrorBoundary extends Component<Props, State> {
         <I18nContext.Consumer>
           {({ t }) => (
             <div className="flex flex-col items-center justify-center min-h-screen gap-4 p-8">
-              <h1 className="text-2xl font-bold">{t("common.error_boundary_title")}</h1>
+              <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em]">
+                {t("common.error_boundary_title")}
+              </h1>
               <p className="text-muted-foreground text-center max-w-md">
                 {t("common.error_boundary_body")}
               </p>

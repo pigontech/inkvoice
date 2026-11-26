@@ -20,24 +20,20 @@ export function MainLayout() {
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background prism-grid-bg">
+    <div className="flex h-screen overflow-hidden bg-background">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-4 focus:bg-background focus:text-foreground"
       >
         {t("a11y.skip_to_content")}
       </a>
-      {/* Desktop sidebar — floating glass panel */}
-      {!isMobile && (
-        <div className="p-4 pr-0 flex">
-          <Sidebar collapsed={sidebarCollapsed} />
-        </div>
-      )}
+      {/* Desktop sidebar */}
+      {!isMobile && <Sidebar collapsed={sidebarCollapsed} />}
 
       {/* Mobile sidebar */}
       {isMobile && (
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <SheetContent side="left" className="p-0 w-60">
+          <SheetContent side="left" className="p-0 w-[216px]">
             <Sidebar />
           </SheetContent>
         </Sheet>
@@ -54,7 +50,10 @@ export function MainLayout() {
             }
           }}
         />
-        <main id="main-content" className="flex-1 overflow-auto px-4 pb-4">
+        <main
+          id="main-content"
+          className="flex-1 overflow-auto px-4 pt-4 pb-6 md:px-6 md:pt-5 md:pb-7"
+        >
           <Outlet />
         </main>
       </div>

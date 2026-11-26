@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  ChevronsUpDown,
   ClipboardList,
   FileCheck2,
   FileText,
@@ -122,118 +123,85 @@ export function Sidebar({ collapsed }: { collapsed?: boolean }) {
       }, {}),
   );
 
+  const linkClass = ({ isActive }: { isActive: boolean }) =>
+    cn(
+      "flex h-[30px] items-center gap-2 rounded-md text-[13px] transition-colors",
+      collapsed ? "justify-center px-0" : "px-2",
+      isActive
+        ? "bg-brand font-semibold text-brand-foreground"
+        : "font-medium text-secondary-foreground hover:bg-accent hover:text-foreground",
+    );
+  const sections: SidebarSection[] = [
+    ...navSections,
+    ...extensionSections,
+    ...(user?.is_admin ? [{ label: t("nav.admin"), items: adminItems }] : []),
+  ];
+
   return (
     <aside
       className={cn(
-        "flex flex-col rounded-lg border border-black/[0.10] dark:border-white/[0.08] bg-white/70 dark:bg-[oklch(0.10_0.025_265/0.65)] backdrop-blur-xl backdrop-saturate-[1.3] shadow-[0_6px_18px_-8px_rgb(0_0_0/0.10),inset_0_0_0_1px_rgb(0_0_0/0.04)] dark:shadow-[0_6px_18px_-8px_rgb(0_0_0/0.7),inset_0_0_0_1px_rgb(255_255_255/0.04)] h-full overflow-hidden transition-all duration-200",
-        collapsed ? "w-16" : "w-56",
+        "flex h-full shrink-0 flex-col overflow-hidden border-r border-sidebar-border bg-sidebar transition-all duration-200",
+        collapsed ? "w-14" : "w-[216px]",
       )}
     >
-      <div className="flex items-center px-4 h-14 border-b border-black/[0.10] dark:border-white/[0.08]">
+      <div
+        className={cn(
+          "flex h-[52px] shrink-0 items-center border-b border-sidebar-border",
+          collapsed ? "justify-center" : "px-2",
+        )}
+      >
         {collapsed ? <InkvoiceIcon className="w-8 h-8" /> : <InkvoiceLogo className="h-9" />}
       </div>
-      <nav className="flex-1 py-4 px-2 space-y-5 overflow-y-auto">
-        {[...navSections, ...extensionSections].map((section) => (
-          <div key={section.label}>
+      <nav className="flex flex-1 flex-col gap-3.5 overflow-y-auto px-2 pt-3 pb-4">
+        {sections.map((section) => (
+          <div key={section.label} className="flex flex-col gap-px">
             {!collapsed && (
-              <p className="px-3 mb-2 font-mono text-[9.5px] font-medium uppercase tracking-[0.16em] text-muted-foreground/70">
+              <p className="px-2 pb-1 text-[11px] leading-4 font-medium text-muted-foreground">
                 {section.label}
               </p>
             )}
-            <div className="space-y-0.5">
-              {section.items.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.to === "/"}
-                  className={({ isActive }) =>
-                    cn(
-                      "flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors relative",
-                      isActive
-                        ? "bg-primary/12 text-primary font-medium"
-                        : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                    )
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      {isActive && (
-                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-5 bg-primary" />
-                      )}
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span>{item.label}</span>}
-                    </>
-                  )}
-                </NavLink>
-              ))}
-            </div>
+            {section.items.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === "/"}
+                title={collapsed ? item.label : undefined}
+                className={linkClass}
+              >
+                <item.icon className="h-4 w-4 shrink-0" />
+                {!collapsed && <span className="truncate">{item.label}</span>}
+              </NavLink>
+            ))}
           </div>
         ))}
-        {user?.is_admin && (
-          <div>
-            {!collapsed && (
-              <p className="px-3 mb-2 font-mono text-[9.5px] font-medium uppercase tracking-[0.16em] text-muted-foreground/70">
-                {t("nav.admin")}
-              </p>
-            )}
-            <div className="space-y-0.5">
-              {adminItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  className={({ isActive }) =>
-                    cn(
-                      "flex items-center gap-2.5 px-3 py-1.5 rounded-md text-[13px] transition-colors relative",
-                      isActive
-                        ? "bg-primary/12 text-primary font-medium"
-                        : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                    )
-                  }
-                >
-                  {({ isActive }) => (
-                    <>
-                      {isActive && (
-                        <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[2px] h-5 bg-primary" />
-                      )}
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      {!collapsed && <span>{item.label}</span>}
-                    </>
-                  )}
-                </NavLink>
-              ))}
-            </div>
-          </div>
-        )}
       </nav>
 
-      {/* Footer — user + theme toggle */}
-      <div
-        className={cn(
-          "border-t border-black/[0.10] dark:border-white/[0.08] flex items-center gap-2",
-          collapsed ? "p-2 flex-col" : "p-3",
-        )}
-      >
+      {/* Footer: account, color scheme, version */}
+      <div className="flex shrink-0 flex-col gap-2 border-t border-sidebar-border p-2">
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={user?.display_name || user?.username || ""}
             className={cn(
-              "flex items-center gap-2.5 rounded-md hover:bg-accent transition-colors cursor-pointer outline-none",
-              collapsed ? "p-1" : "flex-1 min-w-0 p-1 -m-1",
+              "flex cursor-pointer items-center gap-2 rounded-md p-1 text-left outline-none transition-colors hover:bg-accent",
+              collapsed && "justify-center",
             )}
           >
-            <div className="flex items-center justify-center h-7 w-7 rounded-full bg-gradient-to-br from-primary to-violet-500 text-white font-mono text-[11px] font-semibold shrink-0">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-foreground text-xs font-semibold text-background">
               {initial}
             </div>
             {!collapsed && (
-              <div className="flex-1 min-w-0 text-left leading-tight">
-                <div className="text-[12px] font-medium truncate">
-                  {user?.display_name || user?.username}
+              <>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-[13px] leading-4 font-semibold">
+                    {user?.display_name || user?.username}
+                  </div>
+                  <div className="truncate text-[11px] leading-[14px] text-muted-foreground">
+                    {/* Match the Users table: show the RBAC role when present. */}
+                    {user?.role || (user?.is_admin ? "Admin" : "User")}
+                  </div>
                 </div>
-                <div className="font-mono text-[9.5px] text-muted-foreground/80 tracking-[0.06em] truncate">
-                  {/* Match the Users table: show the RBAC role when present. */}
-                  {(user?.role || (user?.is_admin ? "Admin" : "User")).toUpperCase()}
-                </div>
-              </div>
+                <ChevronsUpDown className="mr-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              </>
             )}
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" side="top">
@@ -243,20 +211,47 @@ export function Sidebar({ collapsed }: { collapsed?: boolean }) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <button
-          type="button"
-          onClick={() => setTheme(nextTheme(theme))}
-          aria-label={t("header.color_scheme", { theme: themeMeta[theme].label })}
-          className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-border/70 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
-        >
-          <ThemeIcon className="h-3.5 w-3.5" />
-        </button>
+        {collapsed && (
+          <button
+            type="button"
+            onClick={() => setTheme(nextTheme(theme))}
+            aria-label={t("header.color_scheme", { theme: themeMeta[theme].label })}
+            className="mx-auto inline-flex h-7 w-7 items-center justify-center rounded-md border border-border-strong text-secondary-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <ThemeIcon className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {!collapsed && (
+          <div className="flex items-center justify-between gap-2 px-1 pb-0.5">
+            <div className="inline-flex overflow-hidden rounded-md border border-border-strong">
+              {themeCycle.map((value, i) => {
+                const Icon = themeMeta[value].icon;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setTheme(value)}
+                    aria-label={themeMeta[value].label}
+                    aria-pressed={theme === value}
+                    className={cn(
+                      "inline-flex h-[22px] w-7 items-center justify-center transition-colors",
+                      i > 0 && "border-l border-border-strong",
+                      theme === value
+                        ? "bg-foreground text-background"
+                        : "text-secondary-foreground hover:bg-accent hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="h-[13px] w-[13px]" />
+                  </button>
+                );
+              })}
+            </div>
+            <span className="text-[11px] leading-[14px] whitespace-nowrap text-muted-foreground">
+              v{APP_VERSION}
+            </span>
+          </div>
+        )}
       </div>
-      {!collapsed && (
-        <div className="px-3.5 pb-2.5 -mt-1 font-mono text-[9.5px] text-muted-foreground/45 tracking-[0.06em]">
-          v{APP_VERSION}
-        </div>
-      )}
     </aside>
   );
 }

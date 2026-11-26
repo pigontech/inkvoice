@@ -100,7 +100,9 @@ export default function OnboardingWizard() {
       <div className="w-full max-w-xl space-y-4">
         <div className="flex items-baseline justify-between">
           <div>
-            <h1 className="text-2xl font-semibold">{t("settings.onboarding_title")}</h1>
+            <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em]">
+              {t("settings.onboarding_title")}
+            </h1>
             <p className="text-sm text-muted-foreground mt-1">
               {t("settings.onboarding_subtitle")}
             </p>

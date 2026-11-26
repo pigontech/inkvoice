@@ -204,7 +204,9 @@ export default function ClientPortal() {
       <main className="max-w-4xl mx-auto py-8 px-4">
         {customer && (
           <div className="mb-6">
-            <h1 className="text-2xl font-bold">{customer.name}</h1>
+            <h1 className="text-[22px] leading-[30px] font-semibold tracking-[-0.01em]">
+              {customer.name}
+            </h1>
             {customer.email && <p className="text-muted-foreground">{customer.email}</p>}
           </div>
         )}
